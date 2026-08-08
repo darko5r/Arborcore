@@ -63,13 +63,15 @@ START_OBJ := $(BUILD_DIR)/start.o
 WRITE_OBJ := $(BUILD_DIR)/write.o
 MEMORY_THRESHOLD_OBJ := $(BUILD_DIR)/memory_threshold.o
 MEMORY_OBJ := $(BUILD_DIR)/memory.o
+BYTES_OBJ := $(BUILD_DIR)/bytes.o
 
 
 ARBORCORE_OBJECTS := \
 	$(START_OBJ) \
 	$(WRITE_OBJ) \
 	$(MEMORY_THRESHOLD_OBJ) \
-	$(MEMORY_OBJ)
+	$(MEMORY_OBJ) \
+	$(BYTES_OBJ)
 
 
 # ============================================================
@@ -79,12 +81,14 @@ ARBORCORE_OBJECTS := \
 WRITE_TEST_OBJ := $(BUILD_DIR)/write_test.o
 MEMORY_THRESHOLD_TEST_OBJ := $(BUILD_DIR)/memory_threshold_test.o
 MEMORY_TEST_OBJ := $(BUILD_DIR)/memory_test.o
+BYTES_TEST_OBJ := $(BUILD_DIR)/bytes_test.o
 
 
 TEST_OBJECTS := \
 	$(WRITE_TEST_OBJ) \
 	$(MEMORY_THRESHOLD_TEST_OBJ) \
-	$(MEMORY_TEST_OBJ)
+	$(MEMORY_TEST_OBJ) \
+	$(BYTES_TEST_OBJ)
 
 
 # ============================================================
@@ -96,6 +100,7 @@ ARBORCORE := $(BUILD_DIR)/arborcore
 WRITE_TEST := $(BUILD_DIR)/write-test
 MEMORY_THRESHOLD_TEST := $(BUILD_DIR)/memory-threshold-test
 MEMORY_TEST := $(BUILD_DIR)/memory-test
+BYTES_TEST := $(BUILD_DIR)/bytes-test
 
 
 # ============================================================
@@ -104,7 +109,6 @@ MEMORY_TEST := $(BUILD_DIR)/memory-test
 
 MEMORY_BENCH_ASM := $(BENCH_DIR)/memory_bench.asm
 MEMORY_BENCH_RUNNER := $(BENCH_DIR)/memory_bench_run.sh
-
 MEMORY_QUALIFIER := $(TOOLS_DIR)/memory_threshold_qualify.sh
 
 
@@ -115,9 +119,16 @@ MEMORY_QUALIFIER := $(TOOLS_DIR)/memory_threshold_qualify.sh
 .PHONY: all
 .PHONY: run
 .PHONY: check
+
+.PHONY: write-test
+.PHONY: memory-threshold-test
+.PHONY: memory-test
+.PHONY: bytes-test
+
 .PHONY: benchmark
 .PHONY: qualify-memory
 .PHONY: show-memory-policy
+
 .PHONY: clean
 .PHONY: distclean
 
@@ -153,7 +164,7 @@ $(GENERATED_DIR):
 # Generated memory-copy policy
 #
 # A fresh clone will not contain the machine-specific generated
-# file because /generated/ is ignored by Git.
+# policy because /generated/ is ignored by Git.
 #
 # These are safe fallback values.
 #
@@ -181,37 +192,40 @@ show-memory-policy: $(MEMORY_POLICY)
 
 # ============================================================
 # Production Assembly
-#
-# Generic rule handles normal production .asm files.
 # ============================================================
+
+# Generic rule for normal production Assembly files.
+#
+# Examples:
+#
+#   src/asm/start.asm -> build/start.o
+#   src/asm/write.asm -> build/write.o
+#   src/asm/bytes.asm -> build/bytes.o
 
 $(BUILD_DIR)/%.o: $(SRC_ASM_DIR)/%.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
 
-# memory.asm depends on the generated machine policy.
+# memory.asm consumes the generated machine policy.
 
 $(MEMORY_OBJ): \
 	$(SRC_ASM_DIR)/memory.asm \
 	$(MEMORY_POLICY) \
 	| $(BUILD_DIR)
 
-	$(NASM) $(NASMFLAGS) \
-		$(SRC_ASM_DIR)/memory.asm \
-		-o $(MEMORY_OBJ)
+	$(NASM) $(NASMFLAGS) $< -o $@
 
 
-# memory_threshold.asm exposes the exact same policy for
-# diagnostics/tests and therefore has the same dependency.
+# memory_threshold.asm exposes the same generated policy for
+# diagnostics and tests, so it must rebuild when that policy
+# changes.
 
 $(MEMORY_THRESHOLD_OBJ): \
 	$(SRC_ASM_DIR)/memory_threshold.asm \
 	$(MEMORY_POLICY) \
 	| $(BUILD_DIR)
 
-	$(NASM) $(NASMFLAGS) \
-		$(SRC_ASM_DIR)/memory_threshold.asm \
-		-o $(MEMORY_THRESHOLD_OBJ)
+	$(NASM) $(NASMFLAGS) $< -o $@
 
 
 # ============================================================
@@ -222,27 +236,28 @@ $(WRITE_TEST_OBJ): \
 	$(TEST_ASM_DIR)/write_test.asm \
 	| $(BUILD_DIR)
 
-	$(NASM) $(NASMFLAGS) \
-		$(TEST_ASM_DIR)/write_test.asm \
-		-o $(WRITE_TEST_OBJ)
+	$(NASM) $(NASMFLAGS) $< -o $@
 
 
 $(MEMORY_THRESHOLD_TEST_OBJ): \
 	$(TEST_ASM_DIR)/memory_threshold_test.asm \
 	| $(BUILD_DIR)
 
-	$(NASM) $(NASMFLAGS) \
-		$(TEST_ASM_DIR)/memory_threshold_test.asm \
-		-o $(MEMORY_THRESHOLD_TEST_OBJ)
+	$(NASM) $(NASMFLAGS) $< -o $@
 
 
 $(MEMORY_TEST_OBJ): \
 	$(TEST_ASM_DIR)/memory_test.asm \
 	| $(BUILD_DIR)
 
-	$(NASM) $(NASMFLAGS) \
-		$(TEST_ASM_DIR)/memory_test.asm \
-		-o $(MEMORY_TEST_OBJ)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+
+$(BYTES_TEST_OBJ): \
+	$(TEST_ASM_DIR)/bytes_test.asm \
+	| $(BUILD_DIR)
+
+	$(NASM) $(NASMFLAGS) $< -o $@
 
 
 # ============================================================
@@ -276,15 +291,41 @@ $(MEMORY_TEST): \
 		$(MEMORY_OBJ)
 
 
+$(BYTES_TEST): \
+	$(BYTES_TEST_OBJ) \
+	$(BYTES_OBJ)
+
+	$(LD) -o $@ \
+		$(BYTES_TEST_OBJ) \
+		$(BYTES_OBJ)
+
+
 # ============================================================
-# Complete foundation verification
+# Convenient individual test targets
+# ============================================================
+
+write-test: $(WRITE_TEST)
+
+
+memory-threshold-test: $(MEMORY_THRESHOLD_TEST)
+
+
+memory-test: $(MEMORY_TEST)
+
+
+bytes-test: $(BYTES_TEST)
+
+
+# ============================================================
+# Complete Arborcore verification
 # ============================================================
 
 check: \
 	$(ARBORCORE) \
 	$(WRITE_TEST) \
 	$(MEMORY_THRESHOLD_TEST) \
-	$(MEMORY_TEST)
+	$(MEMORY_TEST) \
+	$(BYTES_TEST)
 
 	@set -eu; \
 	tmp="$$(mktemp "$(BUILD_DIR)/arborcore-check.XXXXXX")"; \
@@ -338,6 +379,16 @@ check: \
 	echo "PASS: memory-test"; \
 	\
 	echo; \
+	echo "### bytes"; \
+	status=0; \
+	$(BYTES_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then \
+		echo "FAIL: bytes-test exit=$$status"; \
+		exit "$$status"; \
+	fi; \
+	echo "PASS: bytes-test"; \
+	\
+	echo; \
 	echo "### GNU-stack notes"; \
 	for obj in $(ARBORCORE_OBJECTS) $(TEST_OBJECTS); do \
 		if ! $(READELF) -SW "$$obj" | grep -q '\.note.GNU-stack'; then \
@@ -365,7 +416,7 @@ check: \
 	echo "PASS: GNU_STACK is non-executable"; \
 	\
 	echo; \
-	echo "ALL ARBORCORE FOUNDATION TESTS PASSED"
+	echo "ALL ARBORCORE TESTS PASSED"
 
 
 # ============================================================
@@ -378,8 +429,8 @@ check: \
 #   memory.o
 #   write.o
 #
-# Instead of polluting the repository root, Make creates a
-# temporary compatibility workspace inside build/.
+# Make supplies them through a temporary workspace underneath
+# build/, keeping the repository root clean.
 # ============================================================
 
 benchmark: \
@@ -413,23 +464,13 @@ benchmark: \
 # ============================================================
 # Machine-specific memory qualification
 #
-# The existing qualification script also expects:
-#
-#   memory_bench.asm
-#   memory.o
-#   write.o
-#   generated/
-#
-# Make provides those through a temporary workspace.
-#
-# The generated/ entry is a symlink to the real repository
-# generated directory, so the selected thresholds are written
-# to:
+# Qualification benchmarks the machine and writes the selected
+# thresholds into:
 #
 #   generated/memory_thresholds.inc
 #
-# After qualification, all affected objects/executables are
-# rebuilt and the complete test gate runs automatically.
+# It then rebuilds affected objects and runs the complete test
+# gate automatically.
 # ============================================================
 
 qualify-memory: \
@@ -477,25 +518,24 @@ qualify-memory: \
 # ============================================================
 # Cleanup
 #
-# `clean` removes reproducible build products only.
+# `clean` deletes reproducible build products only.
 #
-# The qualified machine policy is deliberately preserved.
+# The machine-qualified memory policy is deliberately preserved.
 # ============================================================
 
 clean:
 	rm -rf $(BUILD_DIR)
-	mkdir -p $(BUILD_DIR)
 
 
 # ============================================================
 # Full reset
 #
-# `distclean` also removes the qualified machine policy.
+# `distclean` also removes the machine-qualified memory policy.
 #
-# The next `make` will recreate fallback values:
+# The next build recreates fallback values:
 #
-#   QWORD_MIN = 8
-#   REP_MIN   = 160
+#   MEMORY_COPY_QWORD_MIN = 8
+#   MEMORY_COPY_REP_MIN   = 160
 # ============================================================
 
 distclean: clean
