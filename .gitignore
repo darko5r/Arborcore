@@ -1,0 +1,22 @@
+# Assembly build artifacts
+*.o
+
+# Executables
+/arborcore
+/write-test
+/memory-test
+/memory-threshold-test
+/memory-bench-scalar
+/memory-bench-rep
+
+# Build output
+/build/
+
+# Machine-specific generated policy
+/generated/
+
+# Miscellaneous generated output
+*.out
+
+# Temporary benchmark/output files
+*.out
