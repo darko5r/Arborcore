@@ -48,6 +48,12 @@ IO_OBJ := $(BUILD_DIR)/io.o
 NET_OBJ := $(BUILD_DIR)/net.o
 HTTP_PARSER_OBJ := $(BUILD_DIR)/http_parser.o
 ROUTER_OBJ := $(BUILD_DIR)/router.o
+EVENT_OBJ := $(BUILD_DIR)/event.o
+CONNECTION_OBJ := $(BUILD_DIR)/connection.o
+HTTP_RESPONSE_OBJ := $(BUILD_DIR)/http_response.o
+REQUEST_TARGET_OBJ := $(BUILD_DIR)/request_target.o
+ROUTE_PATTERN_OBJ := $(BUILD_DIR)/route_pattern.o
+SERVER_OBJ := $(BUILD_DIR)/server.o
 
 ARBORCORE_OBJECTS := \
 	$(START_OBJ) \
@@ -68,7 +74,13 @@ ARBORCORE_OBJECTS := \
 	$(IO_OBJ) \
 	$(NET_OBJ) \
 	$(HTTP_PARSER_OBJ) \
-	$(ROUTER_OBJ)
+	$(ROUTER_OBJ) \
+	$(EVENT_OBJ) \
+	$(CONNECTION_OBJ) \
+	$(HTTP_RESPONSE_OBJ) \
+	$(REQUEST_TARGET_OBJ) \
+	$(ROUTE_PATTERN_OBJ) \
+	$(SERVER_OBJ)
 
 # Test objects
 WRITE_TEST_OBJ := $(BUILD_DIR)/write_test.o
@@ -86,6 +98,13 @@ IO_TEST_OBJ := $(BUILD_DIR)/io_test.o
 NET_TEST_OBJ := $(BUILD_DIR)/net_test.o
 HTTP_TEST_OBJ := $(BUILD_DIR)/http_test.o
 ROUTER_TEST_OBJ := $(BUILD_DIR)/router_test.o
+EVENT_TEST_OBJ := $(BUILD_DIR)/event_test.o
+CONNECTION_TEST_OBJ := $(BUILD_DIR)/connection_test.o
+HTTP_RESPONSE_TEST_OBJ := $(BUILD_DIR)/http_response_test.o
+REQUEST_TARGET_TEST_OBJ := $(BUILD_DIR)/request_target_test.o
+ROUTE_PATTERN_TEST_OBJ := $(BUILD_DIR)/route_pattern_test.o
+SERVER_TEST_OBJ := $(BUILD_DIR)/server_test.o
+POLISH_GATE3_TEST_OBJ := $(BUILD_DIR)/polish_gate3_test.o
 
 TEST_OBJECTS := \
 	$(WRITE_TEST_OBJ) \
@@ -102,7 +121,14 @@ TEST_OBJECTS := \
 	$(IO_TEST_OBJ) \
 	$(NET_TEST_OBJ) \
 	$(HTTP_TEST_OBJ) \
-	$(ROUTER_TEST_OBJ)
+	$(ROUTER_TEST_OBJ) \
+	$(EVENT_TEST_OBJ) \
+	$(CONNECTION_TEST_OBJ) \
+	$(HTTP_RESPONSE_TEST_OBJ) \
+	$(REQUEST_TARGET_TEST_OBJ) \
+	$(ROUTE_PATTERN_TEST_OBJ) \
+	$(SERVER_TEST_OBJ) \
+	$(POLISH_GATE3_TEST_OBJ)
 
 # Executables
 ARBORCORE := $(BUILD_DIR)/arborcore
@@ -121,6 +147,13 @@ IO_TEST := $(BUILD_DIR)/io-test
 NET_TEST := $(BUILD_DIR)/net-test
 HTTP_TEST := $(BUILD_DIR)/http-test
 ROUTER_TEST := $(BUILD_DIR)/router-test
+EVENT_TEST := $(BUILD_DIR)/event-test
+CONNECTION_TEST := $(BUILD_DIR)/connection-test
+HTTP_RESPONSE_TEST := $(BUILD_DIR)/http-response-test
+REQUEST_TARGET_TEST := $(BUILD_DIR)/request-target-test
+ROUTE_PATTERN_TEST := $(BUILD_DIR)/route-pattern-test
+SERVER_TEST := $(BUILD_DIR)/server-test
+POLISH_GATE3_TEST := $(BUILD_DIR)/polish-gate3-test
 
 # Benchmark / qualification sources
 MEMORY_BENCH_ASM := $(BENCH_DIR)/memory_bench.asm
@@ -128,10 +161,12 @@ MEMORY_BENCH_RUNNER := $(BENCH_DIR)/memory_bench_run.sh
 MEMORY_QUALIFIER := $(TOOLS_DIR)/memory_threshold_qualify.sh
 POLISH_GATE1 := $(TOOLS_DIR)/polish_gate1.sh
 POLISH_GATE2 := $(TOOLS_DIR)/polish_gate2.sh
+POLISH_GATE3 := $(TOOLS_DIR)/polish_gate3.sh
 
 .PHONY: all run check
 .PHONY: write-test memory-threshold-test memory-test bytes-test bytes-phase2-test numeric-test encoding-test
 .PHONY: buffer-test arena-test polish-gate-1 polish-gate-2 io-test net-test http-test router-test
+.PHONY: event-test connection-test http-response-test request-target-test route-pattern-test server-test polish-gate-3
 .PHONY: benchmark qualify-memory show-memory-policy
 .PHONY: clean distclean
 
@@ -224,6 +259,27 @@ $(HTTP_TEST_OBJ): $(TEST_ASM_DIR)/http_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
 $(ROUTER_TEST_OBJ): $(TEST_ASM_DIR)/router_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(EVENT_TEST_OBJ): $(TEST_ASM_DIR)/event_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CONNECTION_TEST_OBJ): $(TEST_ASM_DIR)/connection_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(HTTP_RESPONSE_TEST_OBJ): $(TEST_ASM_DIR)/http_response_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(REQUEST_TARGET_TEST_OBJ): $(TEST_ASM_DIR)/request_target_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(ROUTE_PATTERN_TEST_OBJ): $(TEST_ASM_DIR)/route_pattern_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(SERVER_TEST_OBJ): $(TEST_ASM_DIR)/server_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(POLISH_GATE3_TEST_OBJ): $(TEST_ASM_DIR)/polish_gate3_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
 # Test executables
@@ -348,6 +404,43 @@ $(ROUTER_TEST): \
 		$(BYTES_OBJ) \
 		$(PARSE_U64_OBJ)
 
+$(EVENT_TEST): $(EVENT_TEST_OBJ) $(EVENT_OBJ)
+	$(LD) -o $@ $(EVENT_TEST_OBJ) $(EVENT_OBJ)
+
+$(CONNECTION_TEST): $(CONNECTION_TEST_OBJ) $(CONNECTION_OBJ)
+	$(LD) -o $@ $(CONNECTION_TEST_OBJ) $(CONNECTION_OBJ)
+
+$(HTTP_RESPONSE_TEST): \
+	$(HTTP_RESPONSE_TEST_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ)
+	$(LD) -o $@ \
+		$(HTTP_RESPONSE_TEST_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ)
+
+$(REQUEST_TARGET_TEST): $(REQUEST_TARGET_TEST_OBJ) $(REQUEST_TARGET_OBJ)
+	$(LD) -o $@ $(REQUEST_TARGET_TEST_OBJ) $(REQUEST_TARGET_OBJ)
+
+$(ROUTE_PATTERN_TEST): \
+	$(ROUTE_PATTERN_TEST_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_OBJ)
+	$(LD) -o $@ \
+		$(ROUTE_PATTERN_TEST_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_OBJ)
+
+$(SERVER_TEST): \
+	$(SERVER_TEST_OBJ) $(SERVER_OBJ) $(EVENT_OBJ) $(CONNECTION_OBJ) $(HTTP_RESPONSE_OBJ) \
+	$(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ) $(IO_OBJ) $(NET_OBJ) $(HTTP_PARSER_OBJ) \
+	$(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ)
+	$(LD) -o $@ \
+		$(SERVER_TEST_OBJ) $(SERVER_OBJ) $(EVENT_OBJ) $(CONNECTION_OBJ) $(HTTP_RESPONSE_OBJ) \
+		$(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ) $(IO_OBJ) $(NET_OBJ) $(HTTP_PARSER_OBJ) \
+		$(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ)
+
+$(POLISH_GATE3_TEST): \
+	$(POLISH_GATE3_TEST_OBJ) $(SERVER_OBJ) $(EVENT_OBJ) $(CONNECTION_OBJ) $(HTTP_RESPONSE_OBJ) \
+	$(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ) $(IO_OBJ) $(NET_OBJ) $(HTTP_PARSER_OBJ) \
+	$(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ)
+	$(LD) -o $@ \
+		$(POLISH_GATE3_TEST_OBJ) $(SERVER_OBJ) $(EVENT_OBJ) $(CONNECTION_OBJ) $(HTTP_RESPONSE_OBJ) \
+		$(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ) $(IO_OBJ) $(NET_OBJ) $(HTTP_PARSER_OBJ) \
+		$(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ)
+
 # Individual test targets
 write-test: $(WRITE_TEST)
 memory-threshold-test: $(MEMORY_THRESHOLD_TEST)
@@ -366,6 +459,14 @@ io-test: $(IO_TEST)
 net-test: $(NET_TEST)
 http-test: $(HTTP_TEST)
 router-test: $(ROUTER_TEST)
+event-test: $(EVENT_TEST)
+connection-test: $(CONNECTION_TEST)
+http-response-test: $(HTTP_RESPONSE_TEST)
+request-target-test: $(REQUEST_TARGET_TEST)
+route-pattern-test: $(ROUTE_PATTERN_TEST)
+server-test: $(SERVER_TEST)
+polish-gate-3: $(EVENT_TEST) $(CONNECTION_TEST) $(HTTP_RESPONSE_TEST) $(REQUEST_TARGET_TEST) $(ROUTE_PATTERN_TEST) $(SERVER_TEST) $(POLISH_GATE3_TEST) $(POLISH_GATE3)
+	@bash $(POLISH_GATE3)
 
 # Complete verification
 check: \
@@ -384,7 +485,14 @@ check: \
 	$(IO_TEST) \
 	$(NET_TEST) \
 	$(HTTP_TEST) \
-	$(ROUTER_TEST)
+	$(ROUTER_TEST) \
+	$(EVENT_TEST) \
+	$(CONNECTION_TEST) \
+	$(HTTP_RESPONSE_TEST) \
+	$(REQUEST_TARGET_TEST) \
+	$(ROUTE_PATTERN_TEST) \
+	$(SERVER_TEST) \
+	$(POLISH_GATE3_TEST)
 	@set -eu; \
 	tmp="$$(mktemp "$(BUILD_DIR)/arborcore-check.XXXXXX")"; \
 	trap 'rm -f "$$tmp"' EXIT; \
@@ -496,6 +604,9 @@ check: \
 	echo; \
 	echo "### POLISH GATE #2"; \
 	bash $(POLISH_GATE2); \
+	echo; \
+	echo "### POLISH GATE #3"; \
+	bash $(POLISH_GATE3); \
 	echo; \
 	echo "### GNU-stack notes"; \
 	for obj in $(ARBORCORE_OBJECTS) $(TEST_OBJECTS); do \
