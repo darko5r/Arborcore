@@ -42,6 +42,12 @@ U64_FORMAT_OBJ := $(BUILD_DIR)/u64_format.o
 HEX_CODEC_OBJ := $(BUILD_DIR)/hex_codec.o
 PERCENT_CODEC_OBJ := $(BUILD_DIR)/percent_codec.o
 BASE64_OBJ := $(BUILD_DIR)/base64.o
+BUFFER_OBJ := $(BUILD_DIR)/buffer.o
+ARENA_OBJ := $(BUILD_DIR)/arena.o
+IO_OBJ := $(BUILD_DIR)/io.o
+NET_OBJ := $(BUILD_DIR)/net.o
+HTTP_PARSER_OBJ := $(BUILD_DIR)/http_parser.o
+ROUTER_OBJ := $(BUILD_DIR)/router.o
 
 ARBORCORE_OBJECTS := \
 	$(START_OBJ) \
@@ -56,7 +62,13 @@ ARBORCORE_OBJECTS := \
 	$(U64_FORMAT_OBJ) \
 	$(HEX_CODEC_OBJ) \
 	$(PERCENT_CODEC_OBJ) \
-	$(BASE64_OBJ)
+	$(BASE64_OBJ) \
+	$(BUFFER_OBJ) \
+	$(ARENA_OBJ) \
+	$(IO_OBJ) \
+	$(NET_OBJ) \
+	$(HTTP_PARSER_OBJ) \
+	$(ROUTER_OBJ)
 
 # Test objects
 WRITE_TEST_OBJ := $(BUILD_DIR)/write_test.o
@@ -66,6 +78,14 @@ BYTES_TEST_OBJ := $(BUILD_DIR)/bytes_test.o
 BYTES_PHASE2_TEST_OBJ := $(BUILD_DIR)/bytes_phase2_test.o
 NUMERIC_TEST_OBJ := $(BUILD_DIR)/numeric_test.o
 ENCODING_TEST_OBJ := $(BUILD_DIR)/encoding_test.o
+BUFFER_TEST_OBJ := $(BUILD_DIR)/buffer_test.o
+ARENA_TEST_OBJ := $(BUILD_DIR)/arena_test.o
+POLISH_GATE1_TEST_OBJ := $(BUILD_DIR)/polish_gate1_test.o
+POLISH_GATE2_TEST_OBJ := $(BUILD_DIR)/polish_gate2_test.o
+IO_TEST_OBJ := $(BUILD_DIR)/io_test.o
+NET_TEST_OBJ := $(BUILD_DIR)/net_test.o
+HTTP_TEST_OBJ := $(BUILD_DIR)/http_test.o
+ROUTER_TEST_OBJ := $(BUILD_DIR)/router_test.o
 
 TEST_OBJECTS := \
 	$(WRITE_TEST_OBJ) \
@@ -74,7 +94,15 @@ TEST_OBJECTS := \
 	$(BYTES_TEST_OBJ) \
 	$(BYTES_PHASE2_TEST_OBJ) \
 	$(NUMERIC_TEST_OBJ) \
-	$(ENCODING_TEST_OBJ)
+	$(ENCODING_TEST_OBJ) \
+	$(BUFFER_TEST_OBJ) \
+	$(ARENA_TEST_OBJ) \
+	$(POLISH_GATE1_TEST_OBJ) \
+	$(POLISH_GATE2_TEST_OBJ) \
+	$(IO_TEST_OBJ) \
+	$(NET_TEST_OBJ) \
+	$(HTTP_TEST_OBJ) \
+	$(ROUTER_TEST_OBJ)
 
 # Executables
 ARBORCORE := $(BUILD_DIR)/arborcore
@@ -85,14 +113,25 @@ BYTES_TEST := $(BUILD_DIR)/bytes-test
 BYTES_PHASE2_TEST := $(BUILD_DIR)/bytes-phase2-test
 NUMERIC_TEST := $(BUILD_DIR)/numeric-test
 ENCODING_TEST := $(BUILD_DIR)/encoding-test
+BUFFER_TEST := $(BUILD_DIR)/buffer-test
+ARENA_TEST := $(BUILD_DIR)/arena-test
+POLISH_GATE1_TEST := $(BUILD_DIR)/polish-gate1-test
+POLISH_GATE2_TEST := $(BUILD_DIR)/polish-gate2-test
+IO_TEST := $(BUILD_DIR)/io-test
+NET_TEST := $(BUILD_DIR)/net-test
+HTTP_TEST := $(BUILD_DIR)/http-test
+ROUTER_TEST := $(BUILD_DIR)/router-test
 
 # Benchmark / qualification sources
 MEMORY_BENCH_ASM := $(BENCH_DIR)/memory_bench.asm
 MEMORY_BENCH_RUNNER := $(BENCH_DIR)/memory_bench_run.sh
 MEMORY_QUALIFIER := $(TOOLS_DIR)/memory_threshold_qualify.sh
+POLISH_GATE1 := $(TOOLS_DIR)/polish_gate1.sh
+POLISH_GATE2 := $(TOOLS_DIR)/polish_gate2.sh
 
 .PHONY: all run check
 .PHONY: write-test memory-threshold-test memory-test bytes-test bytes-phase2-test numeric-test encoding-test
+.PHONY: buffer-test arena-test polish-gate-1 polish-gate-2 io-test net-test http-test router-test
 .PHONY: benchmark qualify-memory show-memory-policy
 .PHONY: clean distclean
 
@@ -163,6 +202,30 @@ $(NUMERIC_TEST_OBJ): $(TEST_ASM_DIR)/numeric_test.asm | $(BUILD_DIR)
 $(ENCODING_TEST_OBJ): $(TEST_ASM_DIR)/encoding_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
+$(BUFFER_TEST_OBJ): $(TEST_ASM_DIR)/buffer_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(ARENA_TEST_OBJ): $(TEST_ASM_DIR)/arena_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(POLISH_GATE1_TEST_OBJ): $(TEST_ASM_DIR)/polish_gate1_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(POLISH_GATE2_TEST_OBJ): $(TEST_ASM_DIR)/polish_gate2_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(IO_TEST_OBJ): $(TEST_ASM_DIR)/io_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(NET_TEST_OBJ): $(TEST_ASM_DIR)/net_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(HTTP_TEST_OBJ): $(TEST_ASM_DIR)/http_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(ROUTER_TEST_OBJ): $(TEST_ASM_DIR)/router_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
 # Test executables
 $(WRITE_TEST): $(WRITE_TEST_OBJ) $(WRITE_OBJ)
 	$(LD) -o $@ $(WRITE_TEST_OBJ) $(WRITE_OBJ)
@@ -207,6 +270,84 @@ $(ENCODING_TEST): \
 		$(PERCENT_CODEC_OBJ) \
 		$(BASE64_OBJ)
 
+$(BUFFER_TEST): $(BUFFER_TEST_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ)
+	$(LD) -o $@ $(BUFFER_TEST_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ)
+
+$(ARENA_TEST): $(ARENA_TEST_OBJ) $(ARENA_OBJ)
+	$(LD) -o $@ $(ARENA_TEST_OBJ) $(ARENA_OBJ)
+
+$(POLISH_GATE1_TEST): \
+	$(POLISH_GATE1_TEST_OBJ) \
+	$(BUFFER_OBJ) \
+	$(ARENA_OBJ) \
+	$(MEMORY_OBJ) \
+	$(U64_FORMAT_OBJ) \
+	$(HEX_CODEC_OBJ) \
+	$(BYTES_OBJ)
+	$(LD) -o $@ \
+		$(POLISH_GATE1_TEST_OBJ) \
+		$(BUFFER_OBJ) \
+		$(ARENA_OBJ) \
+		$(MEMORY_OBJ) \
+		$(U64_FORMAT_OBJ) \
+		$(HEX_CODEC_OBJ) \
+		$(BYTES_OBJ)
+
+$(POLISH_GATE2_TEST): \
+	$(POLISH_GATE2_TEST_OBJ) \
+	$(BUFFER_OBJ) \
+	$(ARENA_OBJ) \
+	$(MEMORY_OBJ) \
+	$(HTTP_PARSER_OBJ) \
+	$(ROUTER_OBJ) \
+	$(BYTES_SCAN_OBJ) \
+	$(BYTES_OBJ) \
+	$(PARSE_U64_OBJ)
+	$(LD) -o $@ \
+		$(POLISH_GATE2_TEST_OBJ) \
+		$(BUFFER_OBJ) \
+		$(ARENA_OBJ) \
+		$(MEMORY_OBJ) \
+		$(HTTP_PARSER_OBJ) \
+		$(ROUTER_OBJ) \
+		$(BYTES_SCAN_OBJ) \
+		$(BYTES_OBJ) \
+		$(PARSE_U64_OBJ)
+
+$(IO_TEST): $(IO_TEST_OBJ) $(IO_OBJ)
+	$(LD) -o $@ $(IO_TEST_OBJ) $(IO_OBJ)
+
+$(NET_TEST): $(NET_TEST_OBJ) $(NET_OBJ) $(IO_OBJ)
+	$(LD) -o $@ $(NET_TEST_OBJ) $(NET_OBJ) $(IO_OBJ)
+
+$(HTTP_TEST): \
+	$(HTTP_TEST_OBJ) \
+	$(HTTP_PARSER_OBJ) \
+	$(BYTES_SCAN_OBJ) \
+	$(BYTES_OBJ) \
+	$(PARSE_U64_OBJ)
+	$(LD) -o $@ \
+		$(HTTP_TEST_OBJ) \
+		$(HTTP_PARSER_OBJ) \
+		$(BYTES_SCAN_OBJ) \
+		$(BYTES_OBJ) \
+		$(PARSE_U64_OBJ)
+
+$(ROUTER_TEST): \
+	$(ROUTER_TEST_OBJ) \
+	$(ROUTER_OBJ) \
+	$(HTTP_PARSER_OBJ) \
+	$(BYTES_SCAN_OBJ) \
+	$(BYTES_OBJ) \
+	$(PARSE_U64_OBJ)
+	$(LD) -o $@ \
+		$(ROUTER_TEST_OBJ) \
+		$(ROUTER_OBJ) \
+		$(HTTP_PARSER_OBJ) \
+		$(BYTES_SCAN_OBJ) \
+		$(BYTES_OBJ) \
+		$(PARSE_U64_OBJ)
+
 # Individual test targets
 write-test: $(WRITE_TEST)
 memory-threshold-test: $(MEMORY_THRESHOLD_TEST)
@@ -215,6 +356,16 @@ bytes-test: $(BYTES_TEST)
 bytes-phase2-test: $(BYTES_PHASE2_TEST)
 numeric-test: $(NUMERIC_TEST)
 encoding-test: $(ENCODING_TEST)
+buffer-test: $(BUFFER_TEST)
+arena-test: $(ARENA_TEST)
+polish-gate-1: $(BUFFER_TEST) $(ARENA_TEST) $(POLISH_GATE1_TEST) $(POLISH_GATE1)
+	@bash $(POLISH_GATE1)
+polish-gate-2: $(IO_TEST) $(NET_TEST) $(HTTP_TEST) $(ROUTER_TEST) $(POLISH_GATE2_TEST) $(POLISH_GATE2)
+	@bash $(POLISH_GATE2)
+io-test: $(IO_TEST)
+net-test: $(NET_TEST)
+http-test: $(HTTP_TEST)
+router-test: $(ROUTER_TEST)
 
 # Complete verification
 check: \
@@ -225,7 +376,15 @@ check: \
 	$(BYTES_TEST) \
 	$(BYTES_PHASE2_TEST) \
 	$(NUMERIC_TEST) \
-	$(ENCODING_TEST)
+	$(ENCODING_TEST) \
+	$(BUFFER_TEST) \
+	$(ARENA_TEST) \
+	$(POLISH_GATE1_TEST) \
+	$(POLISH_GATE2_TEST) \
+	$(IO_TEST) \
+	$(NET_TEST) \
+	$(HTTP_TEST) \
+	$(ROUTER_TEST)
 	@set -eu; \
 	tmp="$$(mktemp "$(BUILD_DIR)/arborcore-check.XXXXXX")"; \
 	trap 'rm -f "$$tmp"' EXIT; \
@@ -307,6 +466,36 @@ check: \
 		exit "$$status"; \
 	fi; \
 	echo "PASS: encoding-test"; \
+	echo; \
+	echo "### POLISH GATE #1"; \
+	bash $(POLISH_GATE1); \
+	echo; \
+	echo "### linux io"; \
+	status=0; \
+	$(IO_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: io-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: io-test"; \
+	echo; \
+	echo "### network"; \
+	status=0; \
+	$(NET_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: net-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: net-test"; \
+	echo; \
+	echo "### http/1.1 parser"; \
+	status=0; \
+	$(HTTP_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: http-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: http-test"; \
+	echo; \
+	echo "### router / request dispatch"; \
+	status=0; \
+	$(ROUTER_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: router-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: router-test"; \
+	echo; \
+	echo "### POLISH GATE #2"; \
+	bash $(POLISH_GATE2); \
 	echo; \
 	echo "### GNU-stack notes"; \
 	for obj in $(ARBORCORE_OBJECTS) $(TEST_OBJECTS); do \
