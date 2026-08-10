@@ -39,6 +39,9 @@ BYTES_SCAN_OBJ := $(BUILD_DIR)/bytes_scan.o
 PARSE_U64_OBJ := $(BUILD_DIR)/parse_u64.o
 U64_CHECKED_OBJ := $(BUILD_DIR)/u64_checked.o
 U64_FORMAT_OBJ := $(BUILD_DIR)/u64_format.o
+HEX_CODEC_OBJ := $(BUILD_DIR)/hex_codec.o
+PERCENT_CODEC_OBJ := $(BUILD_DIR)/percent_codec.o
+BASE64_OBJ := $(BUILD_DIR)/base64.o
 
 ARBORCORE_OBJECTS := \
 	$(START_OBJ) \
@@ -50,7 +53,10 @@ ARBORCORE_OBJECTS := \
 	$(BYTES_SCAN_OBJ) \
 	$(PARSE_U64_OBJ) \
 	$(U64_CHECKED_OBJ) \
-	$(U64_FORMAT_OBJ)
+	$(U64_FORMAT_OBJ) \
+	$(HEX_CODEC_OBJ) \
+	$(PERCENT_CODEC_OBJ) \
+	$(BASE64_OBJ)
 
 # Test objects
 WRITE_TEST_OBJ := $(BUILD_DIR)/write_test.o
@@ -59,6 +65,7 @@ MEMORY_TEST_OBJ := $(BUILD_DIR)/memory_test.o
 BYTES_TEST_OBJ := $(BUILD_DIR)/bytes_test.o
 BYTES_PHASE2_TEST_OBJ := $(BUILD_DIR)/bytes_phase2_test.o
 NUMERIC_TEST_OBJ := $(BUILD_DIR)/numeric_test.o
+ENCODING_TEST_OBJ := $(BUILD_DIR)/encoding_test.o
 
 TEST_OBJECTS := \
 	$(WRITE_TEST_OBJ) \
@@ -66,7 +73,8 @@ TEST_OBJECTS := \
 	$(MEMORY_TEST_OBJ) \
 	$(BYTES_TEST_OBJ) \
 	$(BYTES_PHASE2_TEST_OBJ) \
-	$(NUMERIC_TEST_OBJ)
+	$(NUMERIC_TEST_OBJ) \
+	$(ENCODING_TEST_OBJ)
 
 # Executables
 ARBORCORE := $(BUILD_DIR)/arborcore
@@ -76,6 +84,7 @@ MEMORY_TEST := $(BUILD_DIR)/memory-test
 BYTES_TEST := $(BUILD_DIR)/bytes-test
 BYTES_PHASE2_TEST := $(BUILD_DIR)/bytes-phase2-test
 NUMERIC_TEST := $(BUILD_DIR)/numeric-test
+ENCODING_TEST := $(BUILD_DIR)/encoding-test
 
 # Benchmark / qualification sources
 MEMORY_BENCH_ASM := $(BENCH_DIR)/memory_bench.asm
@@ -83,7 +92,7 @@ MEMORY_BENCH_RUNNER := $(BENCH_DIR)/memory_bench_run.sh
 MEMORY_QUALIFIER := $(TOOLS_DIR)/memory_threshold_qualify.sh
 
 .PHONY: all run check
-.PHONY: write-test memory-threshold-test memory-test bytes-test bytes-phase2-test numeric-test
+.PHONY: write-test memory-threshold-test memory-test bytes-test bytes-phase2-test numeric-test encoding-test
 .PHONY: benchmark qualify-memory show-memory-policy
 .PHONY: clean distclean
 
@@ -151,6 +160,9 @@ $(BYTES_PHASE2_TEST_OBJ): $(TEST_ASM_DIR)/bytes_phase2_test.asm | $(BUILD_DIR)
 $(NUMERIC_TEST_OBJ): $(TEST_ASM_DIR)/numeric_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
+$(ENCODING_TEST_OBJ): $(TEST_ASM_DIR)/encoding_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
 # Test executables
 $(WRITE_TEST): $(WRITE_TEST_OBJ) $(WRITE_OBJ)
 	$(LD) -o $@ $(WRITE_TEST_OBJ) $(WRITE_OBJ)
@@ -184,6 +196,17 @@ $(NUMERIC_TEST): \
 		$(U64_CHECKED_OBJ) \
 		$(U64_FORMAT_OBJ)
 
+$(ENCODING_TEST): \
+	$(ENCODING_TEST_OBJ) \
+	$(HEX_CODEC_OBJ) \
+	$(PERCENT_CODEC_OBJ) \
+	$(BASE64_OBJ)
+	$(LD) -o $@ \
+		$(ENCODING_TEST_OBJ) \
+		$(HEX_CODEC_OBJ) \
+		$(PERCENT_CODEC_OBJ) \
+		$(BASE64_OBJ)
+
 # Individual test targets
 write-test: $(WRITE_TEST)
 memory-threshold-test: $(MEMORY_THRESHOLD_TEST)
@@ -191,6 +214,7 @@ memory-test: $(MEMORY_TEST)
 bytes-test: $(BYTES_TEST)
 bytes-phase2-test: $(BYTES_PHASE2_TEST)
 numeric-test: $(NUMERIC_TEST)
+encoding-test: $(ENCODING_TEST)
 
 # Complete verification
 check: \
@@ -200,7 +224,8 @@ check: \
 	$(MEMORY_TEST) \
 	$(BYTES_TEST) \
 	$(BYTES_PHASE2_TEST) \
-	$(NUMERIC_TEST)
+	$(NUMERIC_TEST) \
+	$(ENCODING_TEST)
 	@set -eu; \
 	tmp="$$(mktemp "$(BUILD_DIR)/arborcore-check.XXXXXX")"; \
 	trap 'rm -f "$$tmp"' EXIT; \
@@ -273,6 +298,15 @@ check: \
 		exit "$$status"; \
 	fi; \
 	echo "PASS: numeric-test"; \
+	echo; \
+	echo "### encoding"; \
+	status=0; \
+	$(ENCODING_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then \
+		echo "FAIL: encoding-test exit=$$status"; \
+		exit "$$status"; \
+	fi; \
+	echo "PASS: encoding-test"; \
 	echo; \
 	echo "### GNU-stack notes"; \
 	for obj in $(ARBORCORE_OBJECTS) $(TEST_OBJECTS); do \
