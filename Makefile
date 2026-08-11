@@ -188,6 +188,7 @@ RESPONSE_BENCH_OBJ := $(BUILD_DIR)/response_bench.o
 LIFECYCLE_BENCH_OBJ := $(BUILD_DIR)/lifecycle_bench.o
 CONNECTION_BENCH_OBJ := $(BUILD_DIR)/connection_bench.o
 LOOPBACK_BENCH_OBJ := $(BUILD_DIR)/loopback_bench.o
+CODEC_BENCH_OBJ := $(BUILD_DIR)/codec_bench.o
 
 PARSER_BENCH := $(BUILD_DIR)/bench-parser
 ROUTING_BENCH := $(BUILD_DIR)/bench-routing
@@ -195,6 +196,7 @@ RESPONSE_BENCH := $(BUILD_DIR)/bench-response
 LIFECYCLE_BENCH := $(BUILD_DIR)/bench-lifecycle
 CONNECTION_BENCH := $(BUILD_DIR)/bench-connections
 LOOPBACK_BENCH := $(BUILD_DIR)/bench-loopback
+CODEC_BENCH := $(BUILD_DIR)/bench-codec
 
 ARBORCORE_PERF_PROFILE ?= local
 export ARBORCORE_PERF_PROFILE
@@ -206,6 +208,10 @@ SERVER_PERFORMANCE_VERIFY := $(TOOLS_DIR)/server_performance_verify.sh
 SERVER_BENCHMARK_PERF := $(TOOLS_DIR)/server_benchmark_perf.sh
 SERVER_BENCHMARK_SYSCALLS := $(TOOLS_DIR)/server_benchmark_syscalls.sh
 SERVER_PERF_BASELINE := $(GENERATED_DIR)/performance/$(ARBORCORE_PERF_PROFILE).env
+CODEC_BENCHMARK_RUNNER := $(TOOLS_DIR)/codec_benchmark_run.sh
+CODEC_BASELINE_QUALIFIER := $(TOOLS_DIR)/codec_baseline_qualify.sh
+CODEC_PERFORMANCE_VERIFY := $(TOOLS_DIR)/codec_performance_verify.sh
+CODEC_PERF_BASELINE := $(GENERATED_DIR)/performance/codec-$(ARBORCORE_PERF_PROFILE).env
 
 .PHONY: all run check
 .PHONY: write-test memory-threshold-test memory-test bytes-test bytes-phase2-test numeric-test core-integer-test core-range-test encoding-test
@@ -215,6 +221,7 @@ SERVER_PERF_BASELINE := $(GENERATED_DIR)/performance/$(ARBORCORE_PERF_PROFILE).e
 .PHONY: benchmark qualify-memory show-memory-policy
 .PHONY: benchmark-server qualify-server-baseline accept-server-baseline show-server-baseline list-server-profiles verify-server-performance verify-server-performance-candidate
 .PHONY: benchmark-server-perf benchmark-server-syscalls
+.PHONY: benchmark-codec qualify-codec-baseline show-codec-baseline verify-codec-performance verify-codec-performance-candidate
 .PHONY: clean distclean
 
 # Main build
@@ -274,6 +281,9 @@ $(CONNECTION_BENCH_OBJ): $(BENCH_DIR)/connection_bench.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
 $(LOOPBACK_BENCH_OBJ): $(BENCH_DIR)/loopback_bench.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CODEC_BENCH_OBJ): $(BENCH_DIR)/codec_bench.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
 # memory.asm depends on generated policy
@@ -841,6 +851,9 @@ SERVER_BENCH_EXECUTABLES := \
 	$(CONNECTION_BENCH) \
 	$(LOOPBACK_BENCH)
 
+$(CODEC_BENCH): $(CODEC_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(PERCENT_CODEC_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+	$(LD) -o $@ $^
+
 benchmark-server: $(SERVER_BENCH_EXECUTABLES) $(SERVER_BENCHMARK_RUNNER)
 	@bash $(SERVER_BENCHMARK_RUNNER)
 
@@ -871,6 +884,23 @@ benchmark-server-perf: $(LIFECYCLE_BENCH) $(LOOPBACK_BENCH) $(SERVER_BENCHMARK_P
 
 benchmark-server-syscalls: $(LOOPBACK_BENCH) $(SERVER_BENCHMARK_SYSCALLS)
 	@bash $(SERVER_BENCHMARK_SYSCALLS)
+
+# Dedicated percent-codec reference/candidate performance evidence.
+benchmark-codec: $(CODEC_BENCH) $(CODEC_BENCHMARK_RUNNER)
+	@bash $(CODEC_BENCHMARK_RUNNER)
+
+qualify-codec-baseline: $(CODEC_BENCH) $(CODEC_BASELINE_QUALIFIER) | $(GENERATED_DIR)
+	@bash $(CODEC_BASELINE_QUALIFIER)
+
+show-codec-baseline:
+	@echo "Codec performance profile: $(ARBORCORE_PERF_PROFILE)"
+	@if [[ -r $(CODEC_PERF_BASELINE) ]]; then cat $(CODEC_PERF_BASELINE); else echo "No codec profile at $(CODEC_PERF_BASELINE)"; fi
+
+verify-codec-performance: $(CODEC_BENCH) $(CODEC_PERFORMANCE_VERIFY)
+	@bash $(CODEC_PERFORMANCE_VERIFY)
+
+verify-codec-performance-candidate: $(CODEC_BENCH) $(CODEC_PERFORMANCE_VERIFY)
+	@ARBORCORE_CODEC_ALLOW_DIRTY_PRODUCTION=1 bash $(CODEC_PERFORMANCE_VERIFY)
 
 # Memory benchmark
 benchmark: $(MEMORY_OBJ) $(WRITE_OBJ) $(MEMORY_BENCH_ASM) $(MEMORY_BENCH_RUNNER)
@@ -917,4 +947,4 @@ clean:
 
 # Full reset including machine-qualified policy
 distclean: clean
-	rm -f $(MEMORY_POLICY) $(SERVER_PERF_BASELINE)
+	rm -f $(MEMORY_POLICY) $(SERVER_PERF_BASELINE) $(CODEC_PERF_BASELINE)
