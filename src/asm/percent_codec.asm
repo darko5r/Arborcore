@@ -34,6 +34,43 @@
 %define ERR_ENOSPC     -28
 %define ERR_EOVERFLOW  -75
 
+; Canonical RFC 3986 unreserved-byte classifier.
+;
+; Expands inline and branches to the caller-provided label when EAX contains:
+;   ALPHA / DIGIT / "-" / "." / "_" / "~"
+;
+; Keeping this as a source-level macro gives the three encode classification
+; sites one semantic definition without adding call/return overhead or a table
+; lookup to the per-byte hot path.
+%macro PERCENT_BRANCH_IF_UNRESERVED 1
+    cmp eax, '0'
+    jb %%check_upper
+    cmp eax, '9'
+    jbe %1
+
+%%check_upper:
+    cmp eax, 'A'
+    jb %%check_lower
+    cmp eax, 'Z'
+    jbe %1
+
+%%check_lower:
+    cmp eax, 'a'
+    jb %%check_punct
+    cmp eax, 'z'
+    jbe %1
+
+%%check_punct:
+    cmp eax, '-'
+    je %1
+    cmp eax, '.'
+    je %1
+    cmp eax, '_'
+    je %1
+    cmp eax, '~'
+    je %1
+%endmacro
+
 
 global percent_encoded_length:function
 global percent_encode:function
@@ -57,32 +94,7 @@ percent_encoded_length:
 
     movzx eax, byte [rdi + rcx]
 
-    cmp eax, '0'
-    jb .length_check_upper
-    cmp eax, '9'
-    jbe .length_unreserved
-
-.length_check_upper:
-    cmp eax, 'A'
-    jb .length_check_lower
-    cmp eax, 'Z'
-    jbe .length_unreserved
-
-.length_check_lower:
-    cmp eax, 'a'
-    jb .length_check_punct
-    cmp eax, 'z'
-    jbe .length_unreserved
-
-.length_check_punct:
-    cmp eax, '-'
-    je .length_unreserved
-    cmp eax, '.'
-    je .length_unreserved
-    cmp eax, '_'
-    je .length_unreserved
-    cmp eax, '~'
-    je .length_unreserved
+    PERCENT_BRANCH_IF_UNRESERVED .length_unreserved
 
     add rdx, 3
     jc .length_overflow
@@ -125,32 +137,7 @@ percent_encode:
 
     movzx eax, byte [rdi + rsi]
 
-    cmp eax, '0'
-    jb .encode_length_upper
-    cmp eax, '9'
-    jbe .encode_length_unreserved
-
-.encode_length_upper:
-    cmp eax, 'A'
-    jb .encode_length_lower
-    cmp eax, 'Z'
-    jbe .encode_length_unreserved
-
-.encode_length_lower:
-    cmp eax, 'a'
-    jb .encode_length_punct
-    cmp eax, 'z'
-    jbe .encode_length_unreserved
-
-.encode_length_punct:
-    cmp eax, '-'
-    je .encode_length_unreserved
-    cmp eax, '.'
-    je .encode_length_unreserved
-    cmp eax, '_'
-    je .encode_length_unreserved
-    cmp eax, '~'
-    je .encode_length_unreserved
+    PERCENT_BRANCH_IF_UNRESERVED .encode_length_unreserved
 
     add r11, 3
     jc .encode_overflow
@@ -177,33 +164,8 @@ percent_encode:
 .encode_loop:
     movzx eax, byte [rdi + rsi]
 
-    ; Same unreserved classification.
-    cmp eax, '0'
-    jb .encode_upper
-    cmp eax, '9'
-    jbe .encode_literal
-
-.encode_upper:
-    cmp eax, 'A'
-    jb .encode_lower
-    cmp eax, 'Z'
-    jbe .encode_literal
-
-.encode_lower:
-    cmp eax, 'a'
-    jb .encode_punct
-    cmp eax, 'z'
-    jbe .encode_literal
-
-.encode_punct:
-    cmp eax, '-'
-    je .encode_literal
-    cmp eax, '.'
-    je .encode_literal
-    cmp eax, '_'
-    je .encode_literal
-    cmp eax, '~'
-    je .encode_literal
+    ; Same canonical unreserved classification used by both preflight paths.
+    PERCENT_BRANCH_IF_UNRESERVED .encode_literal
 
     ; Reserved byte -> %HH with uppercase hexadecimal.
     mov edx, eax
