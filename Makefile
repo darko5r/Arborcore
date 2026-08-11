@@ -96,6 +96,9 @@ CORE_RANGE_TEST_OBJ := $(BUILD_DIR)/core_range_test.o
 CORE_SEQUENCE_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_sequence_property_test.o
 CORE_NUMERIC_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_numeric_property_test.o
 CORE_CODEC_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_codec_property_test.o
+CORE_MEMORY_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_memory_property_test.o
+CORE_BUFFER_ARENA_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_buffer_arena_property_test.o
+CORE_CONNECTION_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_connection_property_test.o
 ENCODING_TEST_OBJ := $(BUILD_DIR)/encoding_test.o
 BUFFER_TEST_OBJ := $(BUILD_DIR)/buffer_test.o
 ARENA_TEST_OBJ := $(BUILD_DIR)/arena_test.o
@@ -125,6 +128,9 @@ TEST_OBJECTS := \
 	$(CORE_SEQUENCE_PROPERTY_TEST_OBJ) \
 	$(CORE_NUMERIC_PROPERTY_TEST_OBJ) \
 	$(CORE_CODEC_PROPERTY_TEST_OBJ) \
+	$(CORE_MEMORY_PROPERTY_TEST_OBJ) \
+	$(CORE_BUFFER_ARENA_PROPERTY_TEST_OBJ) \
+	$(CORE_CONNECTION_PROPERTY_TEST_OBJ) \
 	$(ENCODING_TEST_OBJ) \
 	$(BUFFER_TEST_OBJ) \
 	$(ARENA_TEST_OBJ) \
@@ -155,6 +161,9 @@ CORE_RANGE_TEST := $(BUILD_DIR)/core-range-test
 CORE_SEQUENCE_PROPERTY_TEST := $(BUILD_DIR)/core-sequence-property-test
 CORE_NUMERIC_PROPERTY_TEST := $(BUILD_DIR)/core-numeric-property-test
 CORE_CODEC_PROPERTY_TEST := $(BUILD_DIR)/core-codec-property-test
+CORE_MEMORY_PROPERTY_TEST := $(BUILD_DIR)/core-memory-property-test
+CORE_BUFFER_ARENA_PROPERTY_TEST := $(BUILD_DIR)/core-buffer-arena-property-test
+CORE_CONNECTION_PROPERTY_TEST := $(BUILD_DIR)/core-connection-property-test
 ENCODING_TEST := $(BUILD_DIR)/encoding-test
 BUFFER_TEST := $(BUILD_DIR)/buffer-test
 ARENA_TEST := $(BUILD_DIR)/arena-test
@@ -216,6 +225,7 @@ CODEC_PERF_BASELINE := $(GENERATED_DIR)/performance/codec-$(ARBORCORE_PERF_PROFI
 .PHONY: all run check
 .PHONY: write-test memory-threshold-test memory-test bytes-test bytes-phase2-test numeric-test core-integer-test core-range-test encoding-test
 .PHONY: core-sequence-property-test core-numeric-property-test core-codec-property-test core-retrofit-b1
+.PHONY: core-memory-property-test core-buffer-arena-property-test core-connection-property-test core-retrofit-c1
 .PHONY: buffer-test arena-test polish-gate-1 polish-gate-2 io-test net-test http-test router-test
 .PHONY: event-test connection-test http-response-test request-target-test route-pattern-test server-test polish-gate-3
 .PHONY: benchmark qualify-memory show-memory-policy
@@ -328,6 +338,15 @@ $(CORE_NUMERIC_PROPERTY_TEST_OBJ): $(TEST_ASM_DIR)/core_numeric_property_test.as
 $(CORE_CODEC_PROPERTY_TEST_OBJ): $(TEST_ASM_DIR)/core_codec_property_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
+$(CORE_MEMORY_PROPERTY_TEST_OBJ): $(TEST_ASM_DIR)/core_memory_property_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_BUFFER_ARENA_PROPERTY_TEST_OBJ): $(TEST_ASM_DIR)/core_buffer_arena_property_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_CONNECTION_PROPERTY_TEST_OBJ): $(TEST_ASM_DIR)/core_connection_property_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
 $(ENCODING_TEST_OBJ): $(TEST_ASM_DIR)/encoding_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
@@ -429,6 +448,15 @@ $(CORE_CODEC_PROPERTY_TEST): \
 	$(CORE_CODEC_PROPERTY_TEST_OBJ) $(HEX_CODEC_OBJ) $(PERCENT_CODEC_OBJ) $(BASE64_OBJ)
 	$(LD) -o $@ \
 		$(CORE_CODEC_PROPERTY_TEST_OBJ) $(HEX_CODEC_OBJ) $(PERCENT_CODEC_OBJ) $(BASE64_OBJ)
+
+$(CORE_MEMORY_PROPERTY_TEST): $(CORE_MEMORY_PROPERTY_TEST_OBJ) $(MEMORY_OBJ)
+	$(LD) -o $@ $(CORE_MEMORY_PROPERTY_TEST_OBJ) $(MEMORY_OBJ)
+
+$(CORE_BUFFER_ARENA_PROPERTY_TEST): $(CORE_BUFFER_ARENA_PROPERTY_TEST_OBJ) $(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ)
+	$(LD) -o $@ $(CORE_BUFFER_ARENA_PROPERTY_TEST_OBJ) $(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ)
+
+$(CORE_CONNECTION_PROPERTY_TEST): $(CORE_CONNECTION_PROPERTY_TEST_OBJ) $(CONNECTION_OBJ)
+	$(LD) -o $@ $(CORE_CONNECTION_PROPERTY_TEST_OBJ) $(CONNECTION_OBJ)
 
 $(ENCODING_TEST): \
 	$(ENCODING_TEST_OBJ) \
@@ -610,6 +638,14 @@ core-retrofit-b1: $(CORE_SEQUENCE_PROPERTY_TEST) $(CORE_NUMERIC_PROPERTY_TEST) $
 	@$(CORE_NUMERIC_PROPERTY_TEST)
 	@$(CORE_CODEC_PROPERTY_TEST)
 	@echo "PASS: Core Retrofit B1 qualification"
+core-memory-property-test: $(CORE_MEMORY_PROPERTY_TEST)
+core-buffer-arena-property-test: $(CORE_BUFFER_ARENA_PROPERTY_TEST)
+core-connection-property-test: $(CORE_CONNECTION_PROPERTY_TEST)
+core-retrofit-c1: $(CORE_MEMORY_PROPERTY_TEST) $(CORE_BUFFER_ARENA_PROPERTY_TEST) $(CORE_CONNECTION_PROPERTY_TEST)
+	@$(CORE_MEMORY_PROPERTY_TEST)
+	@$(CORE_BUFFER_ARENA_PROPERTY_TEST)
+	@$(CORE_CONNECTION_PROPERTY_TEST)
+	@echo "PASS: Core Retrofit C1 qualification"
 encoding-test: $(ENCODING_TEST)
 buffer-test: $(BUFFER_TEST)
 arena-test: $(ARENA_TEST)
@@ -644,6 +680,9 @@ check: \
 	$(CORE_SEQUENCE_PROPERTY_TEST) \
 	$(CORE_NUMERIC_PROPERTY_TEST) \
 	$(CORE_CODEC_PROPERTY_TEST) \
+	$(CORE_MEMORY_PROPERTY_TEST) \
+	$(CORE_BUFFER_ARENA_PROPERTY_TEST) \
+	$(CORE_CONNECTION_PROPERTY_TEST) \
 	$(ENCODING_TEST) \
 	$(BUFFER_TEST) \
 	$(ARENA_TEST) \
@@ -777,6 +816,24 @@ check: \
 		exit "$$status"; \
 	fi; \
 	echo "PASS: core-codec-property-test"; \
+	echo; \
+	echo "### Core Retrofit C1: memory geometry"; \
+	status=0; \
+	$(CORE_MEMORY_PROPERTY_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: core-memory-property-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: core-memory-property-test"; \
+	echo; \
+	echo "### Core Retrofit C1: buffer/arena algebra"; \
+	status=0; \
+	$(CORE_BUFFER_ARENA_PROPERTY_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: core-buffer-arena-property-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: core-buffer-arena-property-test"; \
+	echo; \
+	echo "### Core Retrofit C1: connection state relation"; \
+	status=0; \
+	$(CORE_CONNECTION_PROPERTY_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: core-connection-property-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: core-connection-property-test"; \
 	echo; \
 	echo "### encoding"; \
 	status=0; \
