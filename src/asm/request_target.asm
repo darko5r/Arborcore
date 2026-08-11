@@ -78,10 +78,14 @@ request_target_split:
 .origin:
     cmp byte [rdi], '/'
     jne .invalid
+    ; Validate the complete raw target before publishing any view.  R9 keeps
+    ; the first query separator index, or UINT64_MAX when no '?' was seen.
+    ; Additional '?' bytes are ordinary query data.
     xor ecx, ecx
+    mov r9, -1
 .scan:
     cmp rcx, rsi
-    jae .no_query
+    jae .scan_done
     mov al, [rdi + rcx]
     cmp al, 0x21
     jb .invalid
@@ -90,17 +94,24 @@ request_target_split:
     cmp al, '#'
     je .invalid
     cmp al, '?'
-    je .query
+    jne .scan_next
+    cmp r9, -1
+    jne .scan_next
+    mov r9, rcx
+.scan_next:
     inc rcx
     jmp .scan
 
-.query:
+.scan_done:
+    cmp r9, -1
+    je .no_query
+
     mov [r8 + TARGET_PATH_PTR], rdi
-    mov [r8 + TARGET_PATH_LEN], rcx
-    lea rax, [rdi + rcx + 1]
+    mov [r8 + TARGET_PATH_LEN], r9
+    lea rax, [rdi + r9 + 1]
     mov [r8 + TARGET_QUERY_PTR], rax
     mov rdx, rsi
-    sub rdx, rcx
+    sub rdx, r9
     dec rdx
     mov [r8 + TARGET_QUERY_LEN], rdx
     xor eax, eax

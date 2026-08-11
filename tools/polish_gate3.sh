@@ -29,7 +29,7 @@ echo "### POLISH GATE #3: production dependency boundaries"
 [[ "$(nm -u build/connection.o | wc -l)" -eq 0 ]]
 [[ "$(nm -u build/request_target.o | wc -l)" -eq 0 ]]
 
-for sym in buffer_append u64_decimal_length u64_format_decimal; do
+for sym in buffer_append buffer_append_prechecked_disjoint memory_move u64_decimal_length u64_format_decimal; do
     nm -u build/http_response.o | grep -q " U $sym$"
 done
 for sym in bytes_equal request_target_from_request; do

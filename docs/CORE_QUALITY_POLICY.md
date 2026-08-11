@@ -140,6 +140,20 @@ Therefore:
 
 Do not weaken or widen accepted performance envelopes merely to force a desired candidate to pass.
 
+## Environment admissibility and causal performance attribution
+
+An accepted historical profile is valid only when the current benchmark environment can reproduce an unchanged qualified reference closely enough for that profile to remain meaningful.
+
+Before using a historical regression failure to reject a candidate:
+
+1. run the unchanged phase reference under the same current machine conditions;
+2. if that reference remains inside the accepted historical envelopes, the environment is `ADMISSIBLE` and strict historical comparison may decide the gate;
+3. if the unchanged reference itself exceeds the historical envelopes, report `ENVIRONMENT_INADMISSIBLE` rather than attributing the slowdown to the candidate;
+4. in an inadmissible session, use balanced interleaved reference-versus-candidate rounds and compare within-round deltas;
+5. retain the historical profile unchanged unless a separate baseline-qualification process intentionally replaces it.
+
+Paired comparison does not erase absolute performance requirements. It provides causal attribution when the current environment cannot reproduce the older absolute profile. A candidate that regresses materially against its unchanged paired reference still enters REVIEW or REJECT even when the historical environment is inadmissible.
+
 ## Candidate versus strict verification
 
 Pre-commit candidate qualification may measure a deliberately dirty production tree when exact source identity is recorded.

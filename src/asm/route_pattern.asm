@@ -16,7 +16,17 @@
 ; route_pattern_match(pattern, pattern_len, path, path_len,
 ;                     params_out, params_capacity)
 ;   -> RAX=1 match, 0 no-match, negative errno
-;      RDX=parameter count only when RAX=1.
+;      RDX=parameter count only when RAX=1; RDX=0 otherwise.
+;
+; Parameter-output contract:
+;   - PARAM records are valid only when RAX=1. A failed candidate may have
+;     touched params_out while exploring earlier segments; callers must ignore
+;     the storage whenever RAX!=1.
+;   - PARAM_NAME_PTR aliases immutable route-pattern/catalog storage. It is
+;     valid only while that catalog remains alive and unchanged.
+;   - PARAM_VALUE_PTR aliases the matched request-target/path storage. It is
+;     valid only for that request lifetime and is invalidated when the input
+;     buffer is compacted, consumed, reset or reused.
 ;
 ; route_pattern_dispatch(routes, count, request, context,
 ;                        params_out, params_capacity)
@@ -282,6 +292,13 @@ route_pattern_match:
     ret
 
 ; route_pattern_dispatch(routes,count,request,context,params,capacity)
+;
+; Catalog-order semantics:
+;   Routes are considered strictly in caller-supplied order and the first
+;   valid method+pattern match wins. Static/exact patterns receive no implicit
+;   priority over parameter patterns; precedence is therefore explicit in the
+;   immutable catalog order. This is the reference behavior that prepared
+;   routing experiments must preserve.
 route_pattern_dispatch:
     push rbx
     push r12

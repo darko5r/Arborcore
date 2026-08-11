@@ -101,6 +101,10 @@ CORE_MEMORY_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_memory_property_test.o
 CORE_BUFFER_ARENA_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_buffer_arena_property_test.o
 CORE_CONNECTION_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_connection_property_test.o
 CORE_BUFFER_ALIAS_TEST_OBJ := $(BUILD_DIR)/core_buffer_alias_test.o
+CORE_REQUEST_TARGET_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_request_target_property_test.o
+CORE_ROUTE_CONTRACT_TEST_OBJ := $(BUILD_DIR)/core_route_contract_test.o
+CORE_HTTP_RESPONSE_CONTRACT_TEST_OBJ := $(BUILD_DIR)/core_http_response_contract_test.o
+CORE_ROUTE_INDEX_EXPERIMENT_TEST_OBJ := $(BUILD_DIR)/core_route_index_experiment_test.o
 ENCODING_TEST_OBJ := $(BUILD_DIR)/encoding_test.o
 BUFFER_TEST_OBJ := $(BUILD_DIR)/buffer_test.o
 ARENA_TEST_OBJ := $(BUILD_DIR)/arena_test.o
@@ -134,6 +138,10 @@ TEST_OBJECTS := \
 	$(CORE_BUFFER_ARENA_PROPERTY_TEST_OBJ) \
 	$(CORE_CONNECTION_PROPERTY_TEST_OBJ) \
 	$(CORE_BUFFER_ALIAS_TEST_OBJ) \
+	$(CORE_REQUEST_TARGET_PROPERTY_TEST_OBJ) \
+	$(CORE_ROUTE_CONTRACT_TEST_OBJ) \
+	$(CORE_HTTP_RESPONSE_CONTRACT_TEST_OBJ) \
+	$(CORE_ROUTE_INDEX_EXPERIMENT_TEST_OBJ) \
 	$(ENCODING_TEST_OBJ) \
 	$(BUFFER_TEST_OBJ) \
 	$(ARENA_TEST_OBJ) \
@@ -168,6 +176,10 @@ CORE_MEMORY_PROPERTY_TEST := $(BUILD_DIR)/core-memory-property-test
 CORE_BUFFER_ARENA_PROPERTY_TEST := $(BUILD_DIR)/core-buffer-arena-property-test
 CORE_CONNECTION_PROPERTY_TEST := $(BUILD_DIR)/core-connection-property-test
 CORE_BUFFER_ALIAS_TEST := $(BUILD_DIR)/core-buffer-alias-test
+CORE_REQUEST_TARGET_PROPERTY_TEST := $(BUILD_DIR)/core-request-target-property-test
+CORE_ROUTE_CONTRACT_TEST := $(BUILD_DIR)/core-route-contract-test
+CORE_HTTP_RESPONSE_CONTRACT_TEST := $(BUILD_DIR)/core-http-response-contract-test
+CORE_ROUTE_INDEX_EXPERIMENT_TEST := $(BUILD_DIR)/core-route-index-experiment-test
 ENCODING_TEST := $(BUILD_DIR)/encoding-test
 BUFFER_TEST := $(BUILD_DIR)/buffer-test
 ARENA_TEST := $(BUILD_DIR)/arena-test
@@ -202,6 +214,8 @@ LIFECYCLE_BENCH_OBJ := $(BUILD_DIR)/lifecycle_bench.o
 CONNECTION_BENCH_OBJ := $(BUILD_DIR)/connection_bench.o
 LOOPBACK_BENCH_OBJ := $(BUILD_DIR)/loopback_bench.o
 CODEC_BENCH_OBJ := $(BUILD_DIR)/codec_bench.o
+ROUTE_INDEX_CANDIDATE_OBJ := $(BUILD_DIR)/route_index_candidate.o
+ROUTE_INDEX_BENCH_OBJ := $(BUILD_DIR)/route_index_bench.o
 
 PARSER_BENCH := $(BUILD_DIR)/bench-parser
 ROUTING_BENCH := $(BUILD_DIR)/bench-routing
@@ -210,6 +224,7 @@ LIFECYCLE_BENCH := $(BUILD_DIR)/bench-lifecycle
 CONNECTION_BENCH := $(BUILD_DIR)/bench-connections
 LOOPBACK_BENCH := $(BUILD_DIR)/bench-loopback
 CODEC_BENCH := $(BUILD_DIR)/bench-codec
+ROUTE_INDEX_BENCH := $(BUILD_DIR)/bench-route-index
 
 ARBORCORE_PERF_PROFILE ?= local
 export ARBORCORE_PERF_PROFILE
@@ -224,12 +239,21 @@ SERVER_PERF_BASELINE := $(GENERATED_DIR)/performance/$(ARBORCORE_PERF_PROFILE).e
 CODEC_BENCHMARK_RUNNER := $(TOOLS_DIR)/codec_benchmark_run.sh
 CODEC_BASELINE_QUALIFIER := $(TOOLS_DIR)/codec_baseline_qualify.sh
 CODEC_PERFORMANCE_VERIFY := $(TOOLS_DIR)/codec_performance_verify.sh
+ROUTE_INDEX_EXPERIMENT_RUNNER := $(TOOLS_DIR)/route_index_experiment_run.sh
+ROUTE_INDEX_EXPERIMENT_VERIFY := $(TOOLS_DIR)/route_index_experiment_verify.sh
+SERVER_ENVIRONMENT_ADMISSIBILITY := $(TOOLS_DIR)/server_environment_admissibility.sh
+SERVER_PAIRED_COMPARE := $(TOOLS_DIR)/server_paired_compare.sh
+SERVER_PERFORMANCE_QUALIFIED := $(TOOLS_DIR)/server_performance_qualified.sh
+CORE_RETROFIT_D_GATE := $(TOOLS_DIR)/core_retrofit_d_gate.sh
+CORE_RETROFIT_D_REFERENCE ?= 24e014b791b46c4b7c8dffd2dee14dcb8eb4354a
 CODEC_PERF_BASELINE := $(GENERATED_DIR)/performance/codec-$(ARBORCORE_PERF_PROFILE).env
 
 .PHONY: all run check
 .PHONY: write-test memory-threshold-test memory-test bytes-test bytes-phase2-test numeric-test core-integer-test core-range-test encoding-test
 .PHONY: core-sequence-property-test core-numeric-property-test core-codec-property-test core-retrofit-b1
 .PHONY: core-memory-property-test core-buffer-arena-property-test core-connection-property-test core-buffer-alias-test core-retrofit-c1 core-retrofit-c
+.PHONY: core-request-target-property-test core-route-contract-test core-http-response-contract-test core-route-index-experiment-test core-retrofit-d
+.PHONY: route-index-experiment verify-server-environment verify-server-performance-qualified-candidate core-retrofit-d-gate
 .PHONY: buffer-test arena-test polish-gate-1 polish-gate-2 io-test net-test http-test router-test
 .PHONY: event-test connection-test http-response-test request-target-test route-pattern-test server-test polish-gate-3
 .PHONY: benchmark qualify-memory show-memory-policy show-memory-profile
@@ -303,6 +327,12 @@ $(LOOPBACK_BENCH_OBJ): $(BENCH_DIR)/loopback_bench.asm | $(BUILD_DIR)
 $(CODEC_BENCH_OBJ): $(BENCH_DIR)/codec_bench.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
+$(ROUTE_INDEX_CANDIDATE_OBJ): $(BENCH_DIR)/route_index_candidate.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(ROUTE_INDEX_BENCH_OBJ): $(BENCH_DIR)/route_index_bench.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
 # memory.asm depends on generated policy
 $(MEMORY_OBJ): $(SRC_ASM_DIR)/memory.asm $(MEMORY_POLICY) | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
@@ -355,6 +385,18 @@ $(CORE_CONNECTION_PROPERTY_TEST_OBJ): $(TEST_ASM_DIR)/core_connection_property_t
 	$(NASM) $(NASMFLAGS) $< -o $@
 
 $(CORE_BUFFER_ALIAS_TEST_OBJ): $(TEST_ASM_DIR)/core_buffer_alias_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_REQUEST_TARGET_PROPERTY_TEST_OBJ): $(TEST_ASM_DIR)/core_request_target_property_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_ROUTE_CONTRACT_TEST_OBJ): $(TEST_ASM_DIR)/core_route_contract_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_HTTP_RESPONSE_CONTRACT_TEST_OBJ): $(TEST_ASM_DIR)/core_http_response_contract_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_ROUTE_INDEX_EXPERIMENT_TEST_OBJ): $(TEST_ASM_DIR)/core_route_index_experiment_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
 $(ENCODING_TEST_OBJ): $(TEST_ASM_DIR)/encoding_test.asm | $(BUILD_DIR)
@@ -470,6 +512,18 @@ $(CORE_CONNECTION_PROPERTY_TEST): $(CORE_CONNECTION_PROPERTY_TEST_OBJ) $(CONNECT
 
 $(CORE_BUFFER_ALIAS_TEST): $(CORE_BUFFER_ALIAS_TEST_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ)
 	$(LD) -o $@ $(CORE_BUFFER_ALIAS_TEST_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ)
+
+$(CORE_REQUEST_TARGET_PROPERTY_TEST): $(CORE_REQUEST_TARGET_PROPERTY_TEST_OBJ) $(REQUEST_TARGET_OBJ)
+	$(LD) -o $@ $(CORE_REQUEST_TARGET_PROPERTY_TEST_OBJ) $(REQUEST_TARGET_OBJ)
+
+$(CORE_ROUTE_CONTRACT_TEST): $(CORE_ROUTE_CONTRACT_TEST_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_OBJ)
+	$(LD) -o $@ $(CORE_ROUTE_CONTRACT_TEST_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_OBJ)
+
+$(CORE_HTTP_RESPONSE_CONTRACT_TEST): $(CORE_HTTP_RESPONSE_CONTRACT_TEST_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ)
+	$(LD) -o $@ $(CORE_HTTP_RESPONSE_CONTRACT_TEST_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ)
+
+$(CORE_ROUTE_INDEX_EXPERIMENT_TEST): $(CORE_ROUTE_INDEX_EXPERIMENT_TEST_OBJ) $(ROUTE_INDEX_CANDIDATE_OBJ) $(ROUTER_OBJ) $(BYTES_OBJ)
+	$(LD) -o $@ $(CORE_ROUTE_INDEX_EXPERIMENT_TEST_OBJ) $(ROUTE_INDEX_CANDIDATE_OBJ) $(ROUTER_OBJ) $(BYTES_OBJ)
 
 $(ENCODING_TEST): \
 	$(ENCODING_TEST_OBJ) \
@@ -608,6 +662,9 @@ $(ROUTING_BENCH): \
 	$(LD) -o $@ \
 		$(ROUTING_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
 
+$(ROUTE_INDEX_BENCH): $(ROUTE_INDEX_BENCH_OBJ) $(ROUTE_INDEX_CANDIDATE_OBJ) $(BENCH_SUPPORT_OBJ) $(ROUTER_OBJ) $(BYTES_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+	$(LD) -o $@ $(ROUTE_INDEX_BENCH_OBJ) $(ROUTE_INDEX_CANDIDATE_OBJ) $(BENCH_SUPPORT_OBJ) $(ROUTER_OBJ) $(BYTES_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+
 $(RESPONSE_BENCH): \
 	$(RESPONSE_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
 	$(LD) -o $@ \
@@ -673,6 +730,16 @@ core-retrofit-c: $(CORE_MEMORY_PROPERTY_TEST) $(CORE_BUFFER_ARENA_PROPERTY_TEST)
 	fi
 	@echo "PASS: connection_reset_io removed from the public ABI"
 	@echo "PASS: Core Retrofit C qualification"
+core-request-target-property-test: $(CORE_REQUEST_TARGET_PROPERTY_TEST)
+core-route-contract-test: $(CORE_ROUTE_CONTRACT_TEST)
+core-http-response-contract-test: $(CORE_HTTP_RESPONSE_CONTRACT_TEST)
+core-route-index-experiment-test: $(CORE_ROUTE_INDEX_EXPERIMENT_TEST)
+core-retrofit-d: $(CORE_REQUEST_TARGET_PROPERTY_TEST) $(CORE_ROUTE_CONTRACT_TEST) $(CORE_HTTP_RESPONSE_CONTRACT_TEST) $(CORE_ROUTE_INDEX_EXPERIMENT_TEST)
+	@$(CORE_REQUEST_TARGET_PROPERTY_TEST)
+	@$(CORE_ROUTE_CONTRACT_TEST)
+	@$(CORE_HTTP_RESPONSE_CONTRACT_TEST)
+	@$(CORE_ROUTE_INDEX_EXPERIMENT_TEST)
+	@echo "PASS: Core Retrofit D correctness qualification"
 encoding-test: $(ENCODING_TEST)
 buffer-test: $(BUFFER_TEST)
 arena-test: $(ARENA_TEST)
@@ -711,6 +778,10 @@ check: \
 	$(CORE_BUFFER_ARENA_PROPERTY_TEST) \
 	$(CORE_CONNECTION_PROPERTY_TEST) \
 	$(CORE_BUFFER_ALIAS_TEST) \
+	$(CORE_REQUEST_TARGET_PROPERTY_TEST) \
+	$(CORE_ROUTE_CONTRACT_TEST) \
+	$(CORE_HTTP_RESPONSE_CONTRACT_TEST) \
+	$(CORE_ROUTE_INDEX_EXPERIMENT_TEST) \
 	$(ENCODING_TEST) \
 	$(BUFFER_TEST) \
 	$(ARENA_TEST) \
@@ -875,6 +946,26 @@ check: \
 	fi; \
 	echo "PASS: connection_reset_io removed from the public ABI"; \
 	echo; \
+	echo "### Core Retrofit D1: request-target full-domain validation"; \
+	status=0; $(CORE_REQUEST_TARGET_PROPERTY_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: core-request-target-property-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: core-request-target-property-test"; \
+	echo; \
+	echo "### Core Retrofit D2: routing contracts and lifetimes"; \
+	status=0; $(CORE_ROUTE_CONTRACT_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: core-route-contract-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: core-route-contract-test"; \
+	echo; \
+	echo "### Core Retrofit D3: response alias/failure contracts"; \
+	status=0; $(CORE_HTTP_RESPONSE_CONTRACT_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: core-http-response-contract-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: core-http-response-contract-test"; \
+	echo; \
+	echo "### Core Retrofit D4: prepared-index equivalence"; \
+	status=0; $(CORE_ROUTE_INDEX_EXPERIMENT_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: core-route-index-experiment-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: core-route-index-experiment-test"; \
+	echo; \
 	echo "### encoding"; \
 	status=0; \
 	$(ENCODING_TEST) || status=$$?; \
@@ -981,6 +1072,20 @@ benchmark-server-perf: $(LIFECYCLE_BENCH) $(LOOPBACK_BENCH) $(SERVER_BENCHMARK_P
 
 benchmark-server-syscalls: $(LOOPBACK_BENCH) $(SERVER_BENCHMARK_SYSCALLS)
 	@bash $(SERVER_BENCHMARK_SYSCALLS)
+
+# Retrofit D routing experiment and environment-qualified performance.
+route-index-experiment: $(CORE_ROUTE_INDEX_EXPERIMENT_TEST) $(ROUTE_INDEX_BENCH) $(ROUTE_INDEX_EXPERIMENT_VERIFY)
+	@bash $(ROUTE_INDEX_EXPERIMENT_VERIFY)
+
+verify-server-environment: $(ARBORCORE_OBJECTS) $(SERVER_BENCH_EXECUTABLES) $(SERVER_ENVIRONMENT_ADMISSIBILITY)
+	@ARBORCORE_QUALIFICATION_REFERENCE_COMMIT=$(CORE_RETROFIT_D_REFERENCE) bash $(SERVER_ENVIRONMENT_ADMISSIBILITY); rc=$$?; \
+	if [[ $$rc -eq 10 ]]; then exit 0; else exit $$rc; fi
+
+verify-server-performance-qualified-candidate: $(ARBORCORE_OBJECTS) $(SERVER_BENCH_EXECUTABLES) $(SERVER_PERFORMANCE_QUALIFIED)
+	@ARBORCORE_QUALIFICATION_REFERENCE_COMMIT=$(CORE_RETROFIT_D_REFERENCE) ARBORCORE_PERF_PROFILE=$(ARBORCORE_PERF_PROFILE) bash $(SERVER_PERFORMANCE_QUALIFIED) candidate
+
+core-retrofit-d-gate: $(CORE_RETROFIT_D_GATE)
+	@ARBORCORE_QUALIFICATION_REFERENCE_COMMIT=$(CORE_RETROFIT_D_REFERENCE) ARBORCORE_PERF_PROFILE=$(ARBORCORE_PERF_PROFILE) bash $(CORE_RETROFIT_D_GATE)
 
 # Dedicated percent-codec reference/candidate performance evidence.
 benchmark-codec: $(CODEC_BENCH) $(CODEC_BENCHMARK_RUNNER)

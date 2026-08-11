@@ -217,9 +217,22 @@ or:
 target = path || "?" || query
 ```
 
-The first `?` separates path and query without copying. Path begins `/`. Raw `#` and non-visible ASCII are rejected in both components. Percent decoding is not part of decomposition.
+The first `?` separates path and query without copying. Path begins `/`. The complete raw target is validated before either span is published: raw `#` and non-visible ASCII are rejected in both components, while later `?` bytes are ordinary query data. Percent decoding is not part of decomposition.
 
 The asterisk form `*` remains a distinct accepted target form.
+
+### Route parameter span lifetimes
+
+A successful parameterized route match returns borrowed spans:
+
+```text
+parameter name  -> immutable route-catalog/pattern storage
+parameter value -> current request-target/input storage
+```
+
+Name spans remain valid only while the immutable route catalog remains alive. Value spans remain valid only for the active request lifetime and are invalidated when the underlying input buffer is consumed, compacted, reset, or reused. Parameter records are valid only on a successful match; callers must ignore their contents when the match result is zero or negative.
+
+Catalog order is authoritative. The first valid method+pattern match wins; exact/static patterns do not implicitly outrank parameter patterns.
 
 ## 7. Buffer algebra
 
@@ -357,7 +370,19 @@ remaining(now,deadline) = max(0, deadline-now)
 
 Deadline-sensitive wait/retry code recomputes `remaining` after interruption.
 
-## 12. Resource algebra
+## 12. Response serialization alias contract
+
+HTTP response serialization preflights the complete destination requirement before publication. Expected validation and capacity failures leave the logical buffer state and backing bytes unchanged.
+
+Caller-supplied response bodies may alias the output buffer. The serialized body has whole-operation snapshot semantics:
+
+```text
+serialized_body = body_bytes_visible_at_serializer_entry
+```
+
+If response metadata would overwrite an aliased body source before the body append occurs, the body is staged with overlap-safe movement into its final destination before metadata publication. Static/header fragments use the explicitly prechecked disjoint append path only after complete destination preflight.
+
+## 13. Resource algebra
 
 Kernel descriptors are owned resources, not ordinary reusable integers.
 
@@ -377,7 +402,7 @@ prepare -> acquire -> validate/register -> publish
 
 Failure before publish cleans up resources and leaves no logically valid published object.
 
-## 13. Transactional logical mutation
+## 14. Transactional logical mutation
 
 For operations advertised as transactional:
 
@@ -388,7 +413,7 @@ failure => caller-visible logical state remains prior state or documented invali
 
 Physical bytes outside the logical state need not be restored unless the contract is explicitly security-sensitive.
 
-## 14. Complexity/resource contracts
+## 15. Complexity/resource contracts
 
 Every important subsystem should eventually state a complexity contract plus structural counters where useful.
 
@@ -414,7 +439,7 @@ Machine-independent counters should be preferred alongside wall-clock profiles w
 - event-control operations;
 - instructions/branches where tooling permits.
 
-## 15. Qualification principles
+## 16. Qualification principles
 
 1. finite domains should be exhaustive when inexpensive (ASCII byte domain; connection-state pairs);
 2. algebraic identities/inverses supplement example vectors;

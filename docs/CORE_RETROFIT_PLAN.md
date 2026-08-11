@@ -118,11 +118,14 @@ Qualification:
 - segment/capture algebra;
 - property tests for exact and patterned dispatch.
 
-Experiments explicitly deferred:
+Retrofit D experiment:
 
-- prepared static route indexes;
-- hashing/perfect hashing/trie variants;
-- scatter/gather response output.
+- qualify a prepared static exact-route index against the ordered linear reference; retain the linear router unless the prepared candidate preserves first-match semantics and wins the quality vector.
+
+Experiments still deferred to later phases:
+
+- broader hashing/perfect-hashing/trie route compilers beyond the D4 prepared-index candidate;
+- scatter/gather response output (Retrofit E).
 
 ## Retrofit E — I/O, time, events, and server composition
 

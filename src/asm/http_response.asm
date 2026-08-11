@@ -17,8 +17,14 @@
 ;   404 Not Found, 500 Internal Server Error.
 ;
 ; The routine preflights the complete destination requirement before
-; appending. On any unexpected append failure it restores the original
-; logical buffer length, so partial bytes are not exposed to callers.
+; appending. On any expected validation/capacity failure the backing storage
+; and logical length remain unchanged.
+;
+; Body/output aliasing has whole-operation snapshot semantics. If the caller's
+; body aliases the metadata destination region, the body is first moved to its
+; final output position before any status/header bytes are written. The body
+; therefore represents the bytes visible at function entry, even when its
+; original source would otherwise be overwritten by response metadata.
 
 %define ERR_EINVAL     -22
 %define ERR_ENOSPC     -28
@@ -30,6 +36,7 @@
 
 extern buffer_append
 extern buffer_append_prechecked_disjoint
+extern memory_move
 extern u64_decimal_length
 extern u64_format_decimal
 
@@ -66,11 +73,13 @@ http_response_serialize:
     push r13
     push r14
     push r15
-    sub rsp, 64
+    sub rsp, 96
 
     ; locals:
     ; +0 status ptr, +8 status len, +16 decimal len, +24 required
     ; +32..+51 decimal scratch
+    ; +56 capacity, +64 buffer data pointer, +72 metadata length
+    ; +80 metadata start, +88 metadata end / final body destination
 
     mov r12, rdi                 ; buffer
     mov r13, rdx                 ; body
@@ -139,13 +148,18 @@ http_response_serialize:
     cmp rbx, r9
     ja .invalid
     test r9, r9
-    jz .buffer_range_ok
+    jz .buffer_zero_capacity
     mov r10, [r12 + BUFFER_DATA]
     test r10, r10
     jz .invalid
+    mov [rsp + 64], r10
     mov rax, r10
     add rax, r9
     jc .overflow
+    jmp .buffer_range_ok
+.buffer_zero_capacity:
+    xor r10d, r10d
+    mov [rsp + 64], r10
 .buffer_range_ok:
 
     mov rdi, r14
@@ -174,6 +188,9 @@ http_response_serialize:
     add rax, r14
     jc .overflow
     mov [rsp + 24], rax
+    mov rdx, rax
+    sub rdx, r14
+    mov [rsp + 72], rdx          ; metadata bytes preceding the body
 
     mov rdx, rbx
     add rdx, rax
@@ -189,6 +206,38 @@ http_response_serialize:
     test rax, rax
     jnz .unexpected_error
 
+    ; Empty-body responses retain the C4 metadata hot path: no alias geometry
+    ; is needed when there are no caller body bytes to preserve.
+    test r14, r14
+    jz .body_snapshot_ready
+
+    ; Establish the metadata destination [metadata_start, metadata_end).
+    ; Total-capacity preflight above guarantees both endpoints are inside the
+    ; representable backing range.
+    mov rax, [rsp + 64]
+    add rax, rbx
+    mov [rsp + 80], rax
+    add rax, [rsp + 72]
+    mov [rsp + 88], rax          ; also the final body destination
+
+    ; If the entry-time body span overlaps bytes that metadata will overwrite,
+    ; snapshot it into its final location before touching the buffer. This is a
+    ; true memmove operation and therefore handles every overlap direction.
+    mov rax, r13
+    add rax, r14                 ; body end; validated representable earlier
+    mov rcx, [rsp + 80]          ; metadata start
+    cmp r13, [rsp + 88]          ; body_start < metadata_end ?
+    jae .body_snapshot_ready
+    cmp rcx, rax                 ; metadata_start < body_end ?
+    jae .body_snapshot_ready
+
+    mov rdi, [rsp + 88]
+    mov rsi, r13
+    mov rdx, r14
+    call memory_move
+    mov r13, [rsp + 88]          ; staged body now lives at final destination
+
+.body_snapshot_ready:
     ; The complete output capacity was preflighted above.  The status/header
     ; fragments below come from this module's .rodata or private stack scratch,
     ; so they are provably disjoint from the destination buffer.  Use the
@@ -279,7 +328,7 @@ http_response_serialize:
     xor edx, edx
     mov rax, ERR_EOVERFLOW
 .return:
-    add rsp, 64
+    add rsp, 96
     pop r15
     pop r14
     pop r13

@@ -20,6 +20,10 @@
 ;
 ; The router reuses the byte-span equality primitive and rejects
 ; representationally impossible route-table/input spans before reads.
+; Catalog order is authoritative: the first valid exact method+path match
+; with a non-NULL handler wins. Duplicate exact routes therefore preserve
+; first-match semantics. Prepared/static index experiments must return the
+; same handler for every valid lookup or be rejected.
 
 %define ERR_ENOENT -2
 
