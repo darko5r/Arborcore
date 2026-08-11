@@ -93,6 +93,9 @@ BYTES_PHASE2_TEST_OBJ := $(BUILD_DIR)/bytes_phase2_test.o
 NUMERIC_TEST_OBJ := $(BUILD_DIR)/numeric_test.o
 CORE_INTEGER_TEST_OBJ := $(BUILD_DIR)/core_integer_test.o
 CORE_RANGE_TEST_OBJ := $(BUILD_DIR)/core_range_test.o
+CORE_SEQUENCE_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_sequence_property_test.o
+CORE_NUMERIC_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_numeric_property_test.o
+CORE_CODEC_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_codec_property_test.o
 ENCODING_TEST_OBJ := $(BUILD_DIR)/encoding_test.o
 BUFFER_TEST_OBJ := $(BUILD_DIR)/buffer_test.o
 ARENA_TEST_OBJ := $(BUILD_DIR)/arena_test.o
@@ -119,6 +122,9 @@ TEST_OBJECTS := \
 	$(NUMERIC_TEST_OBJ) \
 	$(CORE_INTEGER_TEST_OBJ) \
 	$(CORE_RANGE_TEST_OBJ) \
+	$(CORE_SEQUENCE_PROPERTY_TEST_OBJ) \
+	$(CORE_NUMERIC_PROPERTY_TEST_OBJ) \
+	$(CORE_CODEC_PROPERTY_TEST_OBJ) \
 	$(ENCODING_TEST_OBJ) \
 	$(BUFFER_TEST_OBJ) \
 	$(ARENA_TEST_OBJ) \
@@ -146,6 +152,9 @@ BYTES_PHASE2_TEST := $(BUILD_DIR)/bytes-phase2-test
 NUMERIC_TEST := $(BUILD_DIR)/numeric-test
 CORE_INTEGER_TEST := $(BUILD_DIR)/core-integer-test
 CORE_RANGE_TEST := $(BUILD_DIR)/core-range-test
+CORE_SEQUENCE_PROPERTY_TEST := $(BUILD_DIR)/core-sequence-property-test
+CORE_NUMERIC_PROPERTY_TEST := $(BUILD_DIR)/core-numeric-property-test
+CORE_CODEC_PROPERTY_TEST := $(BUILD_DIR)/core-codec-property-test
 ENCODING_TEST := $(BUILD_DIR)/encoding-test
 BUFFER_TEST := $(BUILD_DIR)/buffer-test
 ARENA_TEST := $(BUILD_DIR)/arena-test
@@ -200,6 +209,7 @@ SERVER_PERF_BASELINE := $(GENERATED_DIR)/performance/$(ARBORCORE_PERF_PROFILE).e
 
 .PHONY: all run check
 .PHONY: write-test memory-threshold-test memory-test bytes-test bytes-phase2-test numeric-test core-integer-test core-range-test encoding-test
+.PHONY: core-sequence-property-test core-numeric-property-test core-codec-property-test core-retrofit-b1
 .PHONY: buffer-test arena-test polish-gate-1 polish-gate-2 io-test net-test http-test router-test
 .PHONY: event-test connection-test http-response-test request-target-test route-pattern-test server-test polish-gate-3
 .PHONY: benchmark qualify-memory show-memory-policy
@@ -299,6 +309,15 @@ $(CORE_INTEGER_TEST_OBJ): $(TEST_ASM_DIR)/core_integer_test.asm | $(BUILD_DIR)
 $(CORE_RANGE_TEST_OBJ): $(TEST_ASM_DIR)/core_range_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
+$(CORE_SEQUENCE_PROPERTY_TEST_OBJ): $(TEST_ASM_DIR)/core_sequence_property_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_NUMERIC_PROPERTY_TEST_OBJ): $(TEST_ASM_DIR)/core_numeric_property_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_CODEC_PROPERTY_TEST_OBJ): $(TEST_ASM_DIR)/core_codec_property_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
 $(ENCODING_TEST_OBJ): $(TEST_ASM_DIR)/encoding_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
@@ -385,6 +404,21 @@ $(CORE_INTEGER_TEST): $(CORE_INTEGER_TEST_OBJ) $(U64_CHECKED_OBJ)
 
 $(CORE_RANGE_TEST): $(CORE_RANGE_TEST_OBJ) $(RANGE_OBJ)
 	$(LD) -o $@ $(CORE_RANGE_TEST_OBJ) $(RANGE_OBJ)
+
+$(CORE_SEQUENCE_PROPERTY_TEST): \
+	$(CORE_SEQUENCE_PROPERTY_TEST_OBJ) $(ASCII_OBJ) $(BYTES_OBJ) $(BYTES_SCAN_OBJ)
+	$(LD) -o $@ \
+		$(CORE_SEQUENCE_PROPERTY_TEST_OBJ) $(ASCII_OBJ) $(BYTES_OBJ) $(BYTES_SCAN_OBJ)
+
+$(CORE_NUMERIC_PROPERTY_TEST): \
+	$(CORE_NUMERIC_PROPERTY_TEST_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ)
+	$(LD) -o $@ \
+		$(CORE_NUMERIC_PROPERTY_TEST_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ)
+
+$(CORE_CODEC_PROPERTY_TEST): \
+	$(CORE_CODEC_PROPERTY_TEST_OBJ) $(HEX_CODEC_OBJ) $(PERCENT_CODEC_OBJ) $(BASE64_OBJ)
+	$(LD) -o $@ \
+		$(CORE_CODEC_PROPERTY_TEST_OBJ) $(HEX_CODEC_OBJ) $(PERCENT_CODEC_OBJ) $(BASE64_OBJ)
 
 $(ENCODING_TEST): \
 	$(ENCODING_TEST_OBJ) \
@@ -558,6 +592,14 @@ bytes-phase2-test: $(BYTES_PHASE2_TEST)
 numeric-test: $(NUMERIC_TEST)
 core-integer-test: $(CORE_INTEGER_TEST)
 core-range-test: $(CORE_RANGE_TEST)
+core-sequence-property-test: $(CORE_SEQUENCE_PROPERTY_TEST)
+core-numeric-property-test: $(CORE_NUMERIC_PROPERTY_TEST)
+core-codec-property-test: $(CORE_CODEC_PROPERTY_TEST)
+core-retrofit-b1: $(CORE_SEQUENCE_PROPERTY_TEST) $(CORE_NUMERIC_PROPERTY_TEST) $(CORE_CODEC_PROPERTY_TEST)
+	@$(CORE_SEQUENCE_PROPERTY_TEST)
+	@$(CORE_NUMERIC_PROPERTY_TEST)
+	@$(CORE_CODEC_PROPERTY_TEST)
+	@echo "PASS: Core Retrofit B1 qualification"
 encoding-test: $(ENCODING_TEST)
 buffer-test: $(BUFFER_TEST)
 arena-test: $(ARENA_TEST)
@@ -589,6 +631,9 @@ check: \
 	$(NUMERIC_TEST) \
 	$(CORE_INTEGER_TEST) \
 	$(CORE_RANGE_TEST) \
+	$(CORE_SEQUENCE_PROPERTY_TEST) \
+	$(CORE_NUMERIC_PROPERTY_TEST) \
+	$(CORE_CODEC_PROPERTY_TEST) \
 	$(ENCODING_TEST) \
 	$(BUFFER_TEST) \
 	$(ARENA_TEST) \
@@ -695,6 +740,33 @@ check: \
 		exit "$$status"; \
 	fi; \
 	echo "PASS: core-range-test"; \
+	echo; \
+	echo "### Core Retrofit B1: sequence properties"; \
+	status=0; \
+	$(CORE_SEQUENCE_PROPERTY_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then \
+		echo "FAIL: core-sequence-property-test exit=$$status"; \
+		exit "$$status"; \
+	fi; \
+	echo "PASS: core-sequence-property-test"; \
+	echo; \
+	echo "### Core Retrofit B1: numeric round-trip properties"; \
+	status=0; \
+	$(CORE_NUMERIC_PROPERTY_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then \
+		echo "FAIL: core-numeric-property-test exit=$$status"; \
+		exit "$$status"; \
+	fi; \
+	echo "PASS: core-numeric-property-test"; \
+	echo; \
+	echo "### Core Retrofit B1: codec properties"; \
+	status=0; \
+	$(CORE_CODEC_PROPERTY_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then \
+		echo "FAIL: core-codec-property-test exit=$$status"; \
+		exit "$$status"; \
+	fi; \
+	echo "PASS: core-codec-property-test"; \
 	echo; \
 	echo "### encoding"; \
 	status=0; \
