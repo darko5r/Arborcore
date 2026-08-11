@@ -321,6 +321,11 @@ memory_find_byte:
 ;   source < destination < source + length:
 ;       copy backward to avoid destroying unread source bytes
 ;
+; Forward-safe movement uses the same machine-qualified size policy as
+; memory_copy. This remains correct for destination < source overlap
+; because every selected implementation advances monotonically low-to-high.
+;
+; Destructive forward overlap remains a backward REP MOVSB operation.
 ; DF is always restored clear before returning.
 ; ============================================================
 
@@ -335,49 +340,33 @@ memory_move:
 
     jb .forward
 
-
-    ; Destination lies above source.
-    ;
-    ; Calculate distance without forming source+length, thereby
-    ; avoiding an unnecessary potentially overflowing address
-    ; calculation.
-
+    ; Destination lies above source. Calculate distance without forming
+    ; source+length, avoiding an unnecessary potentially overflowing
+    ; endpoint calculation.
     mov r8, rdi
     sub r8, rsi
 
     cmp r8, rdx
     jae .forward
 
-
-    ; --------------------------------------------------------
-    ; Destructive forward overlap:
-    ;
-    ; source:
-    ;       [a b c d e f g h]
-    ;
-    ; destination:
-    ;           [...............]
-    ;
-    ; Begin at the high end and move downward.
-    ; --------------------------------------------------------
-
+    ; Destructive forward overlap: move high-to-low.
     lea rsi, [rsi + rdx - 1]
     lea rdi, [rdi + rdx - 1]
-
     mov rcx, rdx
 
     std
     rep movsb
     cld
-
     ret
 
-
 .forward:
-    mov rcx, rdx
+    cmp rdx, MEMORY_COPY_QWORD_MIN
+    jb memory_copy_scalar
 
-    rep movsb
+    cmp rdx, MEMORY_COPY_REP_MIN
+    jb memory_copy_qword
 
+    jmp memory_copy_rep
 
 .done:
     ret

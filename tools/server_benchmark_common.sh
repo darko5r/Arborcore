@@ -114,3 +114,21 @@ arborcore_production_source_sha256() {
             | awk '{print $1}'
     )
 }
+
+
+arborcore_memory_policy_sha256() {
+    local root="$1"
+    local policy="$root/generated/memory_thresholds.inc"
+    [[ -r "$policy" ]] || return 2
+    sha256sum "$policy" | awk '{print $1}'
+}
+
+arborcore_memory_policy_qword_min() {
+    awk '/^%define MEMORY_COPY_QWORD_MIN/ {print $3}' \
+        "$1/generated/memory_thresholds.inc"
+}
+
+arborcore_memory_policy_rep_min() {
+    awk '/^%define MEMORY_COPY_REP_MIN/ {print $3}' \
+        "$1/generated/memory_thresholds.inc"
+}

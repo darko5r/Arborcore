@@ -58,6 +58,20 @@ global connection_note_write:function
 global connection_complete_request:function
 global connection_set_error:function
 
+section .rodata
+
+; Rows: current state ACCEPTED..CLOSED.
+; Bits: destination state ACCEPTED..CLOSED.
+connection_transition_masks:
+    db (1 << (CONN_READING       - CONN_ACCEPTED)) | (1 << (CONN_CLOSING - CONN_ACCEPTED))
+    db (1 << (CONN_REQUEST_READY - CONN_ACCEPTED)) | (1 << (CONN_CLOSING - CONN_ACCEPTED))
+    db (1 << (CONN_DISPATCHING   - CONN_ACCEPTED)) | (1 << (CONN_CLOSING - CONN_ACCEPTED))
+    db (1 << (CONN_WRITING       - CONN_ACCEPTED)) | (1 << (CONN_CLOSING - CONN_ACCEPTED))
+    db (1 << (CONN_KEEP_ALIVE    - CONN_ACCEPTED)) | (1 << (CONN_CLOSING - CONN_ACCEPTED))
+    db (1 << (CONN_READING       - CONN_ACCEPTED)) | (1 << (CONN_CLOSING - CONN_ACCEPTED))
+    db (1 << (CONN_CLOSED        - CONN_ACCEPTED))
+    db 0
+
 section .text
 
 ; connection_init(conn, fd, input_buffer, output_buffer, arena)
@@ -107,75 +121,36 @@ connection_state:
     ret
 
 ; connection_transition(conn, new_state)
+;
+; The transition relation is encoded directly as an eight-byte table.
+; Each table byte corresponds to current state (state-1); bit
+; (new_state-1) is set exactly when the edge is legal.
 connection_transition:
     test rdi, rdi
     jz .invalid
-    cmp rsi, CONN_ACCEPTED
-    jb .invalid
-    cmp rsi, CONN_CLOSED
+
+    lea rax, [rsi - CONN_ACCEPTED]
+    cmp rax, CONN_CLOSED - CONN_ACCEPTED
     ja .invalid
 
-    mov rax, [rdi + CONN_STATE]
-    cmp rax, CONN_ACCEPTED
-    je .from_accepted
-    cmp rax, CONN_READING
-    je .from_reading
-    cmp rax, CONN_REQUEST_READY
-    je .from_request_ready
-    cmp rax, CONN_DISPATCHING
-    je .from_dispatching
-    cmp rax, CONN_WRITING
-    je .from_writing
-    cmp rax, CONN_KEEP_ALIVE
-    je .from_keep_alive
-    cmp rax, CONN_CLOSING
-    je .from_closing
-    jmp .invalid
+    mov rcx, [rdi + CONN_STATE]
+    lea rax, [rcx - CONN_ACCEPTED]
+    cmp rax, CONN_CLOSED - CONN_ACCEPTED
+    ja .invalid
 
-.from_accepted:
-    cmp rsi, CONN_READING
-    je .store
-    cmp rsi, CONN_CLOSING
-    je .store
-    jmp .invalid
-.from_reading:
-    cmp rsi, CONN_REQUEST_READY
-    je .store
-    cmp rsi, CONN_CLOSING
-    je .store
-    jmp .invalid
-.from_request_ready:
-    cmp rsi, CONN_DISPATCHING
-    je .store
-    cmp rsi, CONN_CLOSING
-    je .store
-    jmp .invalid
-.from_dispatching:
-    cmp rsi, CONN_WRITING
-    je .store
-    cmp rsi, CONN_CLOSING
-    je .store
-    jmp .invalid
-.from_writing:
-    cmp rsi, CONN_KEEP_ALIVE
-    je .store
-    cmp rsi, CONN_CLOSING
-    je .store
-    jmp .invalid
-.from_keep_alive:
-    cmp rsi, CONN_READING
-    je .store
-    cmp rsi, CONN_CLOSING
-    je .store
-    jmp .invalid
-.from_closing:
-    cmp rsi, CONN_CLOSED
-    jne .invalid
-.store:
+    lea r8, [rel connection_transition_masks]
+    movzx eax, byte [r8 + rax]
+
+    mov ecx, esi
+    sub ecx, CONN_ACCEPTED
+    bt eax, ecx
+    jnc .invalid
+
     mov [rdi + CONN_STATE], rsi
     xor eax, eax
     xor edx, edx
     ret
+
 .invalid:
     xor edx, edx
     mov rax, ERR_EINVAL

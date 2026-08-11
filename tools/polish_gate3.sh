@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+source tools/server_benchmark_common.sh
+
 run_test() {
     local label="$1" exe="$2"
     echo "### POLISH GATE #3: $label"
@@ -88,9 +90,10 @@ echo
 echo "### POLISH GATE #3: code-size baseline"
 size build/event.o build/connection.o build/http_response.o build/request_target.o build/route_pattern.o build/server.o
 added_text="$(size build/event.o build/connection.o build/http_response.o build/request_target.o build/route_pattern.o build/server.o | awk 'NR > 1 { sum += $1 } END { print sum + 0 }')"
-echo "pre_gate3_foundation_text_bytes=6088"
-echo "gate3_runtime_added_text_bytes=$added_text"
-echo "gate3_milestone_production_text_bytes=$((6088 + added_text))"
+echo "historical_pre_gate3_foundation_text_bytes=6088"
+echo "historical_gate3_milestone_production_text_bytes=10285"
+echo "current_gate3_component_text_bytes=$added_text"
+echo "current_production_text_bytes=$(arborcore_production_text_bytes "$PWD")"
 
 echo
 echo "POLISH GATE #3 PASSED"

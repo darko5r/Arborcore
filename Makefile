@@ -27,6 +27,7 @@ GENERATED_DIR := generated
 
 # Generated memory policy
 MEMORY_POLICY := $(GENERATED_DIR)/memory_thresholds.inc
+MEMORY_PERF_PROFILE = $(GENERATED_DIR)/performance/memory-$(ARBORCORE_PERF_PROFILE).env
 
 # Production objects
 START_OBJ := $(BUILD_DIR)/start.o
@@ -231,7 +232,7 @@ CODEC_PERF_BASELINE := $(GENERATED_DIR)/performance/codec-$(ARBORCORE_PERF_PROFI
 .PHONY: core-memory-property-test core-buffer-arena-property-test core-connection-property-test core-buffer-alias-test core-retrofit-c1 core-retrofit-c
 .PHONY: buffer-test arena-test polish-gate-1 polish-gate-2 io-test net-test http-test router-test
 .PHONY: event-test connection-test http-response-test request-target-test route-pattern-test server-test polish-gate-3
-.PHONY: benchmark qualify-memory show-memory-policy
+.PHONY: benchmark qualify-memory show-memory-policy show-memory-profile
 .PHONY: benchmark-server qualify-server-baseline accept-server-baseline show-server-baseline list-server-profiles verify-server-performance verify-server-performance-candidate
 .PHONY: benchmark-server-perf benchmark-server-syscalls
 .PHONY: benchmark-codec qualify-codec-baseline show-codec-baseline verify-codec-performance verify-codec-performance-candidate
@@ -269,6 +270,9 @@ $(MEMORY_POLICY): | $(GENERATED_DIR)
 
 show-memory-policy: $(MEMORY_POLICY)
 	@cat $(MEMORY_POLICY)
+
+show-memory-profile:
+	@if [[ -r $(MEMORY_PERF_PROFILE) ]]; then cat $(MEMORY_PERF_PROFILE); else echo "No memory profile at $(MEMORY_PERF_PROFILE)"; fi
 
 # Generic production Assembly rule
 $(BUILD_DIR)/%.o: $(SRC_ASM_DIR)/%.asm | $(BUILD_DIR)
@@ -963,13 +967,13 @@ show-server-baseline:
 list-server-profiles:
 	@if [[ -d $(GENERATED_DIR)/performance ]]; then find $(GENERATED_DIR)/performance -maxdepth 1 -type f -name '*.env' -printf '%f\n' | sed 's/\.env$$//' | sort; else echo "No local performance profiles"; fi
 
-verify-server-performance: $(SERVER_BENCH_EXECUTABLES) $(SERVER_PERFORMANCE_VERIFY)
+verify-server-performance: $(ARBORCORE_OBJECTS) $(SERVER_BENCH_EXECUTABLES) $(SERVER_PERFORMANCE_VERIFY)
 	@bash $(SERVER_PERFORMANCE_VERIFY)
 
 # Pre-commit construction qualification. The runner records the exact dirty
 # production source hash and tree state, but the accepted profile remains
 # read-only and machine-specific.
-verify-server-performance-candidate: $(SERVER_BENCH_EXECUTABLES) $(SERVER_PERFORMANCE_VERIFY)
+verify-server-performance-candidate: $(ARBORCORE_OBJECTS) $(SERVER_BENCH_EXECUTABLES) $(SERVER_PERFORMANCE_VERIFY)
 	@ARBORCORE_BENCH_ALLOW_DIRTY_PRODUCTION=1 bash $(SERVER_PERFORMANCE_VERIFY)
 
 benchmark-server-perf: $(LIFECYCLE_BENCH) $(LOOPBACK_BENCH) $(SERVER_BENCHMARK_PERF)
@@ -1025,7 +1029,7 @@ qualify-memory: \
 	ln -s "$(ROOT_DIR)/$(WRITE_OBJ)" "$$workspace/write.o"; \
 	ln -s "$(ROOT_DIR)/$(GENERATED_DIR)" "$$workspace/generated"; \
 	cd "$$workspace"; \
-	bash "$(ROOT_DIR)/$(MEMORY_QUALIFIER)"
+	ARBORCORE_ROOT="$(ROOT_DIR)" ARBORCORE_PERF_PROFILE="$(ARBORCORE_PERF_PROFILE)" bash "$(ROOT_DIR)/$(MEMORY_QUALIFIER)"
 	$(MAKE) \
 		$(MEMORY_THRESHOLD_OBJ) \
 		$(MEMORY_OBJ) \

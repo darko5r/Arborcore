@@ -62,13 +62,14 @@ build_and_run()
 }
 
 
-printf '%-10s %-12s %-16s %-16s %-16s %-16s\n' \
+printf '%-10s %-12s %-16s %-16s %-16s %-16s %-16s\n' \
     "bytes" \
     "iterations" \
     "scalar_ns" \
     "qword_ns" \
     "rep_ns" \
-    "public_ns"
+    "public_ns" \
+    "move_ns"
 
 
 for entry in "${sizes[@]}"
@@ -104,11 +105,19 @@ do
             "$iterations"
     )"
 
-    printf '%-10s %-12s %-16s %-16s %-16s %-16s\n' \
+    move="$(
+        build_and_run \
+            memory_move \
+            "$size" \
+            "$iterations"
+    )"
+
+    printf '%-10s %-12s %-16s %-16s %-16s %-16s %-16s\n' \
         "$size" \
         "$iterations" \
         "$scalar" \
         "$qword" \
         "$rep" \
-        "$public"
+        "$public" \
+        "$move"
 done

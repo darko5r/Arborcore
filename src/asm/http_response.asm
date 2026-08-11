@@ -29,6 +29,7 @@
 %define BUFFER_CAPACITY 16
 
 extern buffer_append
+extern buffer_append_prechecked_disjoint
 extern u64_decimal_length
 extern u64_format_decimal
 
@@ -188,32 +189,38 @@ http_response_serialize:
     test rax, rax
     jnz .unexpected_error
 
+    ; The complete output capacity was preflighted above.  The status/header
+    ; fragments below come from this module's .rodata or private stack scratch,
+    ; so they are provably disjoint from the destination buffer.  Use the
+    ; prechecked disjoint buffer path for those fragments; the caller-supplied
+    ; body remains on generic snapshot-safe buffer_append because it may alias.
+    ;
     ; Append status line.
     mov rdi, r12
     mov rsi, [rsp + 0]
     mov rdx, [rsp + 8]
-    call buffer_append
+    call buffer_append_prechecked_disjoint
     test rax, rax
     jnz .rollback
 
     mov rdi, r12
     lea rsi, [rel content_length_prefix]
     mov edx, content_length_prefix_len
-    call buffer_append
+    call buffer_append_prechecked_disjoint
     test rax, rax
     jnz .rollback
 
     mov rdi, r12
     lea rsi, [rsp + 32]
     mov rdx, [rsp + 16]
-    call buffer_append
+    call buffer_append_prechecked_disjoint
     test rax, rax
     jnz .rollback
 
     mov rdi, r12
     lea rsi, [rel crlf]
     mov edx, crlf_len
-    call buffer_append
+    call buffer_append_prechecked_disjoint
     test rax, rax
     jnz .rollback
 
@@ -227,14 +234,14 @@ http_response_serialize:
     lea rsi, [rel connection_close]
     mov edx, connection_close_len
 .append_connection:
-    call buffer_append
+    call buffer_append_prechecked_disjoint
     test rax, rax
     jnz .rollback
 
     mov rdi, r12
     lea rsi, [rel crlf]
     mov edx, crlf_len
-    call buffer_append
+    call buffer_append_prechecked_disjoint
     test rax, rax
     jnz .rollback
 

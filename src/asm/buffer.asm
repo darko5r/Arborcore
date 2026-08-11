@@ -33,6 +33,7 @@ global buffer_reset:function
 global buffer_length:function
 global buffer_remaining:function
 global buffer_append:function
+global buffer_append_prechecked_disjoint:function
 global buffer_append_byte:function
 global buffer_consume:function
 
@@ -125,29 +126,25 @@ buffer_remaining:
 buffer_append:
     push rbx
     push r12
-    push r13
-    push r14
     sub rsp, 8                    ; 16-byte call alignment
 
     test rdi, rdi
     jz .invalid
 
     mov r12, rdi                  ; buffer
-    mov r13, rsi                  ; source
-    mov r14, rdx                  ; append length
 
     mov r8, [r12 + BUFFER_LENGTH]
     mov r9, [r12 + BUFFER_CAPACITY]
     cmp r8, r9
     ja .invalid
 
-    test r14, r14
+    test rdx, rdx
     jz .success_existing
-    test r13, r13
+    test rsi, rsi
     jz .invalid
 
     mov r10, r8
-    add r10, r14
+    add r10, rdx
     jc .overflow
     cmp r10, r9
     ja .no_space
@@ -161,35 +158,23 @@ buffer_append:
     add rdi, r8                   ; destination = data + old_length
     jc .overflow
 
-    ; Equal-length spans overlap exactly when the unsigned distance
-    ; between their starting addresses is smaller than the length.
-    ; This avoids forming source+length solely for classification.
-    cmp rdi, r13
-    je .append_overlap
-    ja .destination_above_source
-
-    ; destination < source
-    mov rcx, r13
-    sub rcx, rdi
-    cmp rcx, r14
-    jb .append_overlap
-    jmp .append_copy
-
-.destination_above_source:
+    ; Equal-length spans overlap exactly when the absolute unsigned
+    ; distance between their starting addresses is smaller than length.
+    ; Compute that distance without forming either endpoint.
     mov rcx, rdi
-    sub rcx, r13
-    cmp rcx, r14
+    sub rcx, rsi
+    jnc .distance_ready           ; destination >= source
+    neg rcx                       ; source - destination
+
+.distance_ready:
+    cmp rcx, rdx
     jb .append_overlap
 
 .append_copy:
-    mov rsi, r13
-    mov rdx, r14
     call memory_copy
     jmp .append_store_length
 
 .append_overlap:
-    mov rsi, r13
-    mov rdx, r14
     call memory_move
 
 .append_store_length:
@@ -219,9 +204,40 @@ buffer_append:
 
 .return:
     add rsp, 8
-    pop r14
-    pop r13
     pop r12
+    pop rbx
+    ret
+
+; buffer_append_prechecked_disjoint(buffer, source, length)
+; RDI=buffer*, RSI=source*, RDX=length
+;
+; Internal fast-path ABI for a caller that has already established:
+;   - buffer is non-NULL and its data/length/capacity invariant is valid
+;   - length bytes fit in the remaining capacity
+;   - data + current_length is representable
+;   - source is a valid readable span
+;   - source and append destination are disjoint
+;
+; Unlike buffer_append, this routine performs no alias/capacity validation.
+; It exists so higher layers with a complete preflight do not repeatedly pay
+; the generic safety checks.  Generic callers must use buffer_append.
+;
+; memory_copy cannot report a recoverable error under these preconditions, so
+; the new logical length is committed before the copy and returned afterward.
+buffer_append_prechecked_disjoint:
+    push rbx                         ; preserve buffer; align stack for call
+    mov rbx, rdi
+
+    mov rax, [rbx + BUFFER_LENGTH]
+    mov rdi, [rbx + BUFFER_DATA]
+    add rdi, rax                     ; preflight guarantees no wrap
+    add rax, rdx                     ; preflight guarantees capacity/no wrap
+    mov [rbx + BUFFER_LENGTH], rax
+
+    call memory_copy
+
+    mov rdx, [rbx + BUFFER_LENGTH]
+    xor eax, eax
     pop rbx
     ret
 

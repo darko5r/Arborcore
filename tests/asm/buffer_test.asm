@@ -11,6 +11,7 @@ extern buffer_reset
 extern buffer_length
 extern buffer_remaining
 extern buffer_append
+extern buffer_append_prechecked_disjoint
 extern buffer_append_byte
 extern buffer_consume
 
@@ -69,11 +70,12 @@ _start:
     test rax, rax
     jnz .fail
 
-    ; Append "abc".
+    ; Append "abc" through the internal prechecked-disjoint path.  The test
+    ; has already established valid buffer storage/capacity and abc is .rodata.
     lea rdi, [rel buffer_struct]
     lea rsi, [rel abc]
     mov edx, 3
-    call buffer_append
+    call buffer_append_prechecked_disjoint
     test rax, rax
     jnz .fail
     cmp rdx, 3
