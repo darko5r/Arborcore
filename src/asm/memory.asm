@@ -197,6 +197,9 @@ memory_set:
 ;
 ; memory_zero is deliberately implemented through memory_set
 ; so zero filling has one underlying semantic implementation.
+;
+; This is an ordinary logical zero-fill primitive, not a secure-clear
+; guarantee.  A dedicated security primitive is qualified separately.
 ; ============================================================
 
 memory_zero:
@@ -220,6 +223,8 @@ memory_zero:
 ;   RAX =  1   left > right
 ;
 ; Comparison is unsigned and lexicographical.
+; This routine exits at the first differing byte and therefore does not
+; provide constant-time equality semantics.
 ; ============================================================
 
 memory_compare:

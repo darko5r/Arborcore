@@ -114,10 +114,14 @@ buffer_remaining:
 ; buffer_append(buffer, source, length)
 ; RDI=buffer*, RSI=source*, RDX=length
 ;
-; A source span already inside the logical buffer is naturally
-; non-overlapping with the append destination, which begins at the
-; current logical end. The qualified memory_copy primitive is therefore
-; the appropriate fast path for normal append semantics.
+; Snapshot semantics:
+;   new logical contents = old logical contents || source_before_call.
+;
+; The source may alias the backing buffer, including the append
+; destination.  Disjoint spans keep the qualified memory_copy fast path;
+; overlapping spans use memory_move so unread source bytes are preserved.
+; The caller must still provide a valid readable source span for nonzero
+; length.
 buffer_append:
     push rbx
     push r12
@@ -156,10 +160,39 @@ buffer_append:
     mov rdi, r11
     add rdi, r8                   ; destination = data + old_length
     jc .overflow
+
+    ; Equal-length spans overlap exactly when the unsigned distance
+    ; between their starting addresses is smaller than the length.
+    ; This avoids forming source+length solely for classification.
+    cmp rdi, r13
+    je .append_overlap
+    ja .destination_above_source
+
+    ; destination < source
+    mov rcx, r13
+    sub rcx, rdi
+    cmp rcx, r14
+    jb .append_overlap
+    jmp .append_copy
+
+.destination_above_source:
+    mov rcx, rdi
+    sub rcx, r13
+    cmp rcx, r14
+    jb .append_overlap
+
+.append_copy:
     mov rsi, r13
     mov rdx, r14
     call memory_copy
+    jmp .append_store_length
 
+.append_overlap:
+    mov rsi, r13
+    mov rdx, r14
+    call memory_move
+
+.append_store_length:
     mov [r12 + BUFFER_LENGTH], rbx
     mov rdx, rbx
     xor eax, eax

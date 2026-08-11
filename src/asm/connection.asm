@@ -57,12 +57,16 @@ global connection_note_read:function
 global connection_note_write:function
 global connection_complete_request:function
 global connection_set_error:function
-global connection_reset_io:function
 
 section .text
 
 ; connection_init(conn, fd, input_buffer, output_buffer, arena)
 ; RDI=conn* RSI=fd RDX=inbuf* RCX=outbuf* R8=arena*
+;
+; Initializes connection metadata only.  The referenced buffer/arena
+; objects remain caller-owned and must already satisfy their own
+; invariants.  Server-side reuse/acceptance is responsible for preparing
+; pristine request storage before publishing a connection.
 connection_init:
     test rdi, rdi
     jz .invalid
@@ -247,19 +251,6 @@ connection_set_error:
     test rdi, rdi
     jz .invalid
     mov [rdi + CONN_LAST_ERROR], rsi
-    xor eax, eax
-    xor edx, edx
-    ret
-.invalid:
-    xor edx, edx
-    mov rax, ERR_EINVAL
-    ret
-
-connection_reset_io:
-    test rdi, rdi
-    jz .invalid
-    mov qword [rdi + CONN_READ_BYTES], 0
-    mov qword [rdi + CONN_WRITE_BYTES], 0
     xor eax, eax
     xor edx, edx
     ret

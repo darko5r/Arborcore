@@ -119,6 +119,10 @@ arena_alloc:
 ; arena_alloc_aligned(arena, size, alignment)
 ; RDI=arena*, RSI=size, RDX=alignment (power-of-two, nonzero)
 ; RDX=allocated pointer on success.
+;
+; A zero-size allocation still honors alignment and may advance the
+; allocation frontier to the next aligned address.  This behavior is
+; intentional and is part of the qualified arena contract.
 arena_alloc_aligned:
     test rdi, rdi
     jz .invalid
@@ -199,6 +203,8 @@ arena_mark:
     ret
 
 ; arena_rewind(arena, mark)
+; Restores the logical allocation frontier only; bytes above the new
+; frontier are not cleared or restored.
 arena_rewind:
     test rdi, rdi
     jz .invalid
@@ -220,6 +226,8 @@ arena_rewind:
     ret
 
 ; arena_reset(arena)
+; Restores the logical allocation frontier to zero; backing bytes are
+; intentionally left untouched.
 arena_reset:
     test rdi, rdi
     jz .invalid

@@ -17,7 +17,6 @@ extern connection_note_read
 extern connection_note_write
 extern connection_complete_request
 extern connection_set_error
-extern connection_reset_io
 
 section .bss
 align 16
