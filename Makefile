@@ -38,6 +38,7 @@ ASCII_OBJ := $(BUILD_DIR)/ascii.o
 BYTES_SCAN_OBJ := $(BUILD_DIR)/bytes_scan.o
 PARSE_U64_OBJ := $(BUILD_DIR)/parse_u64.o
 U64_CHECKED_OBJ := $(BUILD_DIR)/u64_checked.o
+RANGE_OBJ := $(BUILD_DIR)/range.o
 U64_FORMAT_OBJ := $(BUILD_DIR)/u64_format.o
 HEX_CODEC_OBJ := $(BUILD_DIR)/hex_codec.o
 PERCENT_CODEC_OBJ := $(BUILD_DIR)/percent_codec.o
@@ -65,6 +66,7 @@ ARBORCORE_OBJECTS := \
 	$(BYTES_SCAN_OBJ) \
 	$(PARSE_U64_OBJ) \
 	$(U64_CHECKED_OBJ) \
+	$(RANGE_OBJ) \
 	$(U64_FORMAT_OBJ) \
 	$(HEX_CODEC_OBJ) \
 	$(PERCENT_CODEC_OBJ) \
@@ -89,6 +91,8 @@ MEMORY_TEST_OBJ := $(BUILD_DIR)/memory_test.o
 BYTES_TEST_OBJ := $(BUILD_DIR)/bytes_test.o
 BYTES_PHASE2_TEST_OBJ := $(BUILD_DIR)/bytes_phase2_test.o
 NUMERIC_TEST_OBJ := $(BUILD_DIR)/numeric_test.o
+CORE_INTEGER_TEST_OBJ := $(BUILD_DIR)/core_integer_test.o
+CORE_RANGE_TEST_OBJ := $(BUILD_DIR)/core_range_test.o
 ENCODING_TEST_OBJ := $(BUILD_DIR)/encoding_test.o
 BUFFER_TEST_OBJ := $(BUILD_DIR)/buffer_test.o
 ARENA_TEST_OBJ := $(BUILD_DIR)/arena_test.o
@@ -113,6 +117,8 @@ TEST_OBJECTS := \
 	$(BYTES_TEST_OBJ) \
 	$(BYTES_PHASE2_TEST_OBJ) \
 	$(NUMERIC_TEST_OBJ) \
+	$(CORE_INTEGER_TEST_OBJ) \
+	$(CORE_RANGE_TEST_OBJ) \
 	$(ENCODING_TEST_OBJ) \
 	$(BUFFER_TEST_OBJ) \
 	$(ARENA_TEST_OBJ) \
@@ -138,6 +144,8 @@ MEMORY_TEST := $(BUILD_DIR)/memory-test
 BYTES_TEST := $(BUILD_DIR)/bytes-test
 BYTES_PHASE2_TEST := $(BUILD_DIR)/bytes-phase2-test
 NUMERIC_TEST := $(BUILD_DIR)/numeric-test
+CORE_INTEGER_TEST := $(BUILD_DIR)/core-integer-test
+CORE_RANGE_TEST := $(BUILD_DIR)/core-range-test
 ENCODING_TEST := $(BUILD_DIR)/encoding-test
 BUFFER_TEST := $(BUILD_DIR)/buffer-test
 ARENA_TEST := $(BUILD_DIR)/arena-test
@@ -191,11 +199,11 @@ SERVER_BENCHMARK_SYSCALLS := $(TOOLS_DIR)/server_benchmark_syscalls.sh
 SERVER_PERF_BASELINE := $(GENERATED_DIR)/performance/$(ARBORCORE_PERF_PROFILE).env
 
 .PHONY: all run check
-.PHONY: write-test memory-threshold-test memory-test bytes-test bytes-phase2-test numeric-test encoding-test
+.PHONY: write-test memory-threshold-test memory-test bytes-test bytes-phase2-test numeric-test core-integer-test core-range-test encoding-test
 .PHONY: buffer-test arena-test polish-gate-1 polish-gate-2 io-test net-test http-test router-test
 .PHONY: event-test connection-test http-response-test request-target-test route-pattern-test server-test polish-gate-3
 .PHONY: benchmark qualify-memory show-memory-policy
-.PHONY: benchmark-server qualify-server-baseline accept-server-baseline show-server-baseline list-server-profiles verify-server-performance
+.PHONY: benchmark-server qualify-server-baseline accept-server-baseline show-server-baseline list-server-profiles verify-server-performance verify-server-performance-candidate
 .PHONY: benchmark-server-perf benchmark-server-syscalls
 .PHONY: clean distclean
 
@@ -285,6 +293,12 @@ $(BYTES_PHASE2_TEST_OBJ): $(TEST_ASM_DIR)/bytes_phase2_test.asm | $(BUILD_DIR)
 $(NUMERIC_TEST_OBJ): $(TEST_ASM_DIR)/numeric_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
+$(CORE_INTEGER_TEST_OBJ): $(TEST_ASM_DIR)/core_integer_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_RANGE_TEST_OBJ): $(TEST_ASM_DIR)/core_range_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
 $(ENCODING_TEST_OBJ): $(TEST_ASM_DIR)/encoding_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
@@ -365,6 +379,12 @@ $(NUMERIC_TEST): \
 		$(NUMERIC_TEST_OBJ) \
 		$(U64_CHECKED_OBJ) \
 		$(U64_FORMAT_OBJ)
+
+$(CORE_INTEGER_TEST): $(CORE_INTEGER_TEST_OBJ) $(U64_CHECKED_OBJ)
+	$(LD) -o $@ $(CORE_INTEGER_TEST_OBJ) $(U64_CHECKED_OBJ)
+
+$(CORE_RANGE_TEST): $(CORE_RANGE_TEST_OBJ) $(RANGE_OBJ)
+	$(LD) -o $@ $(CORE_RANGE_TEST_OBJ) $(RANGE_OBJ)
 
 $(ENCODING_TEST): \
 	$(ENCODING_TEST_OBJ) \
@@ -536,6 +556,8 @@ memory-test: $(MEMORY_TEST)
 bytes-test: $(BYTES_TEST)
 bytes-phase2-test: $(BYTES_PHASE2_TEST)
 numeric-test: $(NUMERIC_TEST)
+core-integer-test: $(CORE_INTEGER_TEST)
+core-range-test: $(CORE_RANGE_TEST)
 encoding-test: $(ENCODING_TEST)
 buffer-test: $(BUFFER_TEST)
 arena-test: $(ARENA_TEST)
@@ -565,6 +587,8 @@ check: \
 	$(BYTES_TEST) \
 	$(BYTES_PHASE2_TEST) \
 	$(NUMERIC_TEST) \
+	$(CORE_INTEGER_TEST) \
+	$(CORE_RANGE_TEST) \
 	$(ENCODING_TEST) \
 	$(BUFFER_TEST) \
 	$(ARENA_TEST) \
@@ -653,6 +677,24 @@ check: \
 		exit "$$status"; \
 	fi; \
 	echo "PASS: numeric-test"; \
+	echo; \
+	echo "### Core Retrofit A: integer geometry"; \
+	status=0; \
+	$(CORE_INTEGER_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then \
+		echo "FAIL: core-integer-test exit=$$status"; \
+		exit "$$status"; \
+	fi; \
+	echo "PASS: core-integer-test"; \
+	echo; \
+	echo "### Core Retrofit A: range algebra"; \
+	status=0; \
+	$(CORE_RANGE_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then \
+		echo "FAIL: core-range-test exit=$$status"; \
+		exit "$$status"; \
+	fi; \
+	echo "PASS: core-range-test"; \
 	echo; \
 	echo "### encoding"; \
 	status=0; \
@@ -745,6 +787,12 @@ list-server-profiles:
 
 verify-server-performance: $(SERVER_BENCH_EXECUTABLES) $(SERVER_PERFORMANCE_VERIFY)
 	@bash $(SERVER_PERFORMANCE_VERIFY)
+
+# Pre-commit construction qualification. The runner records the exact dirty
+# production source hash and tree state, but the accepted profile remains
+# read-only and machine-specific.
+verify-server-performance-candidate: $(SERVER_BENCH_EXECUTABLES) $(SERVER_PERFORMANCE_VERIFY)
+	@ARBORCORE_BENCH_ALLOW_DIRTY_PRODUCTION=1 bash $(SERVER_PERFORMANCE_VERIFY)
 
 benchmark-server-perf: $(LIFECYCLE_BENCH) $(LOOPBACK_BENCH) $(SERVER_BENCHMARK_PERF)
 	@bash $(SERVER_BENCHMARK_PERF)

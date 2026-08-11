@@ -88,9 +88,9 @@ echo
 echo "### POLISH GATE #3: code-size baseline"
 size build/event.o build/connection.o build/http_response.o build/request_target.o build/route_pattern.o build/server.o
 added_text="$(size build/event.o build/connection.o build/http_response.o build/request_target.o build/route_pattern.o build/server.o | awk 'NR > 1 { sum += $1 } END { print sum + 0 }')"
-echo "foundation_text_bytes=6088"
-echo "gate3_added_text_bytes=$added_text"
-echo "candidate_production_text_bytes=$((6088 + added_text))"
+echo "pre_gate3_foundation_text_bytes=6088"
+echo "gate3_runtime_added_text_bytes=$added_text"
+echo "gate3_milestone_production_text_bytes=$((6088 + added_text))"
 
 echo
 echo "POLISH GATE #3 PASSED"

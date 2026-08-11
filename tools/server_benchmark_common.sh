@@ -36,7 +36,7 @@ arborcore_production_text_bytes() {
     local root="$1"
     local objects=(
         start write memory_threshold memory bytes ascii bytes_scan parse_u64
-        u64_checked u64_format hex_codec percent_codec base64 buffer arena io net
+        u64_checked range u64_format hex_codec percent_codec base64 buffer arena io net
         http_parser router event connection http_response request_target route_pattern server
     )
     local args=()
@@ -81,4 +81,17 @@ arborcore_scaling_driver() {
     if [[ -r "$f" ]]; then
         cat "$f"
     fi
+}
+
+
+arborcore_production_source_sha256() {
+    local root="$1"
+    (
+        cd "$root"
+        find src/asm -maxdepth 1 -type f -name '*.asm' -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sha256sum \
+            | awk '{print $1}'
+    )
 }

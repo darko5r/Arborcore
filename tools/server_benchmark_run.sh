@@ -15,9 +15,26 @@ if ! [[ "$RUNS" =~ ^[1-9][0-9]*$ ]] || ! [[ "$WARMUPS" =~ ^[0-9]+$ ]]; then
     exit 2
 fi
 
-if ! git -C "$ROOT" diff --quiet -- src/asm || ! git -C "$ROOT" diff --cached --quiet -- src/asm; then
-    echo "FAIL: production src/asm has local changes; baseline branch must keep production frozen." >&2
+production_tree_state=clean
+if ! git -C "$ROOT" diff --quiet -- src/asm \
+   || ! git -C "$ROOT" diff --cached --quiet -- src/asm \
+   || [[ -n "$(git -C "$ROOT" ls-files --others --exclude-standard -- src/asm)" ]]
+then
+    production_tree_state=dirty
+fi
+
+if [[ "$production_tree_state" == dirty \
+      && "${ARBORCORE_BENCH_ALLOW_DIRTY_PRODUCTION:-0}" != 1 ]]
+then
+    echo "FAIL: production src/asm has local changes." >&2
+    echo "Committed/release verification requires a clean production tree." >&2
+    echo "For deliberate pre-commit construction qualification use:" >&2
+    echo "  make ARBORCORE_PERF_PROFILE=<profile> verify-server-performance-candidate" >&2
     exit 2
+fi
+
+if [[ "$production_tree_state" == dirty ]]; then
+    echo "NOTICE: candidate mode allows dirty production; exact source identity will be recorded."
 fi
 
 bins=(
@@ -51,6 +68,8 @@ ENVFILE="$OUT_DIR/environment.txt"
     echo "runs=$RUNS"
     echo "warmups=$WARMUPS"
     echo "production_text_bytes=$(arborcore_production_text_bytes "$ROOT")"
+    echo "production_tree_state=$production_tree_state"
+    echo "production_source_sha256=$(arborcore_production_source_sha256 "$ROOT")"
     echo "kernel=$(uname -srmo)"
     echo "architecture=$(arborcore_architecture)"
     echo "cpu_model=$(arborcore_cpu_model)"
