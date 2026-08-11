@@ -163,11 +163,40 @@ POLISH_GATE1 := $(TOOLS_DIR)/polish_gate1.sh
 POLISH_GATE2 := $(TOOLS_DIR)/polish_gate2.sh
 POLISH_GATE3 := $(TOOLS_DIR)/polish_gate3.sh
 
+# Server performance benchmark infrastructure
+BENCH_SUPPORT_OBJ := $(BUILD_DIR)/bench_support.o
+PARSER_BENCH_OBJ := $(BUILD_DIR)/parser_bench.o
+ROUTING_BENCH_OBJ := $(BUILD_DIR)/routing_bench.o
+RESPONSE_BENCH_OBJ := $(BUILD_DIR)/response_bench.o
+LIFECYCLE_BENCH_OBJ := $(BUILD_DIR)/lifecycle_bench.o
+CONNECTION_BENCH_OBJ := $(BUILD_DIR)/connection_bench.o
+LOOPBACK_BENCH_OBJ := $(BUILD_DIR)/loopback_bench.o
+
+PARSER_BENCH := $(BUILD_DIR)/bench-parser
+ROUTING_BENCH := $(BUILD_DIR)/bench-routing
+RESPONSE_BENCH := $(BUILD_DIR)/bench-response
+LIFECYCLE_BENCH := $(BUILD_DIR)/bench-lifecycle
+CONNECTION_BENCH := $(BUILD_DIR)/bench-connections
+LOOPBACK_BENCH := $(BUILD_DIR)/bench-loopback
+
+ARBORCORE_PERF_PROFILE ?= local
+export ARBORCORE_PERF_PROFILE
+
+SERVER_BENCHMARK_RUNNER := $(TOOLS_DIR)/server_benchmark_run.sh
+SERVER_BASELINE_QUALIFIER := $(TOOLS_DIR)/server_baseline_qualify.sh
+SERVER_BASELINE_ACCEPTOR := $(TOOLS_DIR)/server_baseline_accept.sh
+SERVER_PERFORMANCE_VERIFY := $(TOOLS_DIR)/server_performance_verify.sh
+SERVER_BENCHMARK_PERF := $(TOOLS_DIR)/server_benchmark_perf.sh
+SERVER_BENCHMARK_SYSCALLS := $(TOOLS_DIR)/server_benchmark_syscalls.sh
+SERVER_PERF_BASELINE := $(GENERATED_DIR)/performance/$(ARBORCORE_PERF_PROFILE).env
+
 .PHONY: all run check
 .PHONY: write-test memory-threshold-test memory-test bytes-test bytes-phase2-test numeric-test encoding-test
 .PHONY: buffer-test arena-test polish-gate-1 polish-gate-2 io-test net-test http-test router-test
 .PHONY: event-test connection-test http-response-test request-target-test route-pattern-test server-test polish-gate-3
 .PHONY: benchmark qualify-memory show-memory-policy
+.PHONY: benchmark-server qualify-server-baseline accept-server-baseline show-server-baseline list-server-profiles verify-server-performance
+.PHONY: benchmark-server-perf benchmark-server-syscalls
 .PHONY: clean distclean
 
 # Main build
@@ -205,6 +234,28 @@ show-memory-policy: $(MEMORY_POLICY)
 
 # Generic production Assembly rule
 $(BUILD_DIR)/%.o: $(SRC_ASM_DIR)/%.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+# Server benchmark objects
+$(BENCH_SUPPORT_OBJ): $(BENCH_DIR)/bench_support.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(PARSER_BENCH_OBJ): $(BENCH_DIR)/parser_bench.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(ROUTING_BENCH_OBJ): $(BENCH_DIR)/routing_bench.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(RESPONSE_BENCH_OBJ): $(BENCH_DIR)/response_bench.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(LIFECYCLE_BENCH_OBJ): $(BENCH_DIR)/lifecycle_bench.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CONNECTION_BENCH_OBJ): $(BENCH_DIR)/connection_bench.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(LOOPBACK_BENCH_OBJ): $(BENCH_DIR)/loopback_bench.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
 # memory.asm depends on generated policy
@@ -441,6 +492,43 @@ $(POLISH_GATE3_TEST): \
 		$(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ) $(IO_OBJ) $(NET_OBJ) $(HTTP_PARSER_OBJ) \
 		$(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ)
 
+# Server benchmark executables
+$(PARSER_BENCH): \
+	$(PARSER_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(HTTP_PARSER_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+	$(LD) -o $@ \
+		$(PARSER_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(HTTP_PARSER_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+
+$(ROUTING_BENCH): \
+	$(ROUTING_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+	$(LD) -o $@ \
+		$(ROUTING_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+
+$(RESPONSE_BENCH): \
+	$(RESPONSE_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+	$(LD) -o $@ \
+		$(RESPONSE_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+
+$(LIFECYCLE_BENCH): \
+	$(LIFECYCLE_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(HTTP_PARSER_OBJ) $(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) \
+	$(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+	$(LD) -o $@ \
+		$(LIFECYCLE_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(HTTP_PARSER_OBJ) $(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) \
+		$(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+
+$(CONNECTION_BENCH): \
+	$(CONNECTION_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(NET_OBJ) $(IO_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+	$(LD) -o $@ \
+		$(CONNECTION_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(NET_OBJ) $(IO_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+
+$(LOOPBACK_BENCH): \
+	$(LOOPBACK_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(SERVER_OBJ) $(EVENT_OBJ) $(CONNECTION_OBJ) $(HTTP_RESPONSE_OBJ) \
+	$(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ) $(IO_OBJ) $(NET_OBJ) $(HTTP_PARSER_OBJ) $(ROUTER_OBJ) \
+	$(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+	$(LD) -o $@ \
+		$(LOOPBACK_BENCH_OBJ) $(BENCH_SUPPORT_OBJ) $(SERVER_OBJ) $(EVENT_OBJ) $(CONNECTION_OBJ) $(HTTP_RESPONSE_OBJ) \
+		$(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ) $(IO_OBJ) $(NET_OBJ) $(HTTP_PARSER_OBJ) $(ROUTER_OBJ) \
+		$(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+
 # Individual test targets
 write-test: $(WRITE_TEST)
 memory-threshold-test: $(MEMORY_THRESHOLD_TEST)
@@ -630,6 +718,40 @@ check: \
 	echo; \
 	echo "ALL ARBORCORE TESTS PASSED"
 
+# Server performance baseline
+SERVER_BENCH_EXECUTABLES := \
+	$(PARSER_BENCH) \
+	$(ROUTING_BENCH) \
+	$(RESPONSE_BENCH) \
+	$(LIFECYCLE_BENCH) \
+	$(CONNECTION_BENCH) \
+	$(LOOPBACK_BENCH)
+
+benchmark-server: $(SERVER_BENCH_EXECUTABLES) $(SERVER_BENCHMARK_RUNNER)
+	@bash $(SERVER_BENCHMARK_RUNNER)
+
+qualify-server-baseline: $(SERVER_BENCH_EXECUTABLES) $(SERVER_BASELINE_QUALIFIER) | $(GENERATED_DIR)
+	@bash $(SERVER_BASELINE_QUALIFIER)
+
+accept-server-baseline: $(SERVER_BASELINE_ACCEPTOR) | $(GENERATED_DIR)
+	@bash $(SERVER_BASELINE_ACCEPTOR)
+
+show-server-baseline:
+	@echo "Performance profile: $(ARBORCORE_PERF_PROFILE)"
+	@if [[ -r $(SERVER_PERF_BASELINE) ]]; then cat $(SERVER_PERF_BASELINE); else echo "No accepted/proposed profile at $(SERVER_PERF_BASELINE)"; fi
+
+list-server-profiles:
+	@if [[ -d $(GENERATED_DIR)/performance ]]; then find $(GENERATED_DIR)/performance -maxdepth 1 -type f -name '*.env' -printf '%f\n' | sed 's/\.env$$//' | sort; else echo "No local performance profiles"; fi
+
+verify-server-performance: $(SERVER_BENCH_EXECUTABLES) $(SERVER_PERFORMANCE_VERIFY)
+	@bash $(SERVER_PERFORMANCE_VERIFY)
+
+benchmark-server-perf: $(LIFECYCLE_BENCH) $(LOOPBACK_BENCH) $(SERVER_BENCHMARK_PERF)
+	@bash $(SERVER_BENCHMARK_PERF)
+
+benchmark-server-syscalls: $(LOOPBACK_BENCH) $(SERVER_BENCHMARK_SYSCALLS)
+	@bash $(SERVER_BENCHMARK_SYSCALLS)
+
 # Memory benchmark
 benchmark: $(MEMORY_OBJ) $(WRITE_OBJ) $(MEMORY_BENCH_ASM) $(MEMORY_BENCH_RUNNER)
 	@set -eu; \
@@ -675,4 +797,4 @@ clean:
 
 # Full reset including machine-qualified policy
 distclean: clean
-	rm -f $(MEMORY_POLICY)
+	rm -f $(MEMORY_POLICY) $(SERVER_PERF_BASELINE)
