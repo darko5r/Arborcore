@@ -40,11 +40,30 @@ arborcore_production_text_bytes() {
         http_parser router event connection http_response request_target route_pattern server
     )
     local args=()
+    local missing=()
     local obj
+    local path
+
     for obj in "${objects[@]}"; do
-        args+=("$root/build/$obj.o")
+        path="$root/build/$obj.o"
+        args+=("$path")
+        [[ -f "$path" ]] || missing+=("$path")
     done
-    size "${args[@]}" | awk 'NR > 1 { total += $1 } END { printf "%.0f\n", total }'
+
+    if (( ${#missing[@]} != 0 )); then
+        echo "FAIL: production text accounting requires the complete production object set." >&2
+        printf 'missing: %s\n' "${missing[@]}" >&2
+        return 2
+    fi
+
+    size "${args[@]}" \
+        | awk '
+            NR > 1 { total += $1; count += 1 }
+            END {
+                if (count == 0) exit 2
+                printf "%.0f\n", total
+            }
+        '
 }
 
 

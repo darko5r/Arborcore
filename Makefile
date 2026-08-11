@@ -889,17 +889,17 @@ benchmark-server-syscalls: $(LOOPBACK_BENCH) $(SERVER_BENCHMARK_SYSCALLS)
 benchmark-codec: $(CODEC_BENCH) $(CODEC_BENCHMARK_RUNNER)
 	@bash $(CODEC_BENCHMARK_RUNNER)
 
-qualify-codec-baseline: $(CODEC_BENCH) $(CODEC_BASELINE_QUALIFIER) | $(GENERATED_DIR)
+qualify-codec-baseline: $(ARBORCORE_OBJECTS) $(CODEC_BENCH) $(CODEC_BASELINE_QUALIFIER) | $(GENERATED_DIR)
 	@bash $(CODEC_BASELINE_QUALIFIER)
 
 show-codec-baseline:
 	@echo "Codec performance profile: $(ARBORCORE_PERF_PROFILE)"
 	@if [[ -r $(CODEC_PERF_BASELINE) ]]; then cat $(CODEC_PERF_BASELINE); else echo "No codec profile at $(CODEC_PERF_BASELINE)"; fi
 
-verify-codec-performance: $(CODEC_BENCH) $(CODEC_PERFORMANCE_VERIFY)
+verify-codec-performance: $(ARBORCORE_OBJECTS) $(CODEC_BENCH) $(CODEC_PERFORMANCE_VERIFY)
 	@bash $(CODEC_PERFORMANCE_VERIFY)
 
-verify-codec-performance-candidate: $(CODEC_BENCH) $(CODEC_PERFORMANCE_VERIFY)
+verify-codec-performance-candidate: $(ARBORCORE_OBJECTS) $(CODEC_BENCH) $(CODEC_PERFORMANCE_VERIFY)
 	@ARBORCORE_CODEC_ALLOW_DIRTY_PRODUCTION=1 bash $(CODEC_PERFORMANCE_VERIFY)
 
 # Memory benchmark
