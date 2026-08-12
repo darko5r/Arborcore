@@ -265,3 +265,30 @@ The default installed library layout is `/usr/local/lib`; frozen ABI metadata
 is installed under `/usr/local/share/arborcore/abi`. `DESTDIR`, `PREFIX`,
 `LIBDIR`, and `DATADIR` remain overridable for package managers. The phase
 creates no C header; the subsequent C bridge defines the C-facing interface.
+
+## C Runtime Bridge (CR0–CR8)
+
+The C runtime bridge begins from Assembly library release/tag v1.0.0 and treats
+Assembly ABI v1 as immutable lower-layer infrastructure:
+
+1. CR0 exact C/System-V representation of the 94-symbol Assembly ABI;
+2. CR1 canonical static consumer and shared-Assembly equivalence consumer;
+3. CR2 compile-time frozen layout/state assertions;
+4. CR3 typed C status classification preserving native negative errno;
+5. CR4 borrowed-span and ownership/lifetime wrappers;
+6. CR5 request/route/response composition without reimplementation;
+7. CR6 connection/event/server composition through the frozen runtime;
+8. CR7 strict compiler, adversarial, dependency and sanitizer qualification;
+9. CR8 raw-vs-wrapper bridge-overhead and reproducibility gate.
+
+The default lower-layer link remains `libarborcore.a`. Shared equivalence against
+`libarborcore.so.1` remains mandatory. The C runtime API itself is not frozen by
+CR0–CR8; it remains construction-stage until the higher-level C framework is
+qualified.
+
+## Geometry Precision Model after CR foundation
+
+After the CR bridge is sealed, geometry becomes a first-class higher-level
+capability above the frozen Assembly ABI. HTML/CSS is never replaced. Arborcore
+supports HTML/CSS mode, Precision Surface mode, and Hybrid mode in parallel.
+See `docs/GEOMETRY_PRECISION_PLAN.md`.

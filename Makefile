@@ -1426,3 +1426,157 @@ clean:
 # Full reset including machine-qualified policy
 distclean: clean
 	rm -f $(MEMORY_POLICY) $(SERVER_PERF_BASELINE) $(CODEC_PERF_BASELINE)
+
+# ============================================================
+# C Runtime Bridge CR0-CR8
+# ============================================================
+
+CC ?= cc
+
+C_RUNTIME_INCLUDE_DIR := include
+C_RUNTIME_SRC_DIR := src/c
+C_TEST_DIR := tests/c
+C_RUNTIME_BUILD_DIR := $(BUILD_DIR)/c-runtime
+C_TEST_BUILD_DIR := $(BUILD_DIR)/c-tests
+
+ARBORCORE_C_CPPFLAGS := -I$(C_RUNTIME_INCLUDE_DIR) -D_POSIX_C_SOURCE=200809L
+ARBORCORE_C_CFLAGS := \
+	-std=c17 \
+	-O2 \
+	-fPIC \
+	-Wall \
+	-Wextra \
+	-Wpedantic \
+	-Werror \
+	-Wconversion \
+	-Wsign-conversion \
+	-Wshadow \
+	-Wstrict-prototypes \
+	-Wmissing-prototypes \
+	-Wformat=2 \
+	-Wundef
+ARBORCORE_C_LDFLAGS := -no-pie -Wl,-z,relro,-z,now,-z,noexecstack
+
+C_RUNTIME_SOURCES := \
+	$(C_RUNTIME_SRC_DIR)/status.c \
+	$(C_RUNTIME_SRC_DIR)/security.c \
+	$(C_RUNTIME_SRC_DIR)/request.c \
+	$(C_RUNTIME_SRC_DIR)/route.c \
+	$(C_RUNTIME_SRC_DIR)/runtime.c
+C_RUNTIME_OBJECTS := \
+	$(C_RUNTIME_BUILD_DIR)/status.o \
+	$(C_RUNTIME_BUILD_DIR)/security.o \
+	$(C_RUNTIME_BUILD_DIR)/request.o \
+	$(C_RUNTIME_BUILD_DIR)/route.o \
+	$(C_RUNTIME_BUILD_DIR)/runtime.o
+C_RUNTIME_LIB := $(BUILD_DIR)/libarborcore_runtime.a
+
+C_ABI_LAYOUT_TEST_OBJ := $(C_TEST_BUILD_DIR)/abi_layout_test.o
+C_RUNTIME_CONSUMER_OBJ := $(C_TEST_BUILD_DIR)/runtime_bridge_consumer.o
+C_RUNTIME_ADVERSARIAL_TEST_OBJ := $(C_TEST_BUILD_DIR)/runtime_adversarial_test.o
+C_RUNTIME_SERVER_TEST_OBJ := $(C_TEST_BUILD_DIR)/server_bridge_test.o
+C_RUNTIME_BENCH_OBJ := $(C_TEST_BUILD_DIR)/c_runtime_bridge_bench.o
+
+C_ABI_LAYOUT_TEST := $(BUILD_DIR)/c-abi-layout-test
+C_RUNTIME_STATIC_CONSUMER := $(BUILD_DIR)/c-runtime-static-consumer
+C_RUNTIME_SHARED_CONSUMER := $(BUILD_DIR)/c-runtime-shared-consumer
+C_RUNTIME_ADVERSARIAL_TEST := $(BUILD_DIR)/c-runtime-adversarial-test
+C_RUNTIME_SERVER_TEST := $(BUILD_DIR)/c-runtime-server-test
+C_RUNTIME_SANITIZE_TEST := $(BUILD_DIR)/c-runtime-sanitize-test
+C_RUNTIME_BENCH := $(BUILD_DIR)/bench-c-runtime-bridge
+
+C_ASSEMBLY_ABI_HEADER_VERIFY := $(TOOLS_DIR)/c_assembly_abi_header_verify.sh
+C_RUNTIME_FROZEN_ASSEMBLY_VERIFY := $(TOOLS_DIR)/c_runtime_frozen_assembly_verify.sh
+C_RUNTIME_DEPENDENCY_VERIFY := $(TOOLS_DIR)/c_runtime_dependency_verify.sh
+C_RUNTIME_REPRODUCIBILITY_VERIFY := $(TOOLS_DIR)/c_runtime_reproducibility_verify.sh
+C_RUNTIME_BENCHMARK_VERIFY := $(TOOLS_DIR)/c_runtime_benchmark_verify.sh
+C_RUNTIME_BRIDGE_GATE := $(TOOLS_DIR)/c_runtime_bridge_gate.sh
+
+.PHONY: c-runtime-library c-runtime-all c-runtime-check c-runtime-sanitize
+.PHONY: c-assembly-abi-header-verify c-runtime-frozen-assembly-verify c-runtime-dependency-verify
+.PHONY: c-runtime-reproducibility-verify c-runtime-benchmark-verify c-runtime-bridge-gate
+
+$(C_RUNTIME_BUILD_DIR) $(C_TEST_BUILD_DIR):
+	mkdir -p $@
+
+$(C_RUNTIME_BUILD_DIR)/%.o: $(C_RUNTIME_SRC_DIR)/%.c include/arborcore/arborcore.h include/arborcore/assembly_abi.h | $(C_RUNTIME_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(C_TEST_BUILD_DIR)/%.o: $(C_TEST_DIR)/%.c include/arborcore/arborcore.h include/arborcore/assembly_abi.h | $(C_TEST_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(C_RUNTIME_BENCH_OBJ): $(BENCH_DIR)/c_runtime_bridge_bench.c include/arborcore/arborcore.h include/arborcore/assembly_abi.h | $(C_TEST_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(C_RUNTIME_LIB): $(C_RUNTIME_OBJECTS) | $(BUILD_DIR)
+	$(AR) rcsD $@ $(C_RUNTIME_OBJECTS)
+
+c-runtime-library: $(C_RUNTIME_LIB)
+
+$(C_ABI_LAYOUT_TEST): $(C_ABI_LAYOUT_TEST_OBJ) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(C_ABI_LAYOUT_TEST_OBJ) $(STATIC_LIB)
+
+$(C_RUNTIME_STATIC_CONSUMER): $(C_RUNTIME_CONSUMER_OBJ) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(C_RUNTIME_CONSUMER_OBJ) $(C_RUNTIME_LIB) $(STATIC_LIB)
+
+$(C_RUNTIME_SHARED_CONSUMER): $(C_RUNTIME_CONSUMER_OBJ) $(C_RUNTIME_LIB) $(SHARED_LIB_LINK)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -Wl,-rpath,'$$ORIGIN' -o $@ \
+		$(C_RUNTIME_CONSUMER_OBJ) $(C_RUNTIME_LIB) -L$(BUILD_DIR) -larborcore
+
+$(C_RUNTIME_ADVERSARIAL_TEST): $(C_RUNTIME_ADVERSARIAL_TEST_OBJ) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(C_RUNTIME_ADVERSARIAL_TEST_OBJ) $(C_RUNTIME_LIB) $(STATIC_LIB)
+
+$(C_RUNTIME_SERVER_TEST): $(C_RUNTIME_SERVER_TEST_OBJ) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(C_RUNTIME_SERVER_TEST_OBJ) $(C_RUNTIME_LIB) $(STATIC_LIB)
+
+$(C_RUNTIME_SANITIZE_TEST): $(C_TEST_DIR)/runtime_adversarial_test.c $(C_RUNTIME_SOURCES) $(STATIC_LIB) include/arborcore/arborcore.h include/arborcore/assembly_abi.h
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(C_TEST_DIR)/runtime_adversarial_test.c $(C_RUNTIME_SOURCES) $(STATIC_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@
+
+$(C_RUNTIME_BENCH): $(C_RUNTIME_BENCH_OBJ) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(C_RUNTIME_BENCH_OBJ) $(C_RUNTIME_LIB) $(STATIC_LIB)
+
+c-runtime-all: \
+	$(C_RUNTIME_LIB) \
+	$(C_ABI_LAYOUT_TEST) \
+	$(C_RUNTIME_STATIC_CONSUMER) \
+	$(C_RUNTIME_SHARED_CONSUMER) \
+	$(C_RUNTIME_ADVERSARIAL_TEST) \
+	$(C_RUNTIME_SERVER_TEST)
+
+c-runtime-check: c-runtime-all
+	@$(C_ABI_LAYOUT_TEST)
+	@echo "PASS: CR0/CR2 native aggregate/layout ABI"
+	@$(C_RUNTIME_STATIC_CONSUMER)
+	@echo "PASS: CR1/CR3/CR4/CR5 static Assembly consumer"
+	@LD_LIBRARY_PATH=$(BUILD_DIR) $(C_RUNTIME_SHARED_CONSUMER)
+	@echo "PASS: CR1 shared Assembly equivalence consumer"
+	@$(C_RUNTIME_ADVERSARIAL_TEST)
+	@echo "PASS: CR7 adversarial C bridge contracts"
+	@$(C_RUNTIME_SERVER_TEST)
+	@echo "PASS: CR6 C-to-Assembly server lifecycle"
+	@echo "PASS: C Runtime Bridge CR0-CR7 qualification"
+
+c-runtime-sanitize: $(C_RUNTIME_SANITIZE_TEST)
+	@ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(C_RUNTIME_SANITIZE_TEST)
+	@echo "PASS: CR7 ASan/UBSan bridge qualification"
+
+c-assembly-abi-header-verify: $(C_ASSEMBLY_ABI_HEADER_VERIFY)
+	@CC=$(CC) bash $(C_ASSEMBLY_ABI_HEADER_VERIFY)
+
+c-runtime-frozen-assembly-verify: library-readiness $(C_RUNTIME_FROZEN_ASSEMBLY_VERIFY)
+	@bash $(C_RUNTIME_FROZEN_ASSEMBLY_VERIFY)
+
+c-runtime-dependency-verify: $(C_RUNTIME_LIB) $(C_RUNTIME_DEPENDENCY_VERIFY)
+	@bash $(C_RUNTIME_DEPENDENCY_VERIFY)
+
+c-runtime-reproducibility-verify: $(C_RUNTIME_REPRODUCIBILITY_VERIFY)
+	@bash $(C_RUNTIME_REPRODUCIBILITY_VERIFY)
+
+c-runtime-benchmark-verify: $(C_RUNTIME_BENCH) $(C_RUNTIME_BENCHMARK_VERIFY)
+	@ARBORCORE_PERF_PROFILE=$(ARBORCORE_PERF_PROFILE) bash $(C_RUNTIME_BENCHMARK_VERIFY)
+
+c-runtime-bridge-gate: $(C_RUNTIME_BRIDGE_GATE)
+	@ARBORCORE_PERF_PROFILE=$(ARBORCORE_PERF_PROFILE) bash $(C_RUNTIME_BRIDGE_GATE)
