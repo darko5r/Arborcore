@@ -59,3 +59,9 @@ and/or WebGPU. Native x86-64 Assembly remains the Linux server/native core and
 is not executed directly in the browser sandbox. Authoritative Precision
 Surface fixed-point values stay in WebAssembly integer/linear-memory form rather
 than being round-tripped through JavaScript `Number`.
+
+## Post-G4 renderer transition
+
+The Geometry Numerical Contract v1 is now frozen at Q32.32. Precision Renderer
+R0-R3 consumes it without modifying geometry semantics and qualifies pixel/color/
+coverage foundations before full raster construction.

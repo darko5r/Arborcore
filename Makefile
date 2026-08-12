@@ -1737,3 +1737,47 @@ geometry-production-benchmark-verify: $(GEOMETRY_PRODUCTION_BENCH) $(GEOMETRY_PR
 
 geometry-g2-g4-gate: $(GEOMETRY_G2_G4_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(GEOMETRY_G2_G4_GATE)
+
+# ============================================================
+# Precision Renderer R0-R3 foundational qualification
+# ============================================================
+
+RENDERER_EXPERIMENT_DIR := experiments/renderer
+RENDERER_BUILD_DIR := $(BUILD_DIR)/renderer-r0-r3
+RENDERER_CANDIDATE_HEADER := $(RENDERER_EXPERIMENT_DIR)/raster_foundation_candidates.h
+RENDERER_CANDIDATE_TEST_SRC := $(C_TEST_DIR)/renderer_foundation_candidate_test.c
+RENDERER_CANDIDATE_TEST := $(BUILD_DIR)/renderer-foundation-candidate-test
+RENDERER_WASM_TEST_SRC := $(C_TEST_DIR)/renderer_foundation_wasm_selftest.c
+RENDERER_BENCH_SRC := $(BENCH_DIR)/renderer_foundation_bench.c
+RENDERER_BENCH := $(BUILD_DIR)/renderer-foundation-bench
+RENDERER_BENCH_RUNNER := $(TOOLS_DIR)/renderer_r0_r3_benchmark_run.sh
+RENDERER_SELECT := $(TOOLS_DIR)/renderer_r0_r3_select.sh
+RENDERER_WASM_VERIFY := $(TOOLS_DIR)/renderer_r0_r3_wasm_verify.sh
+RENDERER_LOWER_LAYER_VERIFY := $(TOOLS_DIR)/renderer_r0_r3_lower_layer_verify.sh
+RENDERER_R0_R3_GATE := $(TOOLS_DIR)/renderer_r0_r3_gate.sh
+RENDERER_CPPFLAGS := -D_POSIX_C_SOURCE=200809L -I$(RENDERER_EXPERIMENT_DIR)
+
+.PHONY: renderer-r0-r3-candidate-test renderer-r0-r3-benchmark-run
+.PHONY: renderer-r0-r3-wasm-verify renderer-r0-r3-lower-layer-verify renderer-r0-r3-gate
+
+$(RENDERER_CANDIDATE_TEST): $(RENDERER_CANDIDATE_TEST_SRC) $(RENDERER_CANDIDATE_HEADER) | $(BUILD_DIR)
+	$(CC) $(RENDERER_CPPFLAGS) $(ARBORCORE_C_CFLAGS) $< -o $@
+
+$(RENDERER_BENCH): $(RENDERER_BENCH_SRC) $(RENDERER_CANDIDATE_HEADER) | $(BUILD_DIR)
+	$(CC) $(RENDERER_CPPFLAGS) $(ARBORCORE_C_CFLAGS) $< -o $@
+
+renderer-r0-r3-candidate-test: $(RENDERER_CANDIDATE_TEST)
+	@$(RENDERER_CANDIDATE_TEST)
+
+renderer-r0-r3-benchmark-run: $(RENDERER_BENCH) $(RENDERER_BENCH_RUNNER)
+	@ARBORCORE_ROOT=$(ROOT_DIR) ARBOR_RENDERER_FOUNDATION_BENCH=$(ROOT_DIR)/$(RENDERER_BENCH) \
+		bash $(RENDERER_BENCH_RUNNER)
+
+renderer-r0-r3-wasm-verify: $(RENDERER_CANDIDATE_HEADER) $(RENDERER_WASM_TEST_SRC) $(RENDERER_WASM_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(RENDERER_WASM_VERIFY)
+
+renderer-r0-r3-lower-layer-verify: $(RENDERER_LOWER_LAYER_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(RENDERER_LOWER_LAYER_VERIFY)
+
+renderer-r0-r3-gate: $(RENDERER_R0_R3_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(RENDERER_R0_R3_GATE)

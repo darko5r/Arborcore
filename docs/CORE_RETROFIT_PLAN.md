@@ -328,3 +328,10 @@ layer plus a deterministic wasm32 helper for compiler-lowered 128-bit integer
 operations. Existing CR0-CR8 headers/sources and all frozen Assembly files remain
 unchanged. G4 freezes numerical semantics only; the higher-level C function
 surface remains construction-stage.
+
+## Precision Renderer R0-R3
+
+R0-R3 qualifies the raster foundation above the frozen Q32.32 Geometry
+Numerical Contract: internal color/coverage precision, explicit surface memory,
+half-open pixel cells, conservative bounds and native/WASM analytical coverage.
+It is recommendation-only; no raster/compositing ABI is frozen in this phase.
