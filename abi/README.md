@@ -9,9 +9,11 @@ A–E runtime retrofit series.
   of these ELF globals because cross-object resolution requires them; they are
   not compatibility promises.
 - `arborcore-1.map` — ELF symbol-version/visibility policy for
-  `libarborcore.so.1` readiness builds.
+  `libarborcore.so.1` shared-library ABI and its fully-versioned packaging product.
 - `arborcore-1.layout` — frozen sizes, offsets and numeric state values that
   callers may need to construct/pass ABI objects.
+- `arborcore-1.freeze` — immutable ABI-v1 freeze identity, including the freeze
+  commit, source/layout/symbol hashes and qualified library artifact hashes.
 
 ABI v1 target is Linux x86-64 using the System V AMD64 calling convention.
 Functions preserve the standard callee-saved registers and return with DF

@@ -244,3 +244,24 @@ Assembly phase is security/compatibility hardening only:
 Library readiness is qualified here, but publication/installation of
 `libarborcore.a` and `libarborcore.so.1` remains the immediately following
 library-packaging phase.
+
+## Assembly Library Packaging (L0–L4)
+
+After the ABI-v1 freeze commit, packaging must not alter production Assembly,
+public symbols, frozen layouts, ownership/lifetime contracts or error
+semantics.  The library phase formalizes the already-qualified artifacts:
+
+1. L0 canonical deterministic `libarborcore.a` and fully-versioned
+   `libarborcore.so.1.0.0` builds;
+2. L1 static consumer, independent reproducibility, staged installation and
+   uninstall qualification;
+3. L2 SONAME `libarborcore.so.1`, `ARBORCORE_1.0` version-script and exact
+   dynamic-export qualification;
+4. L3 shared consumer/runtime and staged symlink/install ownership
+   qualification;
+5. L4 release gate against the frozen ABI/source/library identities.
+
+The default installed library layout is `/usr/local/lib`; frozen ABI metadata
+is installed under `/usr/local/share/arborcore/abi`. `DESTDIR`, `PREFIX`,
+`LIBDIR`, and `DATADIR` remain overridable for package managers. The phase
+creates no C header; the subsequent C bridge defines the C-facing interface.

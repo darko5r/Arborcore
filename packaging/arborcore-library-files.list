@@ -1,0 +1,10 @@
+lib/libarborcore.a
+lib/libarborcore.so
+lib/libarborcore.so.1
+lib/libarborcore.so.1.0.0
+share/arborcore/abi/README.md
+share/arborcore/abi/arborcore-1.freeze
+share/arborcore/abi/arborcore-1.internal-symbols
+share/arborcore/abi/arborcore-1.layout
+share/arborcore/abi/arborcore-1.map
+share/arborcore/abi/arborcore-1.symbols

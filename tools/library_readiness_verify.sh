@@ -4,7 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="$ROOT/build"
 STATIC="$BUILD/libarborcore.a"
+SHARED_FULL="$BUILD/libarborcore.so.1.0.0"
 SHARED="$BUILD/libarborcore.so.1"
+SHARED_LINK="$BUILD/libarborcore.so"
 STATIC_CONSUMER="$BUILD/abi-static-consumer"
 SHARED_CONSUMER="$BUILD/abi-shared-consumer"
 PUBLIC="$ROOT/abi/arborcore-1.symbols"
@@ -13,9 +15,17 @@ INTERNAL="$ROOT/abi/arborcore-1.internal-symbols"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-for f in "$STATIC" "$SHARED" "$STATIC_CONSUMER" "$SHARED_CONSUMER"; do
+for f in "$STATIC" "$SHARED_FULL" "$STATIC_CONSUMER" "$SHARED_CONSUMER"; do
   [[ -r "$f" ]] || { echo "FAIL: missing readiness artifact $f" >&2; exit 2; }
 done
+[[ -L "$SHARED" && "$(readlink "$SHARED")" == "libarborcore.so.1.0.0" ]] || {
+  echo "FAIL: libarborcore.so.1 symlink is missing or incorrect" >&2
+  exit 1
+}
+[[ -L "$SHARED_LINK" && "$(readlink "$SHARED_LINK")" == "libarborcore.so.1" ]] || {
+  echo "FAIL: libarborcore.so development symlink is missing or incorrect" >&2
+  exit 1
+}
 
 # S8: deterministic archive membership. start.o must never be a library member.
 expected_members=(
@@ -38,9 +48,9 @@ fi
 "$STATIC_CONSUMER" || { echo "FAIL: static ABI consumer execution" >&2; exit 1; }
 
 # S7: shared object must be self-contained, hardened and export exactly v1.
-readelf -dW "$SHARED" > "$tmp/dynamic"
-readelf -lW "$SHARED" > "$tmp/program"
-readelf -rW "$SHARED" > "$tmp/relocs"
+readelf -dW "$SHARED_FULL" > "$tmp/dynamic"
+readelf -lW "$SHARED_FULL" > "$tmp/program"
+readelf -rW "$SHARED_FULL" > "$tmp/relocs"
 
 if grep -q '(NEEDED)' "$tmp/dynamic"; then
   echo "FAIL: libarborcore.so.1 unexpectedly depends on another shared library." >&2
@@ -68,7 +78,7 @@ if [[ "$stack_flags" == *E* ]]; then
   exit 1
 fi
 
-nm -D --defined-only "$SHARED" \
+nm -D --defined-only "$SHARED_FULL" \
   | awk 'NF >= 3 {name=$3; sub(/@.*/,"",name); if (name != "ARBORCORE_1.0") print name}' \
   | sort -u > "$tmp/dyn-public"
 if ! diff -u "$PUBLIC" "$tmp/dyn-public"; then
@@ -89,7 +99,7 @@ LD_LIBRARY_PATH="$BUILD${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" "$SHARED_CONSUMER"
 }
 
 # Consumer and libraries must also retain non-executable stacks.
-for elf in "$STATIC_CONSUMER" "$SHARED_CONSUMER" "$SHARED"; do
+for elf in "$STATIC_CONSUMER" "$SHARED_CONSUMER" "$SHARED_FULL"; do
   program_out="$(readelf -lW "$elf")"
   line="$(printf '%s\n' "$program_out" | grep 'GNU_STACK' || true)"
   flags="$(printf '%s\n' "$program_out" | awk '$1=="GNU_STACK" {print $(NF-1); exit}')"
@@ -100,7 +110,7 @@ for elf in "$STATIC_CONSUMER" "$SHARED_CONSUMER" "$SHARED"; do
 done
 
 static_sha="$(sha256sum "$STATIC" | awk '{print $1}')"
-shared_sha="$(sha256sum "$SHARED" | awk '{print $1}')"
+shared_sha="$(sha256sum "$SHARED_FULL" | awk '{print $1}')"
 echo "static_library_sha256=$static_sha"
 echo "shared_library_sha256=$shared_sha"
 echo "shared_export_count=$(wc -l < "$tmp/dyn-public")"

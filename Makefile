@@ -29,6 +29,13 @@ TOOLS_DIR := tools
 BUILD_DIR := build
 GENERATED_DIR := generated
 
+# Library installation policy
+PREFIX ?= /usr/local
+LIBDIR ?= $(PREFIX)/lib
+DATADIR ?= $(PREFIX)/share
+DESTDIR ?=
+ARBORCORE_ABI_INSTALL_DIR ?= $(DATADIR)/arborcore/abi
+
 # Generated memory policy
 MEMORY_POLICY := $(GENERATED_DIR)/memory_thresholds.inc
 MEMORY_PERF_PROFILE = $(GENERATED_DIR)/performance/memory-$(ARBORCORE_PERF_PROFILE).env
@@ -214,17 +221,27 @@ SERVER_TEST := $(BUILD_DIR)/server-test
 POLISH_GATE3_TEST := $(BUILD_DIR)/polish-gate3-test
 CORE_SECURITY_PROPERTY_TEST := $(BUILD_DIR)/core-security-property-test
 
-# Assembly ABI/library readiness artifacts
+# Assembly ABI/library products
 ARBORCORE_LIBRARY_OBJECTS := $(filter-out $(START_OBJ),$(ARBORCORE_OBJECTS))
-STATIC_LIB := $(BUILD_DIR)/libarborcore.a
-SHARED_LIB := $(BUILD_DIR)/libarborcore.so.1
-SHARED_LIB_LINK := $(BUILD_DIR)/libarborcore.so
+LIBRARY_RELEASE_VERSION := 1.0.0
+LIBRARY_ABI_MAJOR := 1
+STATIC_LIB_BASENAME := libarborcore.a
+SHARED_LIB_FULL_BASENAME := libarborcore.so.$(LIBRARY_RELEASE_VERSION)
+SHARED_LIB_SONAME_BASENAME := libarborcore.so.$(LIBRARY_ABI_MAJOR)
+SHARED_LIB_LINK_BASENAME := libarborcore.so
+STATIC_LIB := $(BUILD_DIR)/$(STATIC_LIB_BASENAME)
+SHARED_LIB_FULL := $(BUILD_DIR)/$(SHARED_LIB_FULL_BASENAME)
+SHARED_LIB := $(BUILD_DIR)/$(SHARED_LIB_SONAME_BASENAME)
+SHARED_LIB_LINK := $(BUILD_DIR)/$(SHARED_LIB_LINK_BASENAME)
 ABI_STATIC_CONSUMER := $(BUILD_DIR)/abi-static-consumer
 ABI_SHARED_CONSUMER := $(BUILD_DIR)/abi-shared-consumer
 ABI_PUBLIC_SYMBOLS := abi/arborcore-1.symbols
 ABI_INTERNAL_SYMBOLS := abi/arborcore-1.internal-symbols
 ABI_VERSION_SCRIPT := abi/arborcore-1.map
 ABI_LAYOUT := abi/arborcore-1.layout
+ABI_FREEZE_MANIFEST := abi/arborcore-1.freeze
+ABI_README := abi/README.md
+LIBRARY_INSTALL_MANIFEST := packaging/arborcore-library-files.list
 
 # Benchmark / qualification sources
 MEMORY_BENCH_ASM := $(BENCH_DIR)/memory_bench.asm
@@ -299,6 +316,9 @@ ABI_DEPENDENCY_VERIFY := $(TOOLS_DIR)/abi_dependency_verify.sh
 ABI_LAYOUT_VERIFY := $(TOOLS_DIR)/abi_layout_verify.sh
 SECURITY_SHAPE_VERIFY := $(TOOLS_DIR)/security_shape_verify.sh
 LIBRARY_READINESS_VERIFY := $(TOOLS_DIR)/library_readiness_verify.sh
+LIBRARY_REPRODUCIBILITY_VERIFY := $(TOOLS_DIR)/library_reproducibility_verify.sh
+LIBRARY_INSTALL_VERIFY := $(TOOLS_DIR)/library_install_verify.sh
+LIBRARY_RELEASE_GATE := $(TOOLS_DIR)/library_release_gate.sh
 ASSEMBLY_ABI_FREEZE := $(TOOLS_DIR)/assembly_abi_freeze.sh
 ASSEMBLY_SECURITY_ABI_GATE := $(TOOLS_DIR)/assembly_security_abi_gate.sh
 ASSEMBLY_SECURITY_ABI_REFERENCE := 95c0229f8baed13583f0a55ddb6d097e2d38146f
@@ -320,7 +340,8 @@ CODEC_PERF_BASELINE := $(GENERATED_DIR)/performance/codec-$(ARBORCORE_PERF_PROFI
 .PHONY: benchmark-server-perf benchmark-server-syscalls
 .PHONY: benchmark-codec qualify-codec-baseline show-codec-baseline verify-codec-performance verify-codec-performance-candidate
 .PHONY: core-security-property-test abi-surface-verify abi-dependency-verify abi-layout-verify security-shape-verify library-readiness assembly-security-abi-gate
-.PHONY: libarborcore-static libarborcore-shared
+.PHONY: libarborcore-libraries libarborcore-static libarborcore-shared
+.PHONY: install-libraries uninstall-libraries library-reproducibility-verify library-install-verify library-release-gate
 .PHONY: clean distclean
 
 # Main build
@@ -634,13 +655,16 @@ $(CORE_SECURITY_PROPERTY_TEST): $(CORE_SECURITY_PROPERTY_TEST_OBJ) $(SECURITY_OB
 $(STATIC_LIB): $(ARBORCORE_LIBRARY_OBJECTS)
 	$(AR) rcsD $@ $(ARBORCORE_LIBRARY_OBJECTS)
 
-$(SHARED_LIB): $(ARBORCORE_LIBRARY_OBJECTS) $(ABI_VERSION_SCRIPT)
+$(SHARED_LIB_FULL): $(ARBORCORE_LIBRARY_OBJECTS) $(ABI_VERSION_SCRIPT)
 	$(LD) -shared -Bsymbolic-functions -z defs -z text -z relro -z now -z noexecstack \
-		-soname=libarborcore.so.1 --version-script=$(ABI_VERSION_SCRIPT) \
+		-soname=$(SHARED_LIB_SONAME_BASENAME) --version-script=$(ABI_VERSION_SCRIPT) \
 		-o $@ $(ARBORCORE_LIBRARY_OBJECTS)
 
+$(SHARED_LIB): $(SHARED_LIB_FULL)
+	ln -sfn $(SHARED_LIB_FULL_BASENAME) $@
+
 $(SHARED_LIB_LINK): $(SHARED_LIB)
-	ln -sfn libarborcore.so.1 $@
+	ln -sfn $(SHARED_LIB_SONAME_BASENAME) $@
 
 $(ABI_STATIC_CONSUMER): $(ABI_CONSUMER_TEST_OBJ) $(STATIC_LIB)
 	$(LD) -o $@ $(ABI_CONSUMER_TEST_OBJ) $(STATIC_LIB)
@@ -881,9 +905,11 @@ core-writev-experiment-test: $(CORE_WRITEV_EXPERIMENT_TEST)
 core-security-property-test: $(CORE_SECURITY_PROPERTY_TEST)
 	@$(CORE_SECURITY_PROPERTY_TEST)
 
+libarborcore-libraries: $(STATIC_LIB) $(SHARED_LIB_FULL) $(SHARED_LIB) $(SHARED_LIB_LINK)
+
 libarborcore-static: $(STATIC_LIB) $(ABI_STATIC_CONSUMER)
 
-libarborcore-shared: $(SHARED_LIB) $(SHARED_LIB_LINK) $(ABI_SHARED_CONSUMER)
+libarborcore-shared: $(SHARED_LIB_FULL) $(SHARED_LIB) $(SHARED_LIB_LINK) $(ABI_SHARED_CONSUMER)
 
 abi-surface-verify: $(ARBORCORE_OBJECTS) $(SECURITY_OBJ) $(ABI_SURFACE_VERIFY) $(ABI_PUBLIC_SYMBOLS) $(ABI_INTERNAL_SYMBOLS)
 	@bash $(ABI_SURFACE_VERIFY)
@@ -897,8 +923,17 @@ abi-layout-verify: $(ABI_LAYOUT_VERIFY) $(ABI_LAYOUT)
 security-shape-verify: $(SECURITY_OBJ) $(SECURITY_SHAPE_VERIFY)
 	@bash $(SECURITY_SHAPE_VERIFY)
 
-library-readiness: $(STATIC_LIB) $(SHARED_LIB) $(SHARED_LIB_LINK) $(ABI_STATIC_CONSUMER) $(ABI_SHARED_CONSUMER) $(LIBRARY_READINESS_VERIFY)
+library-readiness: $(STATIC_LIB) $(SHARED_LIB_FULL) $(SHARED_LIB) $(SHARED_LIB_LINK) $(ABI_STATIC_CONSUMER) $(ABI_SHARED_CONSUMER) $(LIBRARY_READINESS_VERIFY)
 	@bash $(LIBRARY_READINESS_VERIFY)
+
+library-reproducibility-verify: $(LIBRARY_REPRODUCIBILITY_VERIFY) $(ABI_FREEZE_MANIFEST)
+	@bash $(LIBRARY_REPRODUCIBILITY_VERIFY)
+
+library-install-verify: libarborcore-libraries $(ABI_CONSUMER_TEST_OBJ) $(LIBRARY_INSTALL_VERIFY) $(ABI_FREEZE_MANIFEST)
+	@bash $(LIBRARY_INSTALL_VERIFY)
+
+library-release-gate: $(LIBRARY_RELEASE_GATE) $(ABI_FREEZE_MANIFEST)
+	@bash $(LIBRARY_RELEASE_GATE)
 core-retrofit-e: $(CORE_HTTP_FRAMING_PROPERTY_TEST) $(CORE_ACCEPT_TRANSACTION_TEST) $(CORE_PIPELINE_BUDGET_TEST) $(CORE_EVENT_BATCH_TEST) $(EVENT_TEST) $(NET_TEST) $(SERVER_TEST) $(POLISH_GATE3_TEST)
 	@$(CORE_HTTP_FRAMING_PROPERTY_TEST)
 	@$(CORE_ACCEPT_TRANSACTION_TEST)
@@ -1356,6 +1391,33 @@ qualify-memory: \
 		$(MEMORY_THRESHOLD_TEST) \
 		$(MEMORY_TEST)
 	$(MAKE) check
+
+# Formal Assembly library installation. These targets never install start.o
+# and never mutate the frozen ABI metadata. DESTDIR is supported for package
+# managers and qualification.
+install-libraries: libarborcore-libraries $(ABI_FREEZE_MANIFEST) $(ABI_PUBLIC_SYMBOLS) $(ABI_INTERNAL_SYMBOLS) $(ABI_LAYOUT) $(ABI_VERSION_SCRIPT) $(ABI_README)
+	install -d "$(DESTDIR)$(LIBDIR)" "$(DESTDIR)$(ARBORCORE_ABI_INSTALL_DIR)"
+	install -m 0644 $(STATIC_LIB) "$(DESTDIR)$(LIBDIR)/$(STATIC_LIB_BASENAME)"
+	install -m 0755 $(SHARED_LIB_FULL) "$(DESTDIR)$(LIBDIR)/$(SHARED_LIB_FULL_BASENAME)"
+	ln -sfn $(SHARED_LIB_FULL_BASENAME) "$(DESTDIR)$(LIBDIR)/$(SHARED_LIB_SONAME_BASENAME)"
+	ln -sfn $(SHARED_LIB_SONAME_BASENAME) "$(DESTDIR)$(LIBDIR)/$(SHARED_LIB_LINK_BASENAME)"
+	install -m 0644 $(ABI_README) "$(DESTDIR)$(ARBORCORE_ABI_INSTALL_DIR)/README.md"
+	install -m 0644 $(ABI_FREEZE_MANIFEST) $(ABI_PUBLIC_SYMBOLS) $(ABI_INTERNAL_SYMBOLS) $(ABI_LAYOUT) $(ABI_VERSION_SCRIPT) "$(DESTDIR)$(ARBORCORE_ABI_INSTALL_DIR)/"
+
+uninstall-libraries:
+	rm -f \
+		"$(DESTDIR)$(LIBDIR)/$(STATIC_LIB_BASENAME)" \
+		"$(DESTDIR)$(LIBDIR)/$(SHARED_LIB_FULL_BASENAME)" \
+		"$(DESTDIR)$(LIBDIR)/$(SHARED_LIB_SONAME_BASENAME)" \
+		"$(DESTDIR)$(LIBDIR)/$(SHARED_LIB_LINK_BASENAME)" \
+		"$(DESTDIR)$(ARBORCORE_ABI_INSTALL_DIR)/README.md" \
+		"$(DESTDIR)$(ARBORCORE_ABI_INSTALL_DIR)/arborcore-1.freeze" \
+		"$(DESTDIR)$(ARBORCORE_ABI_INSTALL_DIR)/arborcore-1.symbols" \
+		"$(DESTDIR)$(ARBORCORE_ABI_INSTALL_DIR)/arborcore-1.internal-symbols" \
+		"$(DESTDIR)$(ARBORCORE_ABI_INSTALL_DIR)/arborcore-1.layout" \
+		"$(DESTDIR)$(ARBORCORE_ABI_INSTALL_DIR)/arborcore-1.map"
+	-rmdir "$(DESTDIR)$(ARBORCORE_ABI_INSTALL_DIR)" 2>/dev/null || true
+	-rmdir "$(DESTDIR)$(DATADIR)/arborcore" 2>/dev/null || true
 
 # Cleanup
 clean:
