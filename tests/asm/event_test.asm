@@ -13,6 +13,8 @@ extern event_epoll_add
 extern event_epoll_modify
 extern event_epoll_remove
 extern event_epoll_wait
+extern event_monotonic_ms
+extern event_deadline_remaining_ms
 
 section .bss
 align 16
@@ -21,6 +23,21 @@ value:  resq 1
 
 section .text
 _start:
+    ; Monotonic clock and deterministic deadline arithmetic.
+    call event_monotonic_ms
+    test rax, rax
+    js fail
+    mov rdi, 1000
+    mov rsi, 900
+    call event_deadline_remaining_ms
+    cmp rax, 100
+    jne fail
+    mov rdi, 1000
+    mov rsi, 1000
+    call event_deadline_remaining_ms
+    test rax, rax
+    jnz fail
+
     mov edi, EPOLL_CLOEXEC
     call event_epoll_create
     test rax, rax
@@ -95,6 +112,14 @@ _start:
     xor esi, esi
     mov edx, 1
     xor ecx, ecx
+    call event_epoll_wait
+    cmp rax, -22
+    jne fail_close_both
+
+    mov rdi, r12
+    lea rsi, [rel events]
+    mov edx, 1
+    mov rcx, 2147483648
     call event_epoll_wait
     cmp rax, -22
     jne fail_close_both

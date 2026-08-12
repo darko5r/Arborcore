@@ -1,33 +1,30 @@
-; Arborcore event-driven HTTP server lifecycle foundation
+; Arborcore event-driven HTTP server runtime
 ;
-; This stage intentionally keeps the application-handler contract small:
-; exact-router handlers return a supported HTTP status code and the server
-; emits an empty-body HTTP/1.1 response. The standalone response engine is
-; already body-capable; a richer response object is a later framework ABI.
+; Retrofit E invariants:
+; - listener/accepted descriptor flags are atomic where Linux provides them
+; - accept publication is prepare/register/commit with closed rollback
+; - request framing advances incrementally instead of reparsing each fragment
+; - immediate writes are attempted before EPOLLOUT is armed
+; - buffered/kernel-pending pipelined work is drained without epoll_wait
+; - each invocation is bounded to SERVER_REQUEST_BUDGET requests
 ;
-; server_open_listener(sockaddr*, addrlen, backlog)
-;   -> RAX=nonblocking TCP listener fd or negative errno
-;
-; server_create_epoll(listener_fd)
-;   -> RAX=epoll fd with listener registered, or negative errno
-;
-; server_accept_connection(listener_fd, epfd, conn*, inbuf*, outbuf*, arena*)
-;   -> RAX=0, RDX=accepted fd; or negative errno
-;
-; server_handle_http_once(conn*, request*, routes*, route_count, context*, epfd)
-;   -> RAX=0 when one complete request/response lifecycle finishes
-;      RAX=-EAGAIN when more read/write readiness is required
-;      other negative errno on fatal failure
-;      RDX=completed request count on success
-;
-; server_close_connection(epfd, conn*) -> RAX=0 or close/remove error
+; server_handle_http_once return:
+;   RAX=0            quiescent after making progress
+;   RAX=1            SERVER_MORE_WORK: budget exhausted; call again immediately
+;   RAX=-EAGAIN      readiness required before any request completed this call
+;   other negative   fatal
+;   RDX=total completed request count for nonnegative returns
 
 %define ERR_ENOENT      -2
+%define ERR_EIO         -5
 %define ERR_EAGAIN     -11
 %define ERR_EINVAL     -22
 %define ERR_ENOSPC     -28
 %define ERR_EOVERFLOW  -75
 %define ERR_ECONNRESET -104
+
+%define SERVER_MORE_WORK 1
+%define SERVER_REQUEST_BUDGET 8
 
 %define SOCK_NONBLOCK 0x800
 %define SOCK_CLOEXEC  0x80000
@@ -41,11 +38,17 @@
 
 %define CONN_FD             0
 %define CONN_STATE          8
+%define CONN_FLAGS         16
 %define CONN_INPUT_BUFFER  24
 %define CONN_OUTPUT_BUFFER 32
 %define CONN_ARENA         40
 %define CONN_WRITE_BYTES   56
 %define CONN_REQUEST_COUNT 64
+%define CONN_FRAME_SCAN    80
+%define CONN_FRAME_NEEDED  88
+
+%define CONN_FLAG_HEADERS_READY 1
+%define CONN_FLAG_WRITE_ARMED   2
 
 %define CONN_ACCEPTED       1
 %define CONN_READING        2
@@ -59,16 +62,14 @@
 %define BUFFER_DATA      0
 %define BUFFER_LENGTH    8
 %define BUFFER_CAPACITY 16
-
 %define REQ_MESSAGE_LENGTH 88
 
-extern net_socket_tcp4
+extern net_socket_tcp4_flags
 extern net_bind
 extern net_listen
 extern net_accept4
 extern net_shutdown
 extern net_close
-extern io_set_nonblocking
 extern io_read_retry
 extern io_write_retry
 extern io_close
@@ -82,6 +83,7 @@ extern connection_note_read
 extern connection_note_write
 extern connection_complete_request
 extern connection_set_error
+extern http_frame_scan
 extern http_parse_request
 extern route_pattern_dispatch
 extern http_response_serialize
@@ -102,20 +104,16 @@ server_open_listener:
     push r12
     push r13
     push r14
-    sub rsp, 8                    ; 16-byte call alignment
+    sub rsp, 8
     mov r12, rdi
     mov r13, rsi
     mov r14, rdx
 
-    call net_socket_tcp4
+    mov edi, SOCK_NONBLOCK | SOCK_CLOEXEC
+    call net_socket_tcp4_flags
     test rax, rax
     js .return
-    mov rbx, rax                  ; listener survives nested calls
-
-    mov rdi, rbx
-    call io_set_nonblocking
-    test rax, rax
-    js .close_error
+    mov rbx, rax
 
     mov rdi, rbx
     mov rsi, r12
@@ -148,17 +146,17 @@ server_open_listener:
 server_create_epoll:
     push rbx
     push r12
-    sub rsp, 8                    ; 16-byte call alignment
-    mov r12, rdi                 ; listener
+    sub rsp, 8
+    mov r12, rdi
     mov edi, EPOLL_CLOEXEC
     call event_epoll_create
     test rax, rax
     js .return
-    mov rbx, rax                 ; epfd survives event_epoll_add
+    mov rbx, rax
     mov rdi, rbx
     mov rsi, r12
     mov edx, EPOLLIN | EPOLLERR | EPOLLHUP
-    mov rcx, r12                 ; data = listener fd
+    mov rcx, r12
     call event_epoll_add
     test rax, rax
     js .close_epoll
@@ -175,23 +173,46 @@ server_create_epoll:
     pop rbx
     ret
 
-; Six arguments: listener, epfd, conn, inbuf, outbuf, arena
+; Six arguments: listener, epfd, conn, inbuf, outbuf, arena.
+; Storage is reset before acquisition.  READING is published only after epoll
+; registration succeeds.  Any post-init failure closes the accepted fd and
+; leaves the connection CLOSED.
 server_accept_connection:
     push rbx
     push r12
     push r13
     push r14
     push r15
-    sub rsp, 16
-    mov r12, rdi                 ; listener
-    mov r13, rsi                 ; epfd
-    mov r14, rdx                 ; conn
-    mov r15, rcx                 ; inbuf
-    mov rbx, r8                  ; outbuf
-    mov [rsp + 0], r9            ; arena
+    sub rsp, 32
+    mov r12, rdi
+    mov r13, rsi
+    mov r14, rdx
+    mov r15, rcx
+    mov rbx, r8
+    mov [rsp + 0], r9
 
     test r14, r14
     jz .invalid
+    test r15, r15
+    jz .invalid
+    test rbx, rbx
+    jz .invalid
+    cmp qword [rsp + 0], 0
+    je .invalid
+
+    mov rdi, r15
+    call buffer_reset
+    test rax, rax
+    js .return
+    mov rdi, rbx
+    call buffer_reset
+    test rax, rax
+    js .return
+    mov rdi, [rsp + 0]
+    call arena_reset
+    test rax, rax
+    js .return
+
     mov rdi, r12
     xor esi, esi
     xor edx, edx
@@ -199,7 +220,7 @@ server_accept_connection:
     call net_accept4
     test rax, rax
     js .return
-    mov [rsp + 8], rax           ; accepted fd
+    mov [rsp + 8], rax
 
     mov rdi, r14
     mov rsi, rax
@@ -208,37 +229,61 @@ server_accept_connection:
     mov r8, [rsp + 0]
     call connection_init
     test rax, rax
-    js .close_accepted
+    js .close_uninitialized
+
+    mov rdi, r13
+    mov rsi, [rsp + 8]
+    mov edx, EPOLLIN | EPOLLRDHUP | EPOLLERR | EPOLLHUP
+    mov rcx, r14
+    call event_epoll_add
+    test rax, rax
+    js .rollback_unregistered
 
     mov rdi, r14
     mov esi, CONN_READING
     call connection_transition
     test rax, rax
-    js .close_accepted
-
-    mov rdi, r13
-    mov rsi, [rsp + 8]
-    mov edx, EPOLLIN | EPOLLRDHUP | EPOLLERR | EPOLLHUP
-    mov rcx, r14                 ; event data = connection pointer
-    call event_epoll_add
-    test rax, rax
-    js .close_accepted
+    js .rollback_registered
 
     mov rdx, [rsp + 8]
     xor eax, eax
     jmp .return
-.close_accepted:
-    mov r12, rax
+
+.rollback_registered:
+    mov [rsp + 16], rax
+    mov rdi, r13
+    mov rsi, [rsp + 8]
+    call event_epoll_remove
+    mov rax, [rsp + 16]
+.rollback_unregistered:
+    mov [rsp + 16], rax
+    mov rdi, r14
+    mov rsi, rax
+    call connection_set_error
+    mov rdi, r14
+    mov esi, CONN_CLOSING
+    call connection_transition
     mov rdi, [rsp + 8]
     call net_close
-    mov rax, r12
+    mov rdi, r14
+    mov esi, CONN_CLOSED
+    call connection_transition
+    mov rax, [rsp + 16]
+    xor edx, edx
+    jmp .return
+
+.close_uninitialized:
+    mov [rsp + 16], rax
+    mov rdi, [rsp + 8]
+    call net_close
+    mov rax, [rsp + 16]
     xor edx, edx
     jmp .return
 .invalid:
     mov rax, ERR_EINVAL
     xor edx, edx
 .return:
-    add rsp, 16
+    add rsp, 32
     pop r15
     pop r14
     pop r13
@@ -253,14 +298,15 @@ server_handle_http_once:
     push r13
     push r14
     push r15
-    sub rsp, 288
+    sub rsp, 320
 
     ; +0 context, +8 epfd, +16 status, +24 temporary result/count
     ; +32..+287 eight 32-byte route-parameter records
-    mov r12, rdi                 ; conn
-    mov r13, rsi                 ; request
-    mov r14, rdx                 ; routes
-    mov r15, rcx                 ; route count
+    ; +288 request count at entry, +296 request budget, +304 write-was-armed
+    mov r12, rdi
+    mov r13, rsi
+    mov r14, rdx
+    mov r15, rcx
     mov [rsp + 0], r8
     mov [rsp + 8], r9
 
@@ -268,6 +314,9 @@ server_handle_http_once:
     jz .invalid
     test r13, r13
     jz .invalid
+    mov rax, [r12 + CONN_REQUEST_COUNT]
+    mov [rsp + 288], rax
+    mov qword [rsp + 296], SERVER_REQUEST_BUDGET
 
     mov rax, [r12 + CONN_STATE]
     cmp rax, CONN_READING
@@ -281,10 +330,34 @@ server_handle_http_once:
     test rbx, rbx
     jz .invalid
 
+.frame_dispatch:
+    mov rcx, [rbx + BUFFER_LENGTH]
+    mov rax, [r12 + CONN_FRAME_NEEDED]
+    test rax, rax
+    jz .need_header_state
+    cmp rcx, rax
+    jb .read_more
+    jmp .parse_existing
+
+.need_header_state:
+    test qword [r12 + CONN_FLAGS], CONN_FLAG_HEADERS_READY
+    jnz .parse_existing
+    test rcx, rcx
+    jz .read_more
+    mov rdi, [rbx + BUFFER_DATA]
+    mov rsi, rcx
+    lea rdx, [r12 + CONN_FRAME_SCAN]
+    call http_frame_scan
+    cmp rax, 1
+    je .headers_ready
+    cmp rax, ERR_EAGAIN
+    je .read_more
+    jmp .fatal
+.headers_ready:
+    or qword [r12 + CONN_FLAGS], CONN_FLAG_HEADERS_READY
+
 .parse_existing:
     mov rsi, [rbx + BUFFER_LENGTH]
-    test rsi, rsi
-    jz .read_more
     mov rdi, [rbx + BUFFER_DATA]
     mov rdx, r13
     call http_parse_request
@@ -292,6 +365,10 @@ server_handle_http_once:
     jz .request_ready
     cmp rax, ERR_EAGAIN
     jne .fatal
+    test rdx, rdx
+    jz .read_more
+    mov [r12 + CONN_FRAME_NEEDED], rdx
+    jmp .read_more
 
 .read_more:
     mov rax, [rbx + BUFFER_LENGTH]
@@ -323,11 +400,11 @@ server_handle_http_once:
     call connection_note_read
     test rax, rax
     js .fatal
-    jmp .parse_existing
+    jmp .frame_dispatch
 
 .read_error:
     cmp rax, ERR_EAGAIN
-    je .again
+    je .quiescent_or_again
     jmp .fatal
 
 .request_ready:
@@ -369,7 +446,7 @@ server_handle_http_once:
     mov rsi, [rsp + 16]
     xor edx, edx
     xor ecx, ecx
-    mov r8d, 1                   ; HTTP/1.1 keep-alive foundation
+    mov r8d, 1
     call http_response_serialize
     test rax, rax
     js .fatal
@@ -379,15 +456,8 @@ server_handle_http_once:
     call connection_transition
     test rax, rax
     js .fatal
-
-    ; Switch interest to writable readiness while retaining error/hup.
-    mov rdi, [rsp + 8]
-    mov rsi, [r12 + CONN_FD]
-    mov edx, EPOLLOUT | EPOLLRDHUP | EPOLLERR | EPOLLHUP
-    mov rcx, r12
-    call event_epoll_modify
-    test rax, rax
-    js .fatal
+    ; E7: attempt output immediately. EPOLLOUT is armed only after EAGAIN.
+    jmp .write_resume
 
 .write_resume:
     mov rbx, [r12 + CONN_OUTPUT_BUFFER]
@@ -411,7 +481,7 @@ server_handle_http_once:
     test rax, rax
     js .write_error
     test rax, rax
-    jz .again
+    jz .write_zero
     mov rsi, rax
     mov rdi, r12
     call connection_note_write
@@ -421,11 +491,29 @@ server_handle_http_once:
 
 .write_error:
     cmp rax, ERR_EAGAIN
-    je .again
+    jne .fatal
+    jmp .write_wait
+.write_zero:
+    mov rax, ERR_EIO
     jmp .fatal
+.write_wait:
+    test qword [r12 + CONN_FLAGS], CONN_FLAG_WRITE_ARMED
+    jnz .again
+    mov rdi, [rsp + 8]
+    mov rsi, [r12 + CONN_FD]
+    mov edx, EPOLLOUT | EPOLLRDHUP | EPOLLERR | EPOLLHUP
+    mov rcx, r12
+    call event_epoll_modify
+    test rax, rax
+    js .fatal
+    or qword [r12 + CONN_FLAGS], CONN_FLAG_WRITE_ARMED
+    jmp .again
 
 .write_complete:
-    ; Consume exactly the parsed request; preserve pipelined bytes.
+    mov rax, [r12 + CONN_FLAGS]
+    and eax, CONN_FLAG_WRITE_ARMED
+    mov [rsp + 304], rax
+
     mov rdi, [r12 + CONN_INPUT_BUFFER]
     mov rsi, [r13 + REQ_MESSAGE_LENGTH]
     call buffer_consume
@@ -436,8 +524,6 @@ server_handle_http_once:
     call buffer_reset
     test rax, rax
     js .fatal
-
-    ; Request-lifetime arena is distinct from persistent connection buffers.
     mov rdi, [r12 + CONN_ARENA]
     call arena_reset
     test rax, rax
@@ -460,6 +546,8 @@ server_handle_http_once:
     test rax, rax
     js .fatal
 
+    cmp qword [rsp + 304], 0
+    je .interest_ready
     mov rdi, [rsp + 8]
     mov rsi, [r12 + CONN_FD]
     mov edx, EPOLLIN | EPOLLRDHUP | EPOLLERR | EPOLLHUP
@@ -467,14 +555,29 @@ server_handle_http_once:
     call event_epoll_modify
     test rax, rax
     js .fatal
+.interest_ready:
 
-    mov rdx, [rsp + 24]
-    xor eax, eax
+    dec qword [rsp + 296]
+    jz .more_work
+    ; E4: immediately inspect buffered data and perform a nonblocking read;
+    ; return to epoll only after logical/kernel work is drained to EAGAIN.
+    jmp .read_parse
+
+.more_work:
+    mov rdx, [r12 + CONN_REQUEST_COUNT]
+    mov eax, SERVER_MORE_WORK
     jmp .return
 
+.quiescent_or_again:
+    mov rdx, [r12 + CONN_REQUEST_COUNT]
+    cmp rdx, [rsp + 288]
+    jne .success
 .again:
     mov rax, ERR_EAGAIN
     xor edx, edx
+    jmp .return
+.success:
+    xor eax, eax
     jmp .return
 .no_space:
     mov rax, ERR_ENOSPC
@@ -505,7 +608,7 @@ server_handle_http_once:
     mov rax, ERR_EINVAL
     xor edx, edx
 .return:
-    add rsp, 288
+    add rsp, 320
     pop r15
     pop r14
     pop r13

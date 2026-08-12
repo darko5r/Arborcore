@@ -45,7 +45,7 @@ invalid_states: dq 0, 9, -1
 
 section .bss
 align 16
-conn: resb 80
+conn: resb 96
 inbuf: resb 24
 outbuf: resb 24
 arena: resb 24

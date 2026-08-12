@@ -1,17 +1,16 @@
-; Arborcore server lifecycle unit integration over local socketpair
-; exit 0 pass, 1 fail
-%define SYS_EXIT       60
+; Arborcore Retrofit E4/E7/E9 pipeline draining, immediate write, work budget
+%define SYS_EXIT 60
 %define SYS_SOCKETPAIR 53
-%define SYS_CLOSE       3
-%define AF_UNIX         1
-%define SOCK_STREAM     1
-%define EPOLLIN       0x001
-%define EPOLLERR      0x008
-%define EPOLLHUP      0x010
-%define EPOLLRDHUP    0x2000
-%define ERR_EAGAIN      -11
+%define SYS_CLOSE 3
+%define AF_UNIX 1
+%define SOCK_STREAM 1
+%define EPOLLIN 0x001
+%define EPOLLERR 0x008
+%define EPOLLHUP 0x010
+%define EPOLLRDHUP 0x2000
+%define ERR_EAGAIN -11
+%define SERVER_MORE_WORK 1
 
-global _start
 extern buffer_init
 extern arena_init
 extern connection_init
@@ -21,56 +20,48 @@ extern io_write_retry
 extern io_read_retry
 extern event_epoll_create
 extern event_epoll_add
-extern event_epoll_wait
 extern server_handle_http_once
+
+global _start
 
 section .rodata
 method_get: db "GET"
-path_ok: db "/ok/:id"
-request1: db "GET /ok/42 HTTP/1.1",13,10,13,10
-request1_len equ $ - request1
-request2: db "GET /missing HTTP/1.1",13,10,13,10
-request2_len equ $ - request2
-pipeline_requests:
-    db "GET /ok/42 HTTP/1.1",13,10,13,10
-    db "GET /missing HTTP/1.1",13,10,13,10
-pipeline_requests_len equ $ - pipeline_requests
-expected_200:
+path_root: db "/"
+one_request: db "GET / HTTP/1.1",13,10,13,10
+one_request_len equ $ - one_request
+response:
     db "HTTP/1.1 200 OK",13,10
     db "Content-Length: 0",13,10
     db "Connection: keep-alive",13,10
     db 13,10
-expected_200_len equ $ - expected_200
-expected_404:
-    db "HTTP/1.1 404 Not Found",13,10
-    db "Content-Length: 0",13,10
-    db "Connection: keep-alive",13,10
-    db 13,10
-expected_404_len equ $ - expected_404
+response_len equ $ - response
+pipeline:
+%rep 10
+    db "GET / HTTP/1.1",13,10,13,10
+%endrep
+pipeline_len equ $ - pipeline
+responses_total equ response_len * 10
 
 section .data
 align 8
-routes: dq method_get, 3, path_ok, 7, ok_handler
-route_count equ 1
-context: dq 0x55aa55aa55aa55aa
+routes: dq method_get, 3, path_root, 1, ok_handler
+context: dq 0x1234
 
 section .bss
-align 16
+alignb 16
 fds: resd 2
 inbuf: resb 24
 outbuf: resb 24
-in_storage: resb 1024
+in_storage: resb 4096
 out_storage: resb 1024
 arena: resb 24
-arena_storage: resb 256
+arena_storage: resb 512
 conn: resb 96
 request_out: resb 96
-events: resb 24
-client_read: resb 256
+client_read: resb 1024
 
 section .text
 _start:
-    mov r14d, 1                  ; default failure status for cleanup paths
     mov edi, AF_UNIX
     mov esi, SOCK_STREAM
     xor edx, edx
@@ -87,7 +78,7 @@ _start:
 
     lea rdi, [rel inbuf]
     lea rsi, [rel in_storage]
-    mov edx, 1024
+    mov edx, 4096
     call buffer_init
     test rax, rax
     jnz fail_close
@@ -99,7 +90,7 @@ _start:
     jnz fail_close
     lea rdi, [rel arena]
     lea rsi, [rel arena_storage]
-    mov edx, 256
+    mov edx, 512
     call arena_init
     test rax, rax
     jnz fail_close
@@ -131,99 +122,66 @@ _start:
     test rax, rax
     js fail_close_all
 
-    ; Pipeline two requests in one client write. The server must consume
-    ; exactly one message at a time while preserving buffered remainder.
     mov edi, [rel fds + 4]
-    lea rsi, [rel pipeline_requests]
-    mov edx, pipeline_requests_len
+    lea rsi, [rel pipeline]
+    mov edx, pipeline_len
     call write_exact
     test rax, rax
     jne fail_close_all
 
-    ; One invocation must drain both userspace-pipelined requests before
-    ; returning to epoll.
-    call handle_once
+    ; First call is capped at 8 complete requests and explicitly reports local
+    ; work remaining instead of forcing epoll_wait.
+    call handle
+    cmp rax, SERVER_MORE_WORK
+    jne fail_close_all
+    cmp rdx, 8
+    jne fail_close_all
+    cmp qword [rel conn + 64], 8
+    jne fail_close_all
+
+    ; Immediate continuation drains the final two and then reaches read EAGAIN.
+    call handle
     test rax, rax
     jnz fail_close_all
-    cmp rdx, 2
+    cmp rdx, 10
+    jne fail_close_all
+    cmp qword [rel conn + 64], 10
+    jne fail_close_all
+    cmp qword [rel conn + 16], 0      ; EPOLLOUT was never armed on fast writes
+    jne fail_close_all
+    cmp qword [rel inbuf + 8], 0
+    jne fail_close_all
+    cmp qword [rel arena + 16], 0
+    jne fail_close_all
+    cmp qword [rel conn + 80], 0
+    jne fail_close_all
+    cmp qword [rel conn + 88], 0
     jne fail_close_all
 
     mov edi, [rel fds + 4]
     lea rsi, [rel client_read]
-    mov edx, expected_200_len
+    mov edx, responses_total
     call read_exact
     test rax, rax
     jne fail_close_all
-    lea rdi, [rel client_read]
-    lea rsi, [rel expected_200]
-    mov edx, expected_200_len
-    call bytes_match
-    cmp eax, 1
-    jne fail_close_all
 
-    mov edi, [rel fds + 4]
-    lea rsi, [rel client_read]
-    mov edx, expected_404_len
-    call read_exact
-    test rax, rax
-    jne fail_close_all
-    lea rdi, [rel client_read]
-    lea rsi, [rel expected_404]
-    mov edx, expected_404_len
-    call bytes_match
-    cmp eax, 1
-    jne fail_close_all
-
-    cmp qword [rel conn + 64], 2
-    jne fail_close_all
     xor r14d, r14d
     jmp close_all
 
-handle_once:
-    sub rsp, 8                    ; align nested calls
-.retry:
+handle:
+    sub rsp, 8
     lea rdi, [rel conn]
     lea rsi, [rel request_out]
     lea rdx, [rel routes]
-    mov ecx, route_count
+    mov ecx, 1
     lea r8, [rel context]
     mov r9, r12
     call server_handle_http_once
-    cmp rax, 1
-    je .retry
-    cmp rax, ERR_EAGAIN
-    jne .done
-    mov rdi, r12
-    lea rsi, [rel events]
-    mov edx, 2
-    mov ecx, 1000
-    call event_epoll_wait
-    cmp rax, 1
-    jl .wait_fail
-    jmp .retry
-.wait_fail:
-    mov rax, -1
-.done:
     add rsp, 8
     ret
 
 ok_handler:
-    mov rax, 0x55aa55aa55aa55aa
-    cmp [rsi], rax
-    jne .bad
-    cmp rcx, 1
-    jne .bad
-    cmp qword [rdx + 24], 2
-    jne .bad
-    mov rax, [rdx + 16]
-    cmp byte [rax], '4'
-    jne .bad
-    cmp byte [rax + 1], '2'
-    jne .bad
     mov eax, 200
-    ret
-.bad:
-    mov rax, -99
     ret
 
 write_exact:
@@ -233,25 +191,25 @@ write_exact:
     mov r12, rdi
     mov r13, rsi
     mov r14, rdx
-.write_loop:
+.loop:
     test r14, r14
-    jz .write_ok
+    jz .ok
     mov rdi, r12
     mov rsi, r13
     mov rdx, r14
     call io_write_retry
     test rax, rax
-    js .write_return
-    jz .write_zero
+    js .return
+    jz .bad
     add r13, rax
     sub r14, rax
-    jmp .write_loop
-.write_ok:
+    jmp .loop
+.ok:
     xor eax, eax
-    jmp .write_return
-.write_zero:
+    jmp .return
+.bad:
     mov rax, -5
-.write_return:
+.return:
     pop r14
     pop r13
     pop r12
@@ -264,46 +222,28 @@ read_exact:
     mov r12, rdi
     mov r13, rsi
     mov r14, rdx
-.read_loop:
+.loop:
     test r14, r14
-    jz .read_ok
+    jz .ok
     mov rdi, r12
     mov rsi, r13
     mov rdx, r14
     call io_read_retry
     test rax, rax
-    js .read_return
-    jz .read_zero
+    js .return
+    jz .bad
     add r13, rax
     sub r14, rax
-    jmp .read_loop
-.read_ok:
+    jmp .loop
+.ok:
     xor eax, eax
-    jmp .read_return
-.read_zero:
+    jmp .return
+.bad:
     mov rax, -5
-.read_return:
+.return:
     pop r14
     pop r13
     pop r12
-    ret
-
-bytes_match:
-    test rdx, rdx
-    jz .yes
-.loop:
-    mov al, [rdi]
-    cmp al, [rsi]
-    jne .no
-    inc rdi
-    inc rsi
-    dec rdx
-    jnz .loop
-.yes:
-    mov eax, 1
-    ret
-.no:
-    xor eax, eax
     ret
 
 fail_close_all:

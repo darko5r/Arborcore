@@ -78,8 +78,8 @@ echo
 echo "### POLISH GATE #2: public ABI symbols"
 for spec in \
     "build/io.o:io_read_retry io_write_retry io_close io_set_nonblocking" \
-    "build/net.o:net_socket_tcp4 net_bind net_listen net_accept4 net_shutdown net_close" \
-    "build/http_parser.o:http_parse_request" \
+    "build/net.o:net_socket_tcp4 net_socket_tcp4_flags net_bind net_listen net_accept4 net_shutdown net_close" \
+    "build/http_parser.o:http_parse_request http_frame_scan" \
     "build/router.o:router_find_exact router_dispatch"
 do
     object="${spec%%:*}"

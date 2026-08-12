@@ -1,6 +1,6 @@
 ; Arborcore connection state engine
 ;
-; Connection layout (80 bytes):
+; Connection layout (96 bytes):
 ;   +0   fd (signed qword)
 ;   +8   state
 ;   +16  flags
@@ -11,6 +11,8 @@
 ;   +56  bytes written during current response
 ;   +64  completed request count
 ;   +72  last error/status
+;   +80  incremental HTTP framing scan offset
+;   +88  required request frame length (0 until known)
 ;
 ; State ABI:
 ;   1 ACCEPTED
@@ -39,6 +41,8 @@
 %define CONN_WRITE_BYTES   56
 %define CONN_REQUEST_COUNT 64
 %define CONN_LAST_ERROR    72
+%define CONN_FRAME_SCAN    80
+%define CONN_FRAME_NEEDED  88
 
 %define CONN_ACCEPTED       1
 %define CONN_READING        2
@@ -95,15 +99,17 @@ connection_init:
 
     mov [rdi + CONN_FD], rsi
     mov qword [rdi + CONN_STATE], CONN_ACCEPTED
-    mov qword [rdi + CONN_FLAGS], 0
     mov [rdi + CONN_INPUT_BUFFER], rdx
     mov [rdi + CONN_OUTPUT_BUFFER], rcx
     mov [rdi + CONN_ARENA], r8
-    mov qword [rdi + CONN_READ_BYTES], 0
-    mov qword [rdi + CONN_WRITE_BYTES], 0
-    mov qword [rdi + CONN_REQUEST_COUNT], 0
-    mov qword [rdi + CONN_LAST_ERROR], 0
     xor eax, eax
+    mov [rdi + CONN_FLAGS], rax
+    mov [rdi + CONN_READ_BYTES], rax
+    mov [rdi + CONN_WRITE_BYTES], rax
+    mov [rdi + CONN_REQUEST_COUNT], rax
+    mov [rdi + CONN_LAST_ERROR], rax
+    mov [rdi + CONN_FRAME_SCAN], rax
+    mov [rdi + CONN_FRAME_NEEDED], rax
     xor edx, edx
     ret
 .invalid:
@@ -208,8 +214,12 @@ connection_complete_request:
     inc rax
     jz .overflow
     mov [rdi + CONN_REQUEST_COUNT], rax
-    mov qword [rdi + CONN_READ_BYTES], 0
-    mov qword [rdi + CONN_WRITE_BYTES], 0
+    xor ecx, ecx
+    mov [rdi + CONN_READ_BYTES], rcx
+    mov [rdi + CONN_WRITE_BYTES], rcx
+    mov [rdi + CONN_FLAGS], rcx
+    mov [rdi + CONN_FRAME_SCAN], rcx
+    mov [rdi + CONN_FRAME_NEEDED], rcx
     mov rdx, rax
     xor eax, eax
     ret

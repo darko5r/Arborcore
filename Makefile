@@ -159,6 +159,13 @@ TEST_OBJECTS := \
 	$(SERVER_TEST_OBJ) \
 	$(POLISH_GATE3_TEST_OBJ)
 
+TEST_OBJECTS += \
+	$(BUILD_DIR)/core_http_framing_property_test.o \
+	$(BUILD_DIR)/core_accept_transaction_test.o \
+	$(BUILD_DIR)/core_pipeline_budget_test.o \
+	$(BUILD_DIR)/core_event_batch_test.o \
+	$(BUILD_DIR)/core_writev_experiment_test.o
+
 # Executables
 ARBORCORE := $(BUILD_DIR)/arborcore
 WRITE_TEST := $(BUILD_DIR)/write-test
@@ -246,6 +253,24 @@ SERVER_PAIRED_COMPARE := $(TOOLS_DIR)/server_paired_compare.sh
 SERVER_PERFORMANCE_QUALIFIED := $(TOOLS_DIR)/server_performance_qualified.sh
 CORE_RETROFIT_D_GATE := $(TOOLS_DIR)/core_retrofit_d_gate.sh
 CORE_RETROFIT_D_REFERENCE ?= 24e014b791b46c4b7c8dffd2dee14dcb8eb4354a
+CORE_HTTP_FRAMING_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_http_framing_property_test.o
+CORE_ACCEPT_TRANSACTION_TEST_OBJ := $(BUILD_DIR)/core_accept_transaction_test.o
+CORE_PIPELINE_BUDGET_TEST_OBJ := $(BUILD_DIR)/core_pipeline_budget_test.o
+CORE_EVENT_BATCH_TEST_OBJ := $(BUILD_DIR)/core_event_batch_test.o
+CORE_WRITEV_EXPERIMENT_TEST_OBJ := $(BUILD_DIR)/core_writev_experiment_test.o
+CORE_HTTP_FRAMING_PROPERTY_TEST := $(BUILD_DIR)/core-http-framing-property-test
+CORE_ACCEPT_TRANSACTION_TEST := $(BUILD_DIR)/core-accept-transaction-test
+CORE_PIPELINE_BUDGET_TEST := $(BUILD_DIR)/core-pipeline-budget-test
+CORE_EVENT_BATCH_TEST := $(BUILD_DIR)/core-event-batch-test
+CORE_WRITEV_EXPERIMENT_TEST := $(BUILD_DIR)/core-writev-experiment-test
+RESPONSE_IOVEC_CANDIDATE_OBJ := $(BUILD_DIR)/response_iovec_candidate.o
+IOVEC_WRITE_CANDIDATE_OBJ := $(BUILD_DIR)/iovec_write_candidate.o
+RESPONSE_IOVEC_BENCH_OBJ := $(BUILD_DIR)/response_iovec_bench.o
+RESPONSE_IOVEC_BENCH := $(BUILD_DIR)/bench-writev-experiment
+WRITEV_EXPERIMENT_VERIFY := $(TOOLS_DIR)/writev_experiment_verify.sh
+RUNTIME_SYSCALL_VERIFY := $(TOOLS_DIR)/runtime_syscall_verify.sh
+CORE_RETROFIT_E_GATE := $(TOOLS_DIR)/core_retrofit_e_gate.sh
+CORE_RETROFIT_E_REFERENCE ?= e9b69ab5205033dac15128ff7e3fd6d627548cb2
 CODEC_PERF_BASELINE := $(GENERATED_DIR)/performance/codec-$(ARBORCORE_PERF_PROFILE).env
 
 .PHONY: all run check
@@ -254,6 +279,8 @@ CODEC_PERF_BASELINE := $(GENERATED_DIR)/performance/codec-$(ARBORCORE_PERF_PROFI
 .PHONY: core-memory-property-test core-buffer-arena-property-test core-connection-property-test core-buffer-alias-test core-retrofit-c1 core-retrofit-c
 .PHONY: core-request-target-property-test core-route-contract-test core-http-response-contract-test core-route-index-experiment-test core-retrofit-d
 .PHONY: route-index-experiment verify-server-environment verify-server-performance-qualified-candidate core-retrofit-d-gate
+.PHONY: core-http-framing-property-test core-accept-transaction-test core-pipeline-budget-test core-event-batch-test core-writev-experiment-test core-retrofit-e
+.PHONY: writev-experiment runtime-syscall-experiment core-retrofit-e-gate
 .PHONY: buffer-test arena-test polish-gate-1 polish-gate-2 io-test net-test http-test router-test
 .PHONY: event-test connection-test http-response-test request-target-test route-pattern-test server-test polish-gate-3
 .PHONY: benchmark qualify-memory show-memory-policy show-memory-profile
@@ -333,6 +360,15 @@ $(ROUTE_INDEX_CANDIDATE_OBJ): $(BENCH_DIR)/route_index_candidate.asm | $(BUILD_D
 $(ROUTE_INDEX_BENCH_OBJ): $(BENCH_DIR)/route_index_bench.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
+$(RESPONSE_IOVEC_CANDIDATE_OBJ): $(BENCH_DIR)/response_iovec_candidate.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(IOVEC_WRITE_CANDIDATE_OBJ): $(BENCH_DIR)/iovec_write_candidate.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(RESPONSE_IOVEC_BENCH_OBJ): $(BENCH_DIR)/response_iovec_bench.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
 # memory.asm depends on generated policy
 $(MEMORY_OBJ): $(SRC_ASM_DIR)/memory.asm $(MEMORY_POLICY) | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
@@ -397,6 +433,21 @@ $(CORE_HTTP_RESPONSE_CONTRACT_TEST_OBJ): $(TEST_ASM_DIR)/core_http_response_cont
 	$(NASM) $(NASMFLAGS) $< -o $@
 
 $(CORE_ROUTE_INDEX_EXPERIMENT_TEST_OBJ): $(TEST_ASM_DIR)/core_route_index_experiment_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_HTTP_FRAMING_PROPERTY_TEST_OBJ): $(TEST_ASM_DIR)/core_http_framing_property_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_ACCEPT_TRANSACTION_TEST_OBJ): $(TEST_ASM_DIR)/core_accept_transaction_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_PIPELINE_BUDGET_TEST_OBJ): $(TEST_ASM_DIR)/core_pipeline_budget_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_EVENT_BATCH_TEST_OBJ): $(TEST_ASM_DIR)/core_event_batch_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(CORE_WRITEV_EXPERIMENT_TEST_OBJ): $(TEST_ASM_DIR)/core_writev_experiment_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
 $(ENCODING_TEST_OBJ): $(TEST_ASM_DIR)/encoding_test.asm | $(BUILD_DIR)
@@ -524,6 +575,21 @@ $(CORE_HTTP_RESPONSE_CONTRACT_TEST): $(CORE_HTTP_RESPONSE_CONTRACT_TEST_OBJ) $(H
 
 $(CORE_ROUTE_INDEX_EXPERIMENT_TEST): $(CORE_ROUTE_INDEX_EXPERIMENT_TEST_OBJ) $(ROUTE_INDEX_CANDIDATE_OBJ) $(ROUTER_OBJ) $(BYTES_OBJ)
 	$(LD) -o $@ $(CORE_ROUTE_INDEX_EXPERIMENT_TEST_OBJ) $(ROUTE_INDEX_CANDIDATE_OBJ) $(ROUTER_OBJ) $(BYTES_OBJ)
+
+$(CORE_HTTP_FRAMING_PROPERTY_TEST): $(CORE_HTTP_FRAMING_PROPERTY_TEST_OBJ) $(HTTP_PARSER_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ)
+	$(LD) -o $@ $(CORE_HTTP_FRAMING_PROPERTY_TEST_OBJ) $(HTTP_PARSER_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ)
+
+$(CORE_ACCEPT_TRANSACTION_TEST): $(CORE_ACCEPT_TRANSACTION_TEST_OBJ) $(SERVER_OBJ) $(EVENT_OBJ) $(CONNECTION_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ) $(IO_OBJ) $(NET_OBJ) $(HTTP_PARSER_OBJ) $(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ)
+	$(LD) -o $@ $(CORE_ACCEPT_TRANSACTION_TEST_OBJ) $(SERVER_OBJ) $(EVENT_OBJ) $(CONNECTION_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ) $(IO_OBJ) $(NET_OBJ) $(HTTP_PARSER_OBJ) $(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ)
+
+$(CORE_PIPELINE_BUDGET_TEST): $(CORE_PIPELINE_BUDGET_TEST_OBJ) $(SERVER_OBJ) $(EVENT_OBJ) $(CONNECTION_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ) $(IO_OBJ) $(NET_OBJ) $(HTTP_PARSER_OBJ) $(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ)
+	$(LD) -o $@ $(CORE_PIPELINE_BUDGET_TEST_OBJ) $(SERVER_OBJ) $(EVENT_OBJ) $(CONNECTION_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ) $(IO_OBJ) $(NET_OBJ) $(HTTP_PARSER_OBJ) $(ROUTER_OBJ) $(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ)
+
+$(CORE_EVENT_BATCH_TEST): $(CORE_EVENT_BATCH_TEST_OBJ) $(EVENT_OBJ)
+	$(LD) -o $@ $(CORE_EVENT_BATCH_TEST_OBJ) $(EVENT_OBJ)
+
+$(CORE_WRITEV_EXPERIMENT_TEST): $(CORE_WRITEV_EXPERIMENT_TEST_OBJ) $(RESPONSE_IOVEC_CANDIDATE_OBJ) $(IOVEC_WRITE_CANDIDATE_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ)
+	$(LD) -o $@ $(CORE_WRITEV_EXPERIMENT_TEST_OBJ) $(RESPONSE_IOVEC_CANDIDATE_OBJ) $(IOVEC_WRITE_CANDIDATE_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ)
 
 $(ENCODING_TEST): \
 	$(ENCODING_TEST_OBJ) \
@@ -691,6 +757,9 @@ $(LOOPBACK_BENCH): \
 		$(BUFFER_OBJ) $(ARENA_OBJ) $(MEMORY_OBJ) $(IO_OBJ) $(NET_OBJ) $(HTTP_PARSER_OBJ) $(ROUTER_OBJ) \
 		$(ROUTE_PATTERN_OBJ) $(REQUEST_TARGET_OBJ) $(BYTES_SCAN_OBJ) $(BYTES_OBJ) $(PARSE_U64_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
 
+$(RESPONSE_IOVEC_BENCH): $(RESPONSE_IOVEC_BENCH_OBJ) $(RESPONSE_IOVEC_CANDIDATE_OBJ) $(IOVEC_WRITE_CANDIDATE_OBJ) $(BENCH_SUPPORT_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+	$(LD) -o $@ $(RESPONSE_IOVEC_BENCH_OBJ) $(RESPONSE_IOVEC_CANDIDATE_OBJ) $(IOVEC_WRITE_CANDIDATE_OBJ) $(BENCH_SUPPORT_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ) $(WRITE_OBJ)
+
 # Individual test targets
 write-test: $(WRITE_TEST)
 memory-threshold-test: $(MEMORY_THRESHOLD_TEST)
@@ -740,6 +809,21 @@ core-retrofit-d: $(CORE_REQUEST_TARGET_PROPERTY_TEST) $(CORE_ROUTE_CONTRACT_TEST
 	@$(CORE_HTTP_RESPONSE_CONTRACT_TEST)
 	@$(CORE_ROUTE_INDEX_EXPERIMENT_TEST)
 	@echo "PASS: Core Retrofit D correctness qualification"
+core-http-framing-property-test: $(CORE_HTTP_FRAMING_PROPERTY_TEST)
+core-accept-transaction-test: $(CORE_ACCEPT_TRANSACTION_TEST)
+core-pipeline-budget-test: $(CORE_PIPELINE_BUDGET_TEST)
+core-event-batch-test: $(CORE_EVENT_BATCH_TEST)
+core-writev-experiment-test: $(CORE_WRITEV_EXPERIMENT_TEST)
+core-retrofit-e: $(CORE_HTTP_FRAMING_PROPERTY_TEST) $(CORE_ACCEPT_TRANSACTION_TEST) $(CORE_PIPELINE_BUDGET_TEST) $(CORE_EVENT_BATCH_TEST) $(EVENT_TEST) $(NET_TEST) $(SERVER_TEST) $(POLISH_GATE3_TEST)
+	@$(CORE_HTTP_FRAMING_PROPERTY_TEST)
+	@$(CORE_ACCEPT_TRANSACTION_TEST)
+	@$(CORE_PIPELINE_BUDGET_TEST)
+	@$(CORE_EVENT_BATCH_TEST)
+	@$(EVENT_TEST)
+	@$(NET_TEST)
+	@$(SERVER_TEST)
+	@$(POLISH_GATE3_TEST)
+	@echo "PASS: Core Retrofit E runtime correctness qualification"
 encoding-test: $(ENCODING_TEST)
 buffer-test: $(BUFFER_TEST)
 arena-test: $(ARENA_TEST)
@@ -782,6 +866,11 @@ check: \
 	$(CORE_ROUTE_CONTRACT_TEST) \
 	$(CORE_HTTP_RESPONSE_CONTRACT_TEST) \
 	$(CORE_ROUTE_INDEX_EXPERIMENT_TEST) \
+	$(CORE_HTTP_FRAMING_PROPERTY_TEST) \
+	$(CORE_ACCEPT_TRANSACTION_TEST) \
+	$(CORE_PIPELINE_BUDGET_TEST) \
+	$(CORE_EVENT_BATCH_TEST) \
+	$(CORE_WRITEV_EXPERIMENT_TEST_OBJ) \
 	$(ENCODING_TEST) \
 	$(BUFFER_TEST) \
 	$(ARENA_TEST) \
@@ -966,6 +1055,26 @@ check: \
 	if [ "$$status" -ne 0 ]; then echo "FAIL: core-route-index-experiment-test exit=$$status"; exit "$$status"; fi; \
 	echo "PASS: core-route-index-experiment-test"; \
 	echo; \
+	echo "### Core Retrofit E3: incremental framing"; \
+	status=0; $(CORE_HTTP_FRAMING_PROPERTY_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: core-http-framing-property-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: core-http-framing-property-test"; \
+	echo; \
+	echo "### Core Retrofit E1/E5: accept transaction and pristine reuse"; \
+	status=0; $(CORE_ACCEPT_TRANSACTION_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: core-accept-transaction-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: core-accept-transaction-test"; \
+	echo; \
+	echo "### Core Retrofit E4/E7/E9: pipeline drain, immediate write, budget"; \
+	status=0; $(CORE_PIPELINE_BUDGET_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: core-pipeline-budget-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: core-pipeline-budget-test"; \
+	echo; \
+	echo "### Core Retrofit E9: epoll event batching"; \
+	status=0; $(CORE_EVENT_BATCH_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: core-event-batch-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: core-event-batch-test"; \
+	echo; \
 	echo "### encoding"; \
 	status=0; \
 	$(ENCODING_TEST) || status=$$?; \
@@ -1086,6 +1195,16 @@ verify-server-performance-qualified-candidate: $(ARBORCORE_OBJECTS) $(SERVER_BEN
 
 core-retrofit-d-gate: $(CORE_RETROFIT_D_GATE)
 	@ARBORCORE_QUALIFICATION_REFERENCE_COMMIT=$(CORE_RETROFIT_D_REFERENCE) ARBORCORE_PERF_PROFILE=$(ARBORCORE_PERF_PROFILE) bash $(CORE_RETROFIT_D_GATE)
+
+# Retrofit E experiments and final runtime gate.
+writev-experiment: $(CORE_WRITEV_EXPERIMENT_TEST) $(RESPONSE_IOVEC_BENCH) $(WRITEV_EXPERIMENT_VERIFY)
+	@bash $(WRITEV_EXPERIMENT_VERIFY)
+
+runtime-syscall-experiment: $(LOOPBACK_BENCH) $(RUNTIME_SYSCALL_VERIFY)
+	@bash $(RUNTIME_SYSCALL_VERIFY)
+
+core-retrofit-e-gate: $(CORE_RETROFIT_E_GATE)
+	@ARBORCORE_QUALIFICATION_REFERENCE_COMMIT=$(CORE_RETROFIT_E_REFERENCE) ARBORCORE_PERF_PROFILE=$(ARBORCORE_PERF_PROFILE) bash $(CORE_RETROFIT_E_GATE)
 
 # Dedicated percent-codec reference/candidate performance evidence.
 benchmark-codec: $(CODEC_BENCH) $(CODEC_BENCHMARK_RUNNER)

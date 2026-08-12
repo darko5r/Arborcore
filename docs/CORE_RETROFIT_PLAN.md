@@ -218,3 +218,8 @@ Proceed with remaining Assembly server-core capabilities, such as:
 - prepared routing if benchmarks support it.
 
 Then perform the final Assembly capability/security/performance/ABI qualification and freeze the Assembly ABI before introducing the C runtime/framework bridge.
+
+
+## Retrofit E — runtime/event/server composition
+
+See `docs/CORE_RETROFIT_E.md` for the qualified runtime transaction, deadline, incremental framing, pipeline-drain, work-budget and experiment contracts.

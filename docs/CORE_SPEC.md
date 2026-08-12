@@ -447,3 +447,8 @@ Machine-independent counters should be preferred alongside wall-clock profiles w
 4. self-certifying qualification may produce/check witnesses outside production hot paths;
 5. production performance profiles remain environment-specific;
 6. optimization acceptance requires correctness gates plus measured benefit.
+
+
+## Retrofit E runtime contracts
+
+See `docs/CORE_RETROFIT_E.md` for the qualified runtime transaction, deadline, incremental framing, pipeline-drain, work-budget and experiment contracts.

@@ -20,7 +20,7 @@ extern connection_set_error
 
 section .bss
 align 16
-conn: resb 80
+conn: resb 96
 inbuf: resb 24
 outbuf: resb 24
 arena: resb 24
@@ -115,6 +115,10 @@ _start:
     cmp qword [rel conn + 48], 0
     jne fail
     cmp qword [rel conn + 56], 0
+    jne fail
+    cmp qword [rel conn + 80], 0
+    jne fail
+    cmp qword [rel conn + 88], 0
     jne fail
 
     lea rdi, [rel conn]

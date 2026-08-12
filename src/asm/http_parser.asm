@@ -62,6 +62,7 @@ extern bytes_equal_ascii_ci
 extern bytes_parse_u64_decimal
 
 global http_parse_request:function
+global http_frame_scan:function
 
 section .rodata
 content_length_name:
@@ -357,15 +358,26 @@ http_parse_request:
     mov [r14 + REQ_BODY_AVAILABLE], rax
 
     mov rcx, [r14 + REQ_CONTENT_LENGTH]
-    cmp rcx, rax
-    ja .incomplete
 
-    ; Exact bytes belonging to this request, useful for consuming a
-    ; connection buffer that may already contain a pipelined request.
+    ; Compute the required frame length as soon as headers are complete.
+    ; On body-incomplete EAGAIN, RDX is an exact required length when the
+    ; sum is representable.  If header_bytes + Content-Length overflows u64,
+    ; preserve the historical EAGAIN contract and return UINT64_MAX as a
+    ; saturated wait threshold; the server can keep reading without reparsing.
     mov rdx, r15
     sub rdx, r12
     add rdx, rcx
-    jc .overflow
+    jnc .required_length_ready
+
+    cmp rcx, rax
+    jbe .overflow                 ; defensive: complete span cannot be represented
+    mov rdx, -1
+    jmp .incomplete_known
+
+.required_length_ready:
+    cmp rcx, rax
+    ja .incomplete_known
+
     mov [r14 + REQ_MESSAGE_LENGTH], rdx
 
     xor eax, eax
@@ -376,12 +388,18 @@ http_parse_request:
     jmp .return
 
 .incomplete:
+    xor edx, edx
+    mov r10, ERR_EAGAIN
+    jmp .failure
+.incomplete_known:
     mov r10, ERR_EAGAIN
     jmp .failure
 .invalid:
+    xor edx, edx
     mov r10, ERR_EINVAL
     jmp .failure
 .overflow:
+    xor edx, edx
     mov r10, ERR_EOVERFLOW
 
 .failure:
@@ -543,5 +561,83 @@ http_parse_request:
 .token_valid:
     clc
     ret
+
+
+; http_frame_scan(buffer, length, scan_state*)
+; RDI=buffer RSI=length RDX=&scan_offset
+; Returns:
+;   RAX=1       header terminator CRLFCRLF found, RDX=end offset
+;   RAX=-EAGAIN incomplete, RDX=updated scan offset
+;   RAX=-EINVAL malformed/bounded state
+;
+; scan_offset is the first byte not yet fully framing-validated.  Ordinary
+; bytes advance one position.  A valid CRLF is consumed as a pair.  A final
+; CR is retained at the frontier until its LF arrives.  Bare LF and CR not
+; followed by LF are rejected immediately, preserving strict-parser behavior
+; while keeping total fragmented-input framing work O(n).
+http_frame_scan:
+    test rdx, rdx
+    jz .frame_invalid
+    mov r8, [rdx]
+    cmp r8, rsi
+    ja .frame_invalid
+    test rsi, rsi
+    jz .frame_incomplete
+    test rdi, rdi
+    jz .frame_invalid
+
+.frame_loop:
+    cmp r8, rsi
+    jae .frame_incomplete
+
+    mov al, [rdi + r8]
+    cmp al, 0x0a
+    je .frame_invalid              ; bare LF: proper CRLF is consumed at CR
+    cmp al, 0x0d
+    jne .frame_ordinary
+
+    ; CR requires its LF.  If CR is the last available byte, retain it at
+    ; the frontier so the next call validates the cross-fragment pair.
+    mov r9, rsi
+    sub r9, r8
+    cmp r9, 2
+    jb .frame_incomplete
+    cmp byte [rdi + r8 + 1], 0x0a
+    jne .frame_invalid
+
+    ; This CRLF may be the second pair of the terminal CRLFCRLF even when
+    ; the first pair was consumed by an earlier fragmented-input call.
+    ; Look two bytes backward after validating the current pair so delimiter
+    ; recognition does not depend on four bytes of forward lookahead.
+    cmp r8, 2
+    jb .frame_pair
+    cmp word [rdi + r8 - 2], 0x0a0d
+    jne .frame_pair
+
+    lea r9, [r8 + 2]
+    mov [rdx], r9
+    mov rdx, r9
+    mov eax, 1
+    ret
+
+.frame_pair:
+    add r8, 2
+    jmp .frame_loop
+
+.frame_ordinary:
+    inc r8
+    jmp .frame_loop
+
+.frame_incomplete:
+    mov [rdx], r8
+    mov rdx, r8
+    mov rax, ERR_EAGAIN
+    ret
+
+.frame_invalid:
+    xor edx, edx
+    mov rax, ERR_EINVAL
+    ret
+
 
 section .note.GNU-stack noalloc noexec nowrite progbits

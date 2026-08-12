@@ -67,7 +67,7 @@ in_storage: resb 2048
 out_storage: resb 2048
 arena: resb 24
 arena_storage: resb 512
-conn: resb 80
+conn: resb 96
 request_out: resb 96
 client_read: resb 256
 
@@ -273,6 +273,8 @@ handle_server:
     lea r8, [rel context]
     mov r9, r13
     call server_handle_http_once
+    cmp rax, 1
+    je .retry
     cmp rax, ERR_EAGAIN
     jne .done
     call wait_connection

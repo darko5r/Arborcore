@@ -35,7 +35,7 @@ done
 for sym in bytes_equal request_target_from_request; do
     nm -u build/route_pattern.o | grep -q " U $sym$"
 done
-for sym in net_socket_tcp4 net_bind net_listen net_accept4 event_epoll_create event_epoll_add event_epoll_modify connection_init http_parse_request route_pattern_dispatch http_response_serialize arena_reset; do
+for sym in net_socket_tcp4_flags net_bind net_listen net_accept4 event_epoll_create event_epoll_add event_epoll_modify connection_init http_frame_scan http_parse_request route_pattern_dispatch http_response_serialize buffer_reset buffer_consume arena_reset; do
     nm -u build/server.o | grep -q " U $sym$"
 done
 echo "PASS: event/runtime layers have the expected dependency graph"
@@ -66,6 +66,8 @@ check_symbol build/event.o event_epoll_add
 check_symbol build/event.o event_epoll_modify
 check_symbol build/event.o event_epoll_remove
 check_symbol build/event.o event_epoll_wait
+check_symbol build/event.o event_monotonic_ms
+check_symbol build/event.o event_deadline_remaining_ms
 check_symbol build/connection.o connection_init
 check_symbol build/connection.o connection_transition
 check_symbol build/http_response.o http_response_serialize

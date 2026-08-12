@@ -7,7 +7,10 @@
 %define SYS_GETSOCKNAME  51
 %define SYS_FCNTL        72
 
+%define F_GETFD           1
 %define F_GETFL           3
+%define FD_CLOEXEC         1
+%define SOCK_CLOEXEC  0x80000
 %define O_NONBLOCK    0x800
 %define SOCK_NONBLOCK 0x800
 %define SHUT_RDWR          2
@@ -16,6 +19,7 @@
 %define ERR_EAGAIN       -11
 
 extern net_socket_tcp4
+extern net_socket_tcp4_flags
 extern net_bind
 extern net_listen
 extern net_accept4
@@ -76,6 +80,39 @@ _start:
     cmp rax, ERR_EBADF
     jne net_test_fail
 
+    ; Linux socket type/flag input is an int domain: high transport bits are
+    ; rejected rather than silently truncated through EDI.
+    mov rdi, 0x100000000
+    call net_socket_tcp4_flags
+    cmp rax, -22
+    jne net_test_fail
+
+    ; Atomic listener-style socket creation qualifies NONBLOCK+CLOEXEC.
+    mov edi, SOCK_NONBLOCK | SOCK_CLOEXEC
+    call net_socket_tcp4_flags
+    test rax, rax
+    js net_test_fail
+    mov r15, rax
+    mov rdi, r15
+    mov eax, SYS_FCNTL
+    mov esi, F_GETFL
+    xor edx, edx
+    syscall
+    test eax, O_NONBLOCK
+    jz net_test_fail_atomic
+    mov rdi, r15
+    mov eax, SYS_FCNTL
+    mov esi, F_GETFD
+    xor edx, edx
+    syscall
+    test eax, FD_CLOEXEC
+    jz net_test_fail_atomic
+    mov rdi, r15
+    call net_close
+    test rax, rax
+    jnz net_test_fail
+    mov r15, -1
+
     ; Listener on loopback with kernel-assigned port.
     call net_socket_tcp4
     test rax, rax
@@ -122,11 +159,11 @@ _start:
     test rax, rax
     jnz net_test_cleanup
 
-    ; Successful accept with SOCK_NONBLOCK requested atomically.
+    ; Successful accept with NONBLOCK+CLOEXEC requested atomically.
     mov rdi, r12
     xor esi, esi
     xor edx, edx
-    mov ecx, SOCK_NONBLOCK
+    mov ecx, SOCK_NONBLOCK | SOCK_CLOEXEC
     call net_accept4
     test rax, rax
     js net_test_cleanup
@@ -141,6 +178,15 @@ _start:
     test rax, rax
     js net_test_cleanup
     test eax, O_NONBLOCK
+    jz net_test_cleanup
+    mov rdi, r14
+    mov eax, SYS_FCNTL
+    mov esi, F_GETFD
+    xor edx, edx
+    syscall
+    test rax, rax
+    js net_test_cleanup
+    test eax, FD_CLOEXEC
     jz net_test_cleanup
 
     ; Connected socket shutdown wrapper succeeds.
@@ -184,6 +230,12 @@ _start:
 
     xor edi, edi
     jmp net_test_exit
+
+net_test_fail_atomic:
+    mov rdi, r15
+    call net_close
+    mov r15, -1
+    jmp net_test_fail
 
 net_test_cleanup:
     cmp r14, 0
