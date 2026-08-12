@@ -1580,3 +1580,39 @@ c-runtime-benchmark-verify: $(C_RUNTIME_BENCH) $(C_RUNTIME_BENCHMARK_VERIFY)
 
 c-runtime-bridge-gate: $(C_RUNTIME_BRIDGE_GATE)
 	@ARBORCORE_PERF_PROFILE=$(ARBORCORE_PERF_PROFILE) bash $(C_RUNTIME_BRIDGE_GATE)
+
+# ============================================================
+# Geometry Precision G0-G1 experimental qualification
+# ============================================================
+
+GEOMETRY_EXPERIMENT_DIR := experiments/geometry
+GEOMETRY_EXPERIMENT_BUILD_DIR := $(BUILD_DIR)/geometry-precision-g0-g1
+GEOMETRY_CANDIDATE_HEADER := $(GEOMETRY_EXPERIMENT_DIR)/fixed_point_candidates.h
+GEOMETRY_CANDIDATE_TEST_SRC := $(C_TEST_DIR)/geometry_precision_candidate_test.c
+GEOMETRY_CANDIDATE_TEST := $(BUILD_DIR)/geometry-precision-candidate-test
+GEOMETRY_BENCH_SRC := $(BENCH_DIR)/geometry_precision_bench.c
+GEOMETRY_BENCH := $(BUILD_DIR)/geometry-precision-bench
+GEOMETRY_BENCH_RUNNER := $(TOOLS_DIR)/geometry_precision_benchmark_run.sh
+GEOMETRY_SELECTION_TOOL := $(TOOLS_DIR)/geometry_precision_select.sh
+GEOMETRY_WASM_PROBE := $(TOOLS_DIR)/geometry_precision_wasm_probe.sh
+GEOMETRY_G0_G1_GATE := $(TOOLS_DIR)/geometry_precision_g0_g1_gate.sh
+GEOMETRY_CPPFLAGS := $(ARBORCORE_C_CPPFLAGS) -I$(GEOMETRY_EXPERIMENT_DIR)
+
+.PHONY: geometry-precision-candidate-test geometry-precision-benchmark-run
+.PHONY: geometry-precision-g0-g1-gate
+
+$(GEOMETRY_CANDIDATE_TEST): $(GEOMETRY_CANDIDATE_TEST_SRC) $(GEOMETRY_CANDIDATE_HEADER) | $(BUILD_DIR)
+	$(CC) $(GEOMETRY_CPPFLAGS) $(ARBORCORE_C_CFLAGS) $< -o $@
+
+$(GEOMETRY_BENCH): $(GEOMETRY_BENCH_SRC) $(GEOMETRY_CANDIDATE_HEADER) | $(BUILD_DIR)
+	$(CC) $(GEOMETRY_CPPFLAGS) $(ARBORCORE_C_CFLAGS) $< -o $@
+
+geometry-precision-candidate-test: $(GEOMETRY_CANDIDATE_TEST)
+	@$(GEOMETRY_CANDIDATE_TEST)
+
+geometry-precision-benchmark-run: $(GEOMETRY_BENCH) $(GEOMETRY_BENCH_RUNNER)
+	@ARBORCORE_ROOT=$(ROOT_DIR) ARBOR_GEOMETRY_BENCH=$(ROOT_DIR)/$(GEOMETRY_BENCH) \
+		bash $(GEOMETRY_BENCH_RUNNER)
+
+geometry-precision-g0-g1-gate: $(GEOMETRY_G0_G1_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(GEOMETRY_G0_G1_GATE)

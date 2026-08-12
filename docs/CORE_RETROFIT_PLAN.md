@@ -292,3 +292,24 @@ After the CR bridge is sealed, geometry becomes a first-class higher-level
 capability above the frozen Assembly ABI. HTML/CSS is never replaced. Arborcore
 supports HTML/CSS mode, Precision Surface mode, and Hybrid mode in parallel.
 See `docs/GEOMETRY_PRECISION_PLAN.md`.
+
+## Geometry Precision qualification (G0–G4)
+
+Geometry starts only after the qualified C Runtime Bridge and remains above the
+frozen Assembly ABI. The numerical work is deliberately split before production
+geometry is introduced:
+
+1. G0 define numerical requirements, coordinate-space boundaries, candidate
+   arithmetic and browser/WASM representation constraints;
+2. G1 property-test and benchmark Q16.16, Q26.6, Q32.32 and Q24.40 and produce
+   a reviewable representation recommendation;
+3. G2 implement checked production point/size/rect/line/bounds geometry only
+   after the G1 recommendation is accepted;
+4. G3 qualify affine transforms, inverse transforms, clipping and the
+   trigonometric/rotation strategy;
+5. G4 define logical/CSS/device-pixel conversion and freeze the Geometry
+   Numerical Contract before rasterization.
+
+G0–G1 is an experiment only: it must not modify `src/asm`, frozen ABI manifests,
+`include/arborcore`, or `src/c`. HTML/CSS, Precision Surface and Hybrid rendering
+remain peer modes throughout.

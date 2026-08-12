@@ -11,33 +11,40 @@ Arborcore permanently supports three peer rendering modes:
 3. **Hybrid mode** — HTML/CSS and one or more Precision Surfaces in the same
    page, including layered composition.
 
-## G0 — numerical contract
+## G0 — numerical requirements and candidate contracts
 
-Evaluate fixed-point candidates such as 16.16 and 32.32 against range,
-overflow, multiplication/division cost, transform precision, WebAssembly
-behavior and actual rendering needs. Do not select a format solely because it
-has more fractional bits.
+Define coordinate spaces, working range/precision requirements, checked
+arithmetic, rounding vocabulary, overflow behavior and the browser/WASM
+representation boundary. Compare Q16.16, Q26.6, Q32.32 and Q24.40 without
+turning any candidate into public API.
 
-## G1 — checked geometry
+## G1 — fixed-point qualification and selection recommendation
 
-Define points, sizes, rectangles, lines, bounds, intersection, union,
-translation and explicit rounding modes with checked arithmetic.
+Property-test the candidates and compare checked add/multiply/divide plus a
+simple affine workload on the qualified host. Produce an evidence-backed
+selection recommendation. The result remains `UNFROZEN_EXPERIMENT` until
+reviewed.
 
-## G2 — transforms and clipping
+## G2 — checked geometry
+
+After G1 review, define production points, sizes, rectangles, lines, bounds,
+intersection, union, translation and explicit rounding operations using the
+selected representation. Arithmetic remains checked and transactional.
+
+## G3 — transforms and clipping
 
 Define affine transforms, inverse transforms, scale/rotation, clipping and
-well-specified overflow behavior.
+well-specified overflow behavior. Rotation/trigonometric approximation strategy
+must itself be qualified rather than silently making host floating point
+normative.
 
-## G3 — logical/device pixel mapping
+## G4 — logical/device pixel mapping and numerical-contract freeze
 
 Make world -> layout -> surface -> CSS pixel -> device pixel conversion
 explicit. `devicePixelRatio`, viewport transforms and browser zoom are inputs to
-the mapping rather than hidden assumptions.
-
-## G4 — freeze Geometry Numerical Contract
-
-Freeze the chosen fixed-point representation and rounding/overflow semantics
-before implementing the rasterizer.
+the mapping rather than hidden assumptions. Freeze the selected fixed-point
+representation, rounding/overflow semantics and conversion rules before
+implementing the rasterizer.
 
 ## Precision renderer
 
@@ -54,4 +61,6 @@ to what tests actually establish.
 
 Browser-side precision execution will use C/WebAssembly plus Canvas/ImageData
 and/or WebGPU. Native x86-64 Assembly remains the Linux server/native core and
-is not executed directly in the browser sandbox.
+is not executed directly in the browser sandbox. Authoritative Precision
+Surface fixed-point values stay in WebAssembly integer/linear-memory form rather
+than being round-tripped through JavaScript `Number`.
