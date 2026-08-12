@@ -1616,3 +1616,124 @@ geometry-precision-benchmark-run: $(GEOMETRY_BENCH) $(GEOMETRY_BENCH_RUNNER)
 
 geometry-precision-g0-g1-gate: $(GEOMETRY_G0_G1_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(GEOMETRY_G0_G1_GATE)
+
+# ============================================================
+# Geometry Precision G2-G4 production numerical layer
+# ============================================================
+
+GEOMETRY_BUILD_DIR := $(BUILD_DIR)/geometry
+GEOMETRY_TEST_BUILD_DIR := $(BUILD_DIR)/geometry-tests
+GEOMETRY_HEADER := include/arborcore/geometry.h
+GEOMETRY_SOURCE := src/c/geometry.c
+GEOMETRY_WASM_BUILTINS := src/wasm/geometry_int128_builtins.c
+GEOMETRY_CONTRACT := geometry/arborcore-geometry-1.contract
+GEOMETRY_OBJECT := $(GEOMETRY_BUILD_DIR)/geometry.o
+GEOMETRY_LIB := $(BUILD_DIR)/libarborcore_geometry.a
+
+GEOMETRY_SCALAR_TEST_OBJ := $(GEOMETRY_TEST_BUILD_DIR)/geometry_scalar_test.o
+GEOMETRY_RECT_TEST_OBJ := $(GEOMETRY_TEST_BUILD_DIR)/geometry_rect_property_test.o
+GEOMETRY_AFFINE_TEST_OBJ := $(GEOMETRY_TEST_BUILD_DIR)/geometry_affine_test.o
+GEOMETRY_DEVICE_TEST_OBJ := $(GEOMETRY_TEST_BUILD_DIR)/geometry_device_test.o
+GEOMETRY_VECTOR_TEST_OBJ := $(GEOMETRY_TEST_BUILD_DIR)/geometry_semantic_vector_test.o
+GEOMETRY_SCALAR_TEST := $(BUILD_DIR)/geometry-scalar-test
+GEOMETRY_RECT_TEST := $(BUILD_DIR)/geometry-rect-property-test
+GEOMETRY_AFFINE_TEST := $(BUILD_DIR)/geometry-affine-test
+GEOMETRY_DEVICE_TEST := $(BUILD_DIR)/geometry-device-test
+GEOMETRY_VECTOR_TEST := $(BUILD_DIR)/geometry-semantic-vector-test
+
+GEOMETRY_PRODUCTION_BENCH_SRC := $(BENCH_DIR)/geometry_production_bench.c
+GEOMETRY_PRODUCTION_BENCH_OBJ := $(GEOMETRY_TEST_BUILD_DIR)/geometry_production_bench.o
+GEOMETRY_PRODUCTION_BENCH := $(BUILD_DIR)/geometry-production-bench
+
+GEOMETRY_LOWER_LAYER_VERIFY := $(TOOLS_DIR)/geometry_lower_layer_verify.sh
+GEOMETRY_CONTRACT_VERIFY := $(TOOLS_DIR)/geometry_numerical_contract_verify.sh
+GEOMETRY_WASM_VERIFY := $(TOOLS_DIR)/geometry_wasm_verify.sh
+GEOMETRY_REPRO_VERIFY := $(TOOLS_DIR)/geometry_reproducibility_verify.sh
+GEOMETRY_SANITIZE_VERIFY := $(TOOLS_DIR)/geometry_sanitize_verify.sh
+GEOMETRY_PRODUCTION_BENCH_VERIFY := $(TOOLS_DIR)/geometry_production_benchmark_verify.sh
+GEOMETRY_G2_G4_GATE := $(TOOLS_DIR)/geometry_g2_g4_gate.sh
+
+.PHONY: geometry-library geometry-all geometry-check geometry-sanitize-verify
+.PHONY: geometry-lower-layer-verify geometry-numerical-contract-verify
+.PHONY: geometry-wasm-verify geometry-reproducibility-verify
+.PHONY: geometry-production-benchmark-verify geometry-g2-g4-gate
+
+$(GEOMETRY_BUILD_DIR) $(GEOMETRY_TEST_BUILD_DIR):
+	mkdir -p $@
+
+$(GEOMETRY_OBJECT): $(GEOMETRY_SOURCE) $(GEOMETRY_HEADER) | $(GEOMETRY_BUILD_DIR)
+	$(CC) -Iinclude $(ARBORCORE_C_CFLAGS) -c $(GEOMETRY_SOURCE) -o $@
+
+$(GEOMETRY_LIB): $(GEOMETRY_OBJECT) | $(BUILD_DIR)
+	$(AR) rcsD $@ $(GEOMETRY_OBJECT)
+
+geometry-library: $(GEOMETRY_LIB)
+
+$(GEOMETRY_TEST_BUILD_DIR)/%.o: $(C_TEST_DIR)/%.c $(GEOMETRY_HEADER) | $(GEOMETRY_TEST_BUILD_DIR)
+	$(CC) -Iinclude $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(GEOMETRY_SCALAR_TEST): $(GEOMETRY_SCALAR_TEST_OBJ) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(GEOMETRY_SCALAR_TEST_OBJ) $(GEOMETRY_LIB)
+
+$(GEOMETRY_RECT_TEST): $(GEOMETRY_RECT_TEST_OBJ) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(GEOMETRY_RECT_TEST_OBJ) $(GEOMETRY_LIB)
+
+$(GEOMETRY_AFFINE_TEST): $(GEOMETRY_AFFINE_TEST_OBJ) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(GEOMETRY_AFFINE_TEST_OBJ) $(GEOMETRY_LIB)
+
+$(GEOMETRY_DEVICE_TEST): $(GEOMETRY_DEVICE_TEST_OBJ) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(GEOMETRY_DEVICE_TEST_OBJ) $(GEOMETRY_LIB)
+
+$(GEOMETRY_VECTOR_TEST_OBJ): tests/c/geometry_semantic_vectors.h
+
+$(GEOMETRY_VECTOR_TEST): $(GEOMETRY_VECTOR_TEST_OBJ) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(GEOMETRY_VECTOR_TEST_OBJ) $(GEOMETRY_LIB)
+
+geometry-all: \
+	$(GEOMETRY_LIB) \
+	$(GEOMETRY_SCALAR_TEST) \
+	$(GEOMETRY_RECT_TEST) \
+	$(GEOMETRY_AFFINE_TEST) \
+	$(GEOMETRY_DEVICE_TEST) \
+	$(GEOMETRY_VECTOR_TEST)
+
+geometry-check: geometry-all
+	@$(GEOMETRY_SCALAR_TEST)
+	@echo "PASS: G2 checked Q32.32 scalar arithmetic"
+	@$(GEOMETRY_RECT_TEST)
+	@echo "PASS: G2 point/rect/line algebra and transactional boundaries"
+	@$(GEOMETRY_AFFINE_TEST)
+	@echo "PASS: G3 affine/inverse/CORDIC/clipping contracts"
+	@$(GEOMETRY_DEVICE_TEST)
+	@echo "PASS: G4 exact rational logical/device mapping"
+	@$(GEOMETRY_VECTOR_TEST)
+	@echo "PASS: native G2-G4 semantic vector set"
+	@echo "PASS: Geometry Precision G2-G4 native qualification"
+
+$(GEOMETRY_PRODUCTION_BENCH_OBJ): $(GEOMETRY_PRODUCTION_BENCH_SRC) $(GEOMETRY_HEADER) $(GEOMETRY_CANDIDATE_HEADER) | $(GEOMETRY_TEST_BUILD_DIR)
+	$(CC) -Iinclude -I$(GEOMETRY_EXPERIMENT_DIR) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(GEOMETRY_PRODUCTION_BENCH): $(GEOMETRY_PRODUCTION_BENCH_OBJ) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(GEOMETRY_PRODUCTION_BENCH_OBJ) $(GEOMETRY_LIB)
+
+geometry-lower-layer-verify: $(GEOMETRY_LOWER_LAYER_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(GEOMETRY_LOWER_LAYER_VERIFY)
+
+geometry-numerical-contract-verify: $(GEOMETRY_LIB) $(GEOMETRY_CONTRACT) $(GEOMETRY_CONTRACT_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(GEOMETRY_CONTRACT_VERIFY)
+
+geometry-wasm-verify: $(GEOMETRY_HEADER) $(GEOMETRY_SOURCE) $(GEOMETRY_WASM_BUILTINS) tests/c/geometry_wasm_selftest.c tests/c/geometry_semantic_vectors.h $(GEOMETRY_WASM_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(GEOMETRY_WASM_VERIFY)
+
+geometry-reproducibility-verify: $(GEOMETRY_REPRO_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) CC=$(CC) AR=$(AR) bash $(GEOMETRY_REPRO_VERIFY)
+
+geometry-sanitize-verify: $(GEOMETRY_SANITIZE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) CC=$(CC) bash $(GEOMETRY_SANITIZE_VERIFY)
+
+geometry-production-benchmark-verify: $(GEOMETRY_PRODUCTION_BENCH) $(GEOMETRY_PRODUCTION_BENCH_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) ARBOR_GEOMETRY_PRODUCTION_BENCH=$(ROOT_DIR)/$(GEOMETRY_PRODUCTION_BENCH) \
+		bash $(GEOMETRY_PRODUCTION_BENCH_VERIFY)
+
+geometry-g2-g4-gate: $(GEOMETRY_G2_G4_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(GEOMETRY_G2_G4_GATE)

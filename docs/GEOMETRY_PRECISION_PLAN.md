@@ -11,42 +11,37 @@ Arborcore permanently supports three peer rendering modes:
 3. **Hybrid mode** — HTML/CSS and one or more Precision Surfaces in the same
    page, including layered composition.
 
-## G0 — numerical requirements and candidate contracts
+## G0 — numerical requirements and candidate contracts — COMPLETE
 
-Define coordinate spaces, working range/precision requirements, checked
-arithmetic, rounding vocabulary, overflow behavior and the browser/WASM
-representation boundary. Compare Q16.16, Q26.6, Q32.32 and Q24.40 without
-turning any candidate into public API.
+Defined coordinate precision requirements and compared Q16.16, Q26.6, Q32.32
+and Q24.40 without exposing an API.
 
-## G1 — fixed-point qualification and selection recommendation
+## G1 — fixed-point qualification — COMPLETE
 
-Property-test the candidates and compare checked add/multiply/divide plus a
-simple affine workload on the qualified host. Produce an evidence-backed
-selection recommendation. The result remains `UNFROZEN_EXPERIMENT` until
-reviewed.
+Q16.16 failed required integer range and Q26.6 failed required fractional
+precision. Q32.32 and Q24.40 qualified. Same-host evidence recommended Q32.32:
+it provided 256x more integer range and remained inside the fixed performance
+review envelope. The recommendation was retained as an unfrozen experiment.
 
-## G2 — checked geometry
+## G2 — checked geometry — CONSTRUCTION
 
-After G1 review, define production points, sizes, rectangles, lines, bounds,
-intersection, union, translation and explicit rounding operations using the
-selected representation. Arithmetic remains checked and transactional.
+Production Q32.32 scalar arithmetic, explicit rounding, points, sizes,
+rectangles, lines, bounds, intersection, union and translation. Operations are
+checked and transactional.
 
-## G3 — transforms and clipping
+## G3 — transforms and clipping — CONSTRUCTION
 
-Define affine transforms, inverse transforms, scale/rotation, clipping and
-well-specified overflow behavior. Rotation/trigonometric approximation strategy
-must itself be qualified rather than silently making host floating point
-normative.
+Production affine composition/inversion, point and rectangle transforms,
+clipping and deterministic fixed-point CORDIC rotation coefficient generation.
+No host floating-point trigonometry is normative.
 
-## G4 — logical/device pixel mapping and numerical-contract freeze
+## G4 — logical/device mapping and numerical contract — CONSTRUCTION
 
-Make world -> layout -> surface -> CSS pixel -> device pixel conversion
-explicit. `devicePixelRatio`, viewport transforms and browser zoom are inputs to
-the mapping rather than hidden assumptions. Freeze the selected fixed-point
-representation, rounding/overflow semantics and conversion rules before
-implementing the rasterizer.
+Exact rational DPR/zoom composition, logical-to-device Q32.32 mapping, distinct
+logical/device coordinate types, native/WASM equivalence qualification and the
+Geometry Numerical Contract v1 freeze candidate.
 
-## Precision renderer
+## Precision renderer — NEXT
 
 The reference renderer will be a deterministic CPU implementation capable of
 producing explicit RGBA buffers with defined clipping, coverage, blending and

@@ -313,3 +313,18 @@ geometry is introduced:
 G0–G1 is an experiment only: it must not modify `src/asm`, frozen ABI manifests,
 `include/arborcore`, or `src/c`. HTML/CSS, Precision Surface and Hybrid rendering
 remain peer modes throughout.
+
+### G0-G1 review decision and G2-G4 construction
+
+G0-G1 qualified Q32.32 and Q24.40 and rejected Q16.16/Q26.6 against the fixed
+range/precision requirements. Q32.32 was accepted for G2-G4 construction because
+it retained the required precision, provided 256x more whole-coordinate range
+than Q24.40, stayed inside the predeclared performance envelope, and compiled to
+wasm i64 storage.
+
+G2-G4 production geometry is intentionally portable and independent of the
+Linux Assembly ABI. It adds a separate `geometry.h`/`geometry.c` numerical
+layer plus a deterministic wasm32 helper for compiler-lowered 128-bit integer
+operations. Existing CR0-CR8 headers/sources and all frozen Assembly files remain
+unchanged. G4 freezes numerical semantics only; the higher-level C function
+surface remains construction-stage.
