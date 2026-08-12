@@ -21,6 +21,7 @@
 %define ERR_ENOSPC     -28
 %define ERR_EOVERFLOW  -75
 
+%define BUFFER_SIZE     24
 %define BUFFER_DATA      0
 %define BUFFER_LENGTH    8
 %define BUFFER_CAPACITY 16

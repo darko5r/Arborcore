@@ -20,6 +20,7 @@
 %define ERR_EINVAL    -22
 %define ERR_EOVERFLOW -75
 
+%define REQUEST_TARGET_SIZE 32
 %define TARGET_PATH_PTR   0
 %define TARGET_PATH_LEN   8
 %define TARGET_QUERY_PTR 16

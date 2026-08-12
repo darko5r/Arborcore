@@ -31,6 +31,7 @@
 %define ERR_EINVAL     -22
 %define ERR_EOVERFLOW  -75
 
+%define CONNECTION_SIZE     96
 %define CONN_FD             0
 %define CONN_STATE          8
 %define CONN_FLAGS         16

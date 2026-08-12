@@ -18,6 +18,10 @@
 %define ERR_EOVERFLOW -75
 %define INT_MAX 2147483647
 
+%define EPOLL_EVENT_SIZE   12
+%define EPOLL_EVENT_EVENTS  0
+%define EPOLL_EVENT_DATA    4
+
 global event_epoll_create:function
 global event_epoll_add:function
 global event_epoll_modify:function

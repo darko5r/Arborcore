@@ -9,6 +9,10 @@ SHELL := /bin/bash
 NASM ?= nasm
 LD ?= ld
 READELF ?= readelf
+AR ?= ar
+NM ?= nm
+OBJDUMP ?= objdump
+SHA256SUM ?= sha256sum
 
 NASMFLAGS := \
 	-f elf64 \
@@ -34,6 +38,7 @@ START_OBJ := $(BUILD_DIR)/start.o
 WRITE_OBJ := $(BUILD_DIR)/write.o
 MEMORY_THRESHOLD_OBJ := $(BUILD_DIR)/memory_threshold.o
 MEMORY_OBJ := $(BUILD_DIR)/memory.o
+SECURITY_OBJ := $(BUILD_DIR)/security.o
 BYTES_OBJ := $(BUILD_DIR)/bytes.o
 ASCII_OBJ := $(BUILD_DIR)/ascii.o
 BYTES_SCAN_OBJ := $(BUILD_DIR)/bytes_scan.o
@@ -62,6 +67,7 @@ ARBORCORE_OBJECTS := \
 	$(WRITE_OBJ) \
 	$(MEMORY_THRESHOLD_OBJ) \
 	$(MEMORY_OBJ) \
+	$(SECURITY_OBJ) \
 	$(BYTES_OBJ) \
 	$(ASCII_OBJ) \
 	$(BYTES_SCAN_OBJ) \
@@ -165,6 +171,9 @@ TEST_OBJECTS += \
 	$(BUILD_DIR)/core_pipeline_budget_test.o \
 	$(BUILD_DIR)/core_event_batch_test.o \
 	$(BUILD_DIR)/core_writev_experiment_test.o
+TEST_OBJECTS += \
+	$(BUILD_DIR)/core_security_property_test.o \
+	$(BUILD_DIR)/abi_consumer_test.o
 
 # Executables
 ARBORCORE := $(BUILD_DIR)/arborcore
@@ -203,6 +212,19 @@ REQUEST_TARGET_TEST := $(BUILD_DIR)/request-target-test
 ROUTE_PATTERN_TEST := $(BUILD_DIR)/route-pattern-test
 SERVER_TEST := $(BUILD_DIR)/server-test
 POLISH_GATE3_TEST := $(BUILD_DIR)/polish-gate3-test
+CORE_SECURITY_PROPERTY_TEST := $(BUILD_DIR)/core-security-property-test
+
+# Assembly ABI/library readiness artifacts
+ARBORCORE_LIBRARY_OBJECTS := $(filter-out $(START_OBJ),$(ARBORCORE_OBJECTS))
+STATIC_LIB := $(BUILD_DIR)/libarborcore.a
+SHARED_LIB := $(BUILD_DIR)/libarborcore.so.1
+SHARED_LIB_LINK := $(BUILD_DIR)/libarborcore.so
+ABI_STATIC_CONSUMER := $(BUILD_DIR)/abi-static-consumer
+ABI_SHARED_CONSUMER := $(BUILD_DIR)/abi-shared-consumer
+ABI_PUBLIC_SYMBOLS := abi/arborcore-1.symbols
+ABI_INTERNAL_SYMBOLS := abi/arborcore-1.internal-symbols
+ABI_VERSION_SCRIPT := abi/arborcore-1.map
+ABI_LAYOUT := abi/arborcore-1.layout
 
 # Benchmark / qualification sources
 MEMORY_BENCH_ASM := $(BENCH_DIR)/memory_bench.asm
@@ -258,6 +280,8 @@ CORE_ACCEPT_TRANSACTION_TEST_OBJ := $(BUILD_DIR)/core_accept_transaction_test.o
 CORE_PIPELINE_BUDGET_TEST_OBJ := $(BUILD_DIR)/core_pipeline_budget_test.o
 CORE_EVENT_BATCH_TEST_OBJ := $(BUILD_DIR)/core_event_batch_test.o
 CORE_WRITEV_EXPERIMENT_TEST_OBJ := $(BUILD_DIR)/core_writev_experiment_test.o
+CORE_SECURITY_PROPERTY_TEST_OBJ := $(BUILD_DIR)/core_security_property_test.o
+ABI_CONSUMER_TEST_OBJ := $(BUILD_DIR)/abi_consumer_test.o
 CORE_HTTP_FRAMING_PROPERTY_TEST := $(BUILD_DIR)/core-http-framing-property-test
 CORE_ACCEPT_TRANSACTION_TEST := $(BUILD_DIR)/core-accept-transaction-test
 CORE_PIPELINE_BUDGET_TEST := $(BUILD_DIR)/core-pipeline-budget-test
@@ -270,6 +294,14 @@ RESPONSE_IOVEC_BENCH := $(BUILD_DIR)/bench-writev-experiment
 WRITEV_EXPERIMENT_VERIFY := $(TOOLS_DIR)/writev_experiment_verify.sh
 RUNTIME_SYSCALL_VERIFY := $(TOOLS_DIR)/runtime_syscall_verify.sh
 CORE_RETROFIT_E_GATE := $(TOOLS_DIR)/core_retrofit_e_gate.sh
+ABI_SURFACE_VERIFY := $(TOOLS_DIR)/abi_surface_verify.sh
+ABI_DEPENDENCY_VERIFY := $(TOOLS_DIR)/abi_dependency_verify.sh
+ABI_LAYOUT_VERIFY := $(TOOLS_DIR)/abi_layout_verify.sh
+SECURITY_SHAPE_VERIFY := $(TOOLS_DIR)/security_shape_verify.sh
+LIBRARY_READINESS_VERIFY := $(TOOLS_DIR)/library_readiness_verify.sh
+ASSEMBLY_ABI_FREEZE := $(TOOLS_DIR)/assembly_abi_freeze.sh
+ASSEMBLY_SECURITY_ABI_GATE := $(TOOLS_DIR)/assembly_security_abi_gate.sh
+ASSEMBLY_SECURITY_ABI_REFERENCE := 95c0229f8baed13583f0a55ddb6d097e2d38146f
 CORE_RETROFIT_E_REFERENCE ?= e9b69ab5205033dac15128ff7e3fd6d627548cb2
 CODEC_PERF_BASELINE := $(GENERATED_DIR)/performance/codec-$(ARBORCORE_PERF_PROFILE).env
 
@@ -287,6 +319,8 @@ CODEC_PERF_BASELINE := $(GENERATED_DIR)/performance/codec-$(ARBORCORE_PERF_PROFI
 .PHONY: benchmark-server qualify-server-baseline accept-server-baseline show-server-baseline list-server-profiles verify-server-performance verify-server-performance-candidate
 .PHONY: benchmark-server-perf benchmark-server-syscalls
 .PHONY: benchmark-codec qualify-codec-baseline show-codec-baseline verify-codec-performance verify-codec-performance-candidate
+.PHONY: core-security-property-test abi-surface-verify abi-dependency-verify abi-layout-verify security-shape-verify library-readiness assembly-security-abi-gate
+.PHONY: libarborcore-static libarborcore-shared
 .PHONY: clean distclean
 
 # Main build
@@ -450,6 +484,12 @@ $(CORE_EVENT_BATCH_TEST_OBJ): $(TEST_ASM_DIR)/core_event_batch_test.asm | $(BUIL
 $(CORE_WRITEV_EXPERIMENT_TEST_OBJ): $(TEST_ASM_DIR)/core_writev_experiment_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
+$(CORE_SECURITY_PROPERTY_TEST_OBJ): $(TEST_ASM_DIR)/core_security_property_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(ABI_CONSUMER_TEST_OBJ): $(TEST_ASM_DIR)/abi_consumer_test.asm | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
 $(ENCODING_TEST_OBJ): $(TEST_ASM_DIR)/encoding_test.asm | $(BUILD_DIR)
 	$(NASM) $(NASMFLAGS) $< -o $@
 
@@ -587,6 +627,30 @@ $(CORE_PIPELINE_BUDGET_TEST): $(CORE_PIPELINE_BUDGET_TEST_OBJ) $(SERVER_OBJ) $(E
 
 $(CORE_EVENT_BATCH_TEST): $(CORE_EVENT_BATCH_TEST_OBJ) $(EVENT_OBJ)
 	$(LD) -o $@ $(CORE_EVENT_BATCH_TEST_OBJ) $(EVENT_OBJ)
+
+$(CORE_SECURITY_PROPERTY_TEST): $(CORE_SECURITY_PROPERTY_TEST_OBJ) $(SECURITY_OBJ)
+	$(LD) -o $@ $(CORE_SECURITY_PROPERTY_TEST_OBJ) $(SECURITY_OBJ)
+
+$(STATIC_LIB): $(ARBORCORE_LIBRARY_OBJECTS)
+	$(AR) rcsD $@ $(ARBORCORE_LIBRARY_OBJECTS)
+
+$(SHARED_LIB): $(ARBORCORE_LIBRARY_OBJECTS) $(ABI_VERSION_SCRIPT)
+	$(LD) -shared -Bsymbolic-functions -z defs -z text -z relro -z now -z noexecstack \
+		-soname=libarborcore.so.1 --version-script=$(ABI_VERSION_SCRIPT) \
+		-o $@ $(ARBORCORE_LIBRARY_OBJECTS)
+
+$(SHARED_LIB_LINK): $(SHARED_LIB)
+	ln -sfn libarborcore.so.1 $@
+
+$(ABI_STATIC_CONSUMER): $(ABI_CONSUMER_TEST_OBJ) $(STATIC_LIB)
+	$(LD) -o $@ $(ABI_CONSUMER_TEST_OBJ) $(STATIC_LIB)
+
+$(ABI_SHARED_CONSUMER): $(ABI_CONSUMER_TEST_OBJ) $(SHARED_LIB_LINK)
+	@set -eu; \
+	interp="$$(readelf -lW /bin/sh | sed -n 's/.*Requesting program interpreter: \([^]]*\)\].*/\1/p' | head -n1)"; \
+	test -n "$$interp"; \
+	$(LD) -o $@ $(ABI_CONSUMER_TEST_OBJ) -L$(BUILD_DIR) -larborcore \
+		-rpath '$$ORIGIN' -dynamic-linker "$$interp"
 
 $(CORE_WRITEV_EXPERIMENT_TEST): $(CORE_WRITEV_EXPERIMENT_TEST_OBJ) $(RESPONSE_IOVEC_CANDIDATE_OBJ) $(IOVEC_WRITE_CANDIDATE_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ)
 	$(LD) -o $@ $(CORE_WRITEV_EXPERIMENT_TEST_OBJ) $(RESPONSE_IOVEC_CANDIDATE_OBJ) $(IOVEC_WRITE_CANDIDATE_OBJ) $(HTTP_RESPONSE_OBJ) $(BUFFER_OBJ) $(MEMORY_OBJ) $(U64_FORMAT_OBJ)
@@ -814,6 +878,27 @@ core-accept-transaction-test: $(CORE_ACCEPT_TRANSACTION_TEST)
 core-pipeline-budget-test: $(CORE_PIPELINE_BUDGET_TEST)
 core-event-batch-test: $(CORE_EVENT_BATCH_TEST)
 core-writev-experiment-test: $(CORE_WRITEV_EXPERIMENT_TEST)
+core-security-property-test: $(CORE_SECURITY_PROPERTY_TEST)
+	@$(CORE_SECURITY_PROPERTY_TEST)
+
+libarborcore-static: $(STATIC_LIB) $(ABI_STATIC_CONSUMER)
+
+libarborcore-shared: $(SHARED_LIB) $(SHARED_LIB_LINK) $(ABI_SHARED_CONSUMER)
+
+abi-surface-verify: $(ARBORCORE_OBJECTS) $(SECURITY_OBJ) $(ABI_SURFACE_VERIFY) $(ABI_PUBLIC_SYMBOLS) $(ABI_INTERNAL_SYMBOLS)
+	@bash $(ABI_SURFACE_VERIFY)
+
+abi-dependency-verify: $(ARBORCORE_OBJECTS) $(ABI_DEPENDENCY_VERIFY) $(ABI_PUBLIC_SYMBOLS) $(ABI_INTERNAL_SYMBOLS)
+	@bash $(ABI_DEPENDENCY_VERIFY)
+
+abi-layout-verify: $(ABI_LAYOUT_VERIFY) $(ABI_LAYOUT)
+	@bash $(ABI_LAYOUT_VERIFY)
+
+security-shape-verify: $(SECURITY_OBJ) $(SECURITY_SHAPE_VERIFY)
+	@bash $(SECURITY_SHAPE_VERIFY)
+
+library-readiness: $(STATIC_LIB) $(SHARED_LIB) $(SHARED_LIB_LINK) $(ABI_STATIC_CONSUMER) $(ABI_SHARED_CONSUMER) $(LIBRARY_READINESS_VERIFY)
+	@bash $(LIBRARY_READINESS_VERIFY)
 core-retrofit-e: $(CORE_HTTP_FRAMING_PROPERTY_TEST) $(CORE_ACCEPT_TRANSACTION_TEST) $(CORE_PIPELINE_BUDGET_TEST) $(CORE_EVENT_BATCH_TEST) $(EVENT_TEST) $(NET_TEST) $(SERVER_TEST) $(POLISH_GATE3_TEST)
 	@$(CORE_HTTP_FRAMING_PROPERTY_TEST)
 	@$(CORE_ACCEPT_TRANSACTION_TEST)
@@ -871,6 +956,8 @@ check: \
 	$(CORE_PIPELINE_BUDGET_TEST) \
 	$(CORE_EVENT_BATCH_TEST) \
 	$(CORE_WRITEV_EXPERIMENT_TEST_OBJ) \
+	$(CORE_SECURITY_PROPERTY_TEST) \
+	$(ABI_CONSUMER_TEST_OBJ) \
 	$(ENCODING_TEST) \
 	$(BUFFER_TEST) \
 	$(ARENA_TEST) \
@@ -1075,6 +1162,11 @@ check: \
 	if [ "$$status" -ne 0 ]; then echo "FAIL: core-event-batch-test exit=$$status"; exit "$$status"; fi; \
 	echo "PASS: core-event-batch-test"; \
 	echo; \
+	echo "### Assembly Security S1/S2"; \
+	status=0; $(CORE_SECURITY_PROPERTY_TEST) || status=$$?; \
+	if [ "$$status" -ne 0 ]; then echo "FAIL: core-security-property-test exit=$$status"; exit "$$status"; fi; \
+	echo "PASS: core-security-property-test"; \
+	echo; \
 	echo "### encoding"; \
 	status=0; \
 	$(ENCODING_TEST) || status=$$?; \
@@ -1205,6 +1297,9 @@ runtime-syscall-experiment: $(LOOPBACK_BENCH) $(RUNTIME_SYSCALL_VERIFY)
 
 core-retrofit-e-gate: $(CORE_RETROFIT_E_GATE)
 	@ARBORCORE_QUALIFICATION_REFERENCE_COMMIT=$(CORE_RETROFIT_E_REFERENCE) ARBORCORE_PERF_PROFILE=$(ARBORCORE_PERF_PROFILE) bash $(CORE_RETROFIT_E_GATE)
+
+assembly-security-abi-gate: $(ASSEMBLY_SECURITY_ABI_GATE)
+	@ARBORCORE_QUALIFICATION_REFERENCE_COMMIT=$(ASSEMBLY_SECURITY_ABI_REFERENCE) ARBORCORE_PERF_PROFILE=$(ARBORCORE_PERF_PROFILE) bash $(ASSEMBLY_SECURITY_ABI_GATE)
 
 # Dedicated percent-codec reference/candidate performance evidence.
 benchmark-codec: $(CODEC_BENCH) $(CODEC_BENCHMARK_RUNNER)

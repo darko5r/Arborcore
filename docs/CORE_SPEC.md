@@ -307,7 +307,11 @@ rewind(A,m)
 
 It does not restore/erase memory contents.
 
-Zero-size aligned allocation semantics must be fixed explicitly before ABI freeze.
+Zero-size aligned allocation semantics are frozen for Assembly ABI v1: a
+zero-size allocation still honors the requested power-of-two alignment and may
+advance the logical frontier to the next aligned absolute address.  On success
+the returned pointer is that aligned address and the new offset is the aligned
+offset; no payload bytes are reserved beyond the alignment gap.
 
 ## 9. State algebra
 
@@ -452,3 +456,29 @@ Machine-independent counters should be preferred alongside wall-clock profiles w
 ## Retrofit E runtime contracts
 
 See `docs/CORE_RETROFIT_E.md` for the qualified runtime transaction, deadline, incremental framing, pipeline-drain, work-budget and experiment contracts.
+
+
+## Assembly security primitives
+
+Security-sensitive byte operations are deliberately distinct from ordinary
+performance-oriented primitives:
+
+```text
+memory_zero                    ordinary logical zero fill
+memory_secure_clear            architectural overwrite of every byte
+memory_compare                 lexicographic, early exit
+memory_equal_constant_time     content-independent equality over a public length
+```
+
+`memory_secure_clear` does not claim to erase copies, CPU-cache history, swap,
+snapshots or device-level remnants. `memory_equal_constant_time` may scale with
+length but must not terminate early based on byte contents.
+
+## Assembly ABI v1 freeze
+
+The canonical public symbol list, internal-symbol classification and frozen
+data layouts are maintained under `abi/`.  Assembly ABI v1 targets Linux
+x86-64 using System V AMD64.  Symbols omitted from `abi/arborcore-1.symbols` are
+implementation details even when they remain ELF globals for static cross-object
+resolution.  Shared-library readiness builds enforce the public surface with an
+ELF version script.

@@ -223,3 +223,24 @@ Then perform the final Assembly capability/security/performance/ABI qualificatio
 ## Retrofit E — runtime/event/server composition
 
 See `docs/CORE_RETROFIT_E.md` for the qualified runtime transaction, deadline, incremental framing, pipeline-drain, work-budget and experiment contracts.
+
+## Final Assembly Security + ABI Freeze (S0–S10)
+
+After Retrofit E, normal A–E runtime retrofit work is frozen.  The final
+Assembly phase is security/compatibility hardening only:
+
+1. S0 symbol/dependency inventory;
+2. S1 secure clear;
+3. S2 content-independent equality;
+4. S3 sensitive-memory lifetime policy;
+5. S4 hostile-boundary qualification;
+6. S5 stable Capability ABI selection;
+7. S6 internal/public ELF visibility separation;
+8. S7 PIC/shared-object readiness;
+9. S8 deterministic static-library readiness;
+10. S9 final Assembly qualification;
+11. S10 ABI v1 freeze evidence.
+
+Library readiness is qualified here, but publication/installation of
+`libarborcore.a` and `libarborcore.so.1` remains the immediately following
+library-packaging phase.

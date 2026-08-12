@@ -31,6 +31,7 @@
 %define ERR_ENOSPC     -28
 %define ERR_EOVERFLOW  -75
 
+%define ARENA_SIZE     24
 %define ARENA_BASE      0
 %define ARENA_CAPACITY  8
 %define ARENA_OFFSET   16

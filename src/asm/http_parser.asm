@@ -44,6 +44,7 @@
 %define ERR_EINVAL     -22
 %define ERR_EOVERFLOW  -75
 
+%define HTTP_REQUEST_SIZE    96
 %define REQ_METHOD_PTR       0
 %define REQ_METHOD_LEN       8
 %define REQ_TARGET_PTR      16

@@ -44,12 +44,12 @@
 %define ERR_ENOSPC   -28
 %define ERR_EOVERFLOW -75
 
+%define ROUTE_SIZE        40
 %define ROUTE_METHOD_PTR  0
 %define ROUTE_METHOD_LEN  8
 %define ROUTE_PATTERN_PTR 16
 %define ROUTE_PATTERN_LEN 24
 %define ROUTE_HANDLER     32
-%define ROUTE_SIZE        40
 %define ROUTE_COUNT_MAX 0x0666666666666666
 
 %define REQ_METHOD_PTR   0
@@ -58,11 +58,12 @@
 %define TARGET_PATH_PTR   0
 %define TARGET_PATH_LEN   8
 
+%define ROUTE_PARAM_SIZE  32
 %define PARAM_NAME_PTR    0
 %define PARAM_NAME_LEN    8
 %define PARAM_VALUE_PTR  16
 %define PARAM_VALUE_LEN  24
-%define PARAM_SIZE       32
+%define PARAM_SIZE       ROUTE_PARAM_SIZE
 %define PARAM_COUNT_MAX 0x07ffffffffffffff
 
 global route_pattern_match:function
