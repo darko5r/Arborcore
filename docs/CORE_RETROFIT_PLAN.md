@@ -335,3 +335,10 @@ R0-R3 qualifies the raster foundation above the frozen Q32.32 Geometry
 Numerical Contract: internal color/coverage precision, explicit surface memory,
 half-open pixel cells, conservative bounds and native/WASM analytical coverage.
 It is recommendation-only; no raster/compositing ABI is frozen in this phase.
+
+## Precision Renderer R4-R9
+
+The renderer reference layer is constructed above frozen Q32.32 Geometry
+Numerical Contract v1. It must not mutate Assembly ABI v1, CR0-CR8 or Geometry
+v1 identities. R9 freezes byte-level software raster semantics while leaving the
+higher C renderer API in UNFROZEN_CONSTRUCTION state.

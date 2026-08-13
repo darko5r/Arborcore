@@ -1781,3 +1781,126 @@ renderer-r0-r3-lower-layer-verify: $(RENDERER_LOWER_LAYER_VERIFY)
 
 renderer-r0-r3-gate: $(RENDERER_R0_R3_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(RENDERER_R0_R3_GATE)
+
+# ============================================================
+# Precision Renderer R4-R9 production reference renderer
+# ============================================================
+
+RENDERER_PROD_BUILD_DIR := $(BUILD_DIR)/renderer
+RENDERER_PROD_TEST_BUILD_DIR := $(BUILD_DIR)/renderer-tests
+RENDERER_HEADER := include/arborcore/renderer.h
+RENDERER_SOURCE := src/c/renderer.c
+RENDERER_LUT := renderer/srgb8_linear16_lut.h
+RENDERER_CONTRACT := renderer/arborcore-renderer-1.contract
+RENDERER_WASM_MEMORY_BUILTINS := src/wasm/renderer_memory_builtins.c
+RENDERER_OBJECT := $(RENDERER_PROD_BUILD_DIR)/renderer.o
+RENDERER_LIB := $(BUILD_DIR)/libarborcore_renderer.a
+
+RENDERER_SURFACE_TEST_SRC := $(C_TEST_DIR)/renderer_surface_test.c
+RENDERER_BLEND_TEST_SRC := $(C_TEST_DIR)/renderer_blend_test.c
+RENDERER_RECT_TEST_SRC := $(C_TEST_DIR)/renderer_rect_test.c
+RENDERER_PATH_TEST_SRC := $(C_TEST_DIR)/renderer_path_test.c
+RENDERER_GOLDEN_NATIVE_SRC := $(C_TEST_DIR)/renderer_golden_native.c
+RENDERER_GOLDEN_SCENE := $(C_TEST_DIR)/renderer_golden_scene.h
+RENDERER_WASM_SELFTEST_SRC := $(C_TEST_DIR)/renderer_wasm_selftest.c
+
+RENDERER_SURFACE_TEST_OBJ := $(RENDERER_PROD_TEST_BUILD_DIR)/renderer_surface_test.o
+RENDERER_BLEND_TEST_OBJ := $(RENDERER_PROD_TEST_BUILD_DIR)/renderer_blend_test.o
+RENDERER_RECT_TEST_OBJ := $(RENDERER_PROD_TEST_BUILD_DIR)/renderer_rect_test.o
+RENDERER_PATH_TEST_OBJ := $(RENDERER_PROD_TEST_BUILD_DIR)/renderer_path_test.o
+RENDERER_GOLDEN_NATIVE_OBJ := $(RENDERER_PROD_TEST_BUILD_DIR)/renderer_golden_native.o
+
+RENDERER_SURFACE_TEST := $(BUILD_DIR)/renderer-surface-test
+RENDERER_BLEND_TEST := $(BUILD_DIR)/renderer-blend-test
+RENDERER_RECT_TEST := $(BUILD_DIR)/renderer-rect-test
+RENDERER_PATH_TEST := $(BUILD_DIR)/renderer-path-test
+RENDERER_GOLDEN_NATIVE := $(BUILD_DIR)/renderer-golden-native
+
+RENDERER_PRODUCTION_BENCH_SRC := $(BENCH_DIR)/renderer_production_bench.c
+RENDERER_PRODUCTION_BENCH_OBJ := $(RENDERER_PROD_TEST_BUILD_DIR)/renderer_production_bench.o
+RENDERER_PRODUCTION_BENCH := $(BUILD_DIR)/renderer-production-bench
+
+RENDERER_R4_R9_LOWER_LAYER_VERIFY := $(TOOLS_DIR)/renderer_r4_r9_lower_layer_verify.sh
+RENDERER_CONTRACT_VERIFY := $(TOOLS_DIR)/renderer_contract_verify.sh
+RENDERER_WASM_GOLDEN_VERIFY := $(TOOLS_DIR)/renderer_wasm_golden_verify.sh
+RENDERER_REPRO_VERIFY := $(TOOLS_DIR)/renderer_reproducibility_verify.sh
+RENDERER_SANITIZE_VERIFY := $(TOOLS_DIR)/renderer_sanitize_verify.sh
+RENDERER_PRODUCTION_BENCH_VERIFY := $(TOOLS_DIR)/renderer_production_benchmark_verify.sh
+RENDERER_R4_R9_GATE := $(TOOLS_DIR)/renderer_r4_r9_gate.sh
+
+.PHONY: renderer-library renderer-all renderer-check renderer-sanitize-verify
+.PHONY: renderer-r4-r9-lower-layer-verify renderer-contract-verify
+.PHONY: renderer-wasm-golden-verify renderer-reproducibility-verify
+.PHONY: renderer-production-benchmark-verify renderer-r4-r9-gate
+
+$(RENDERER_PROD_BUILD_DIR) $(RENDERER_PROD_TEST_BUILD_DIR):
+	mkdir -p $@
+
+$(RENDERER_OBJECT): $(RENDERER_SOURCE) $(RENDERER_HEADER) $(RENDERER_LUT) $(GEOMETRY_HEADER) | $(RENDERER_PROD_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $(RENDERER_SOURCE) -o $@
+
+$(RENDERER_LIB): $(RENDERER_OBJECT)
+	$(AR) rcsD $@ $^
+
+renderer-library: $(RENDERER_LIB)
+
+$(RENDERER_PROD_TEST_BUILD_DIR)/%.o: $(C_TEST_DIR)/%.c $(RENDERER_HEADER) $(GEOMETRY_HEADER) | $(RENDERER_PROD_TEST_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -I$(C_TEST_DIR) -c $< -o $@
+
+$(RENDERER_SURFACE_TEST): $(RENDERER_SURFACE_TEST_OBJ) $(RENDERER_LIB) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $^
+
+$(RENDERER_BLEND_TEST): $(RENDERER_BLEND_TEST_OBJ) $(RENDERER_LIB) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $^
+
+$(RENDERER_RECT_TEST): $(RENDERER_RECT_TEST_OBJ) $(RENDERER_LIB) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $^
+
+$(RENDERER_PATH_TEST): $(RENDERER_PATH_TEST_OBJ) $(RENDERER_LIB) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $^
+
+$(RENDERER_GOLDEN_NATIVE_OBJ): $(RENDERER_GOLDEN_SCENE)
+$(RENDERER_GOLDEN_NATIVE): $(RENDERER_GOLDEN_NATIVE_OBJ) $(RENDERER_LIB) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $^
+
+renderer-all: \
+	$(RENDERER_SURFACE_TEST) \
+	$(RENDERER_BLEND_TEST) \
+	$(RENDERER_RECT_TEST) \
+	$(RENDERER_PATH_TEST) \
+	$(RENDERER_GOLDEN_NATIVE)
+
+renderer-check: renderer-all
+	@$(RENDERER_SURFACE_TEST)
+	@$(RENDERER_BLEND_TEST)
+	@$(RENDERER_RECT_TEST)
+	@$(RENDERER_PATH_TEST)
+	@echo "PASS: Precision Renderer R4-R7 native qualification"
+
+renderer-r4-r9-lower-layer-verify: $(RENDERER_R4_R9_LOWER_LAYER_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(RENDERER_R4_R9_LOWER_LAYER_VERIFY)
+
+renderer-contract-verify: $(RENDERER_LIB) $(RENDERER_CONTRACT) $(RENDERER_CONTRACT_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(RENDERER_CONTRACT_VERIFY)
+
+renderer-wasm-golden-verify: $(RENDERER_HEADER) $(RENDERER_SOURCE) $(RENDERER_LUT) $(RENDERER_CONTRACT) $(RENDERER_WASM_MEMORY_BUILTINS) $(RENDERER_WASM_SELFTEST_SRC) $(RENDERER_GOLDEN_SCENE) $(RENDERER_WASM_GOLDEN_VERIFY) $(RENDERER_GOLDEN_NATIVE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(RENDERER_WASM_GOLDEN_VERIFY)
+
+renderer-reproducibility-verify: $(RENDERER_REPRO_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(RENDERER_REPRO_VERIFY)
+
+renderer-sanitize-verify: $(RENDERER_SANITIZE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(RENDERER_SANITIZE_VERIFY)
+
+$(RENDERER_PRODUCTION_BENCH_OBJ): $(RENDERER_PRODUCTION_BENCH_SRC) $(RENDERER_HEADER) $(RENDERER_CANDIDATE_HEADER) | $(RENDERER_PROD_TEST_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) -I$(RENDERER_EXPERIMENT_DIR) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(RENDERER_PRODUCTION_BENCH): $(RENDERER_PRODUCTION_BENCH_OBJ) $(RENDERER_LIB) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $^
+
+renderer-production-benchmark-verify: $(RENDERER_PRODUCTION_BENCH) $(RENDERER_PRODUCTION_BENCH_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) ARBOR_RENDERER_PRODUCTION_BENCH=$(ROOT_DIR)/$(RENDERER_PRODUCTION_BENCH) \
+		bash $(RENDERER_PRODUCTION_BENCH_VERIFY)
+
+renderer-r4-r9-gate: $(RENDERER_R4_R9_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(RENDERER_R4_R9_GATE)

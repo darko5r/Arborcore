@@ -65,3 +65,9 @@ than being round-tripped through JavaScript `Number`.
 The Geometry Numerical Contract v1 is now frozen at Q32.32. Precision Renderer
 R0-R3 consumes it without modifying geometry semantics and qualifies pixel/color/
 coverage foundations before full raster construction.
+
+## Downstream reference rasterizer
+
+Precision Renderer R4-R9 consumes frozen Q32.32/device-scale semantics without
+modifying them. Geometry remains authoritative for coordinates; the renderer
+owns Q0.32 pixel coverage, RGBA16 storage/compositing and raster-byte identity.
