@@ -1904,3 +1904,97 @@ renderer-production-benchmark-verify: $(RENDERER_PRODUCTION_BENCH) $(RENDERER_PR
 
 renderer-r4-r9-gate: $(RENDERER_R4_R9_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(RENDERER_R4_R9_GATE)
+
+# ============================================================
+# Browser Precision Surface B0-B6 reference delivery
+# ============================================================
+
+BROWSER_BUILD_DIR := $(BUILD_DIR)/browser-surface
+BROWSER_TEST_BUILD_DIR := $(BUILD_DIR)/browser-tests
+BROWSER_HEADER := include/arborcore/browser_surface.h
+BROWSER_SOURCE := src/c/browser_surface.c
+BROWSER_JS := browser/precision_surface.js
+BROWSER_CONTRACT := browser/arborcore-browser-surface-1.contract
+BROWSER_EXPORT_ACCEL := browser/linear16_srgb8_bucket12.h
+BROWSER_OBJECT := $(BROWSER_BUILD_DIR)/browser_surface.o
+BROWSER_LIB := $(BUILD_DIR)/libarborcore_browser_surface.a
+BROWSER_TEST_SRC := $(C_TEST_DIR)/browser_surface_test.c
+BROWSER_TEST_OBJ := $(BROWSER_TEST_BUILD_DIR)/browser_surface_test.o
+BROWSER_TEST := $(BUILD_DIR)/browser-surface-test
+BROWSER_GOLDEN_NATIVE_SRC := $(C_TEST_DIR)/browser_export_golden_native.c
+BROWSER_GOLDEN_NATIVE_OBJ := $(BROWSER_TEST_BUILD_DIR)/browser_export_golden_native.o
+BROWSER_GOLDEN_NATIVE := $(BUILD_DIR)/browser-export-golden-native
+BROWSER_WASM_SELFTEST_SRC := $(C_TEST_DIR)/browser_wasm_selftest.c
+BROWSER_BENCH_SRC := $(BENCH_DIR)/browser_surface_bench.c
+BROWSER_BENCH_OBJ := $(BROWSER_TEST_BUILD_DIR)/browser_surface_bench.o
+BROWSER_BENCH := $(BUILD_DIR)/browser-surface-bench
+BROWSER_LOWER_VERIFY := $(TOOLS_DIR)/browser_b0_b6_lower_layer_verify.sh
+BROWSER_CONTRACT_VERIFY := $(TOOLS_DIR)/browser_contract_verify.sh
+BROWSER_WASM_VERIFY := $(TOOLS_DIR)/browser_wasm_verify.sh
+BROWSER_REAL_VERIFY := $(TOOLS_DIR)/browser_real_browser_verify.sh
+BROWSER_REPRO_VERIFY := $(TOOLS_DIR)/browser_reproducibility_verify.sh
+BROWSER_SANITIZE_VERIFY := $(TOOLS_DIR)/browser_sanitize_verify.sh
+BROWSER_BENCH_VERIFY := $(TOOLS_DIR)/browser_benchmark_verify.sh
+BROWSER_GATE := $(TOOLS_DIR)/browser_b0_b6_gate.sh
+
+.PHONY: browser-library browser-check browser-b0-b6-lower-layer-verify
+.PHONY: browser-contract-verify browser-wasm-verify browser-real-browser-verify
+.PHONY: browser-reproducibility-verify browser-sanitize-verify browser-benchmark-verify
+.PHONY: browser-b0-b6-gate
+
+$(BROWSER_BUILD_DIR) $(BROWSER_TEST_BUILD_DIR):
+	mkdir -p $@
+
+$(BROWSER_OBJECT): $(BROWSER_SOURCE) $(BROWSER_HEADER) $(BROWSER_EXPORT_ACCEL) $(RENDERER_HEADER) $(RENDERER_LUT) | $(BROWSER_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $(BROWSER_SOURCE) -o $@
+
+$(BROWSER_LIB): $(BROWSER_OBJECT)
+	$(AR) rcsD $@ $^
+
+browser-library: $(BROWSER_LIB)
+
+$(BROWSER_TEST_OBJ): $(BROWSER_TEST_SRC) $(BROWSER_HEADER) | $(BROWSER_TEST_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(BROWSER_TEST): $(BROWSER_TEST_OBJ) $(BROWSER_LIB) $(RENDERER_LIB) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $^
+
+$(BROWSER_GOLDEN_NATIVE_OBJ): $(BROWSER_GOLDEN_NATIVE_SRC) $(BROWSER_HEADER) $(RENDERER_GOLDEN_SCENE) | $(BROWSER_TEST_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -I$(C_TEST_DIR) -c $< -o $@
+
+$(BROWSER_GOLDEN_NATIVE): $(BROWSER_GOLDEN_NATIVE_OBJ) $(BROWSER_LIB) $(RENDERER_LIB) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $^
+
+$(BROWSER_BENCH_OBJ): $(BROWSER_BENCH_SRC) $(BROWSER_HEADER) | $(BROWSER_TEST_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(BROWSER_BENCH): $(BROWSER_BENCH_OBJ) $(BROWSER_LIB) $(RENDERER_LIB) $(GEOMETRY_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $^
+
+browser-check: $(BROWSER_TEST) $(BROWSER_GOLDEN_NATIVE)
+	@$(BROWSER_TEST)
+	@echo "PASS: Browser Precision Surface B0-B1 native qualification"
+
+browser-b0-b6-lower-layer-verify: $(BROWSER_LOWER_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_LOWER_VERIFY)
+
+browser-contract-verify: $(BROWSER_LIB) $(BROWSER_CONTRACT) $(BROWSER_CONTRACT_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_CONTRACT_VERIFY)
+
+browser-wasm-verify: $(BROWSER_GOLDEN_NATIVE) $(BROWSER_WASM_VERIFY) $(BROWSER_WASM_SELFTEST_SRC) $(BROWSER_JS)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_WASM_VERIFY)
+
+browser-real-browser-verify: browser-wasm-verify $(BROWSER_REAL_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_REAL_VERIFY)
+
+browser-reproducibility-verify: $(BROWSER_REPRO_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) CC=$(CC) AR=$(AR) bash $(BROWSER_REPRO_VERIFY)
+
+browser-sanitize-verify: $(BROWSER_SANITIZE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) CC=$(CC) bash $(BROWSER_SANITIZE_VERIFY)
+
+browser-benchmark-verify: $(BROWSER_BENCH) $(BROWSER_BENCH_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) ARBOR_BROWSER_BENCH=$(ROOT_DIR)/$(BROWSER_BENCH) bash $(BROWSER_BENCH_VERIFY)
+
+browser-b0-b6-gate: $(BROWSER_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_GATE)

@@ -11,25 +11,29 @@ surfaces, half-open pixel cells, conservative bounds, analytical rectangle
 coverage and zero-import native/WASM semantic equivalence. The R0-R3 result was
 a review recommendation rather than a frozen renderer contract.
 
-## R4-R9 — software reference renderer — CONSTRUCTION / FREEZE CANDIDATE
+## R4-R9 — software reference renderer — FROZEN REFERENCE CONTRACT v1
 
-R4 implements checked caller-owned RGBA16 surfaces and basic primitives. R5
-defines linear-light sRGB-primary premultiplied source-over semantics and frozen
-sRGB8 import/export mapping. R6 defines deterministic Q0.32 rectangle/hairline
-antialiasing. R7 adds bounded deterministic line/quad/cubic path strokes. R8
-requires byte-identical native/WASM golden buffers. R9 qualifies performance,
-reproducibility, lower-layer regressions and emits the Reference Raster Contract
-v1 freeze candidate.
+R4-R9 established the frozen byte-level Reference Raster Contract v1: checked
+caller-owned RGBA16 surfaces, linear-light sRGB-primary premultiplied source-over,
+Q0.32 analytical coverage, deterministic hairline/path rasterization, and
+byte-identical native/WASM golden output. The current C function surface remains
+construction-stage even though raster semantics are frozen.
 
 The C function surface remains unfrozen construction API even when the raster
 contract is frozen.
 
-## Post-R9
+## Browser Precision Surface B0-B6 — FROZEN DELIVERY CONTRACT v1
 
-- browser Precision Surface adapter: WASM linear memory -> Canvas/ImageData or
-  other browser presentation surface;
-- explicit RGBA16 -> RGBA8 output conversion where required;
-- Hybrid DOM/Precision-Surface coordinate synchronization;
-- WebGPU acceleration verified against the reference renderer;
-- broader fill/stroke/path/text capabilities may extend the renderer through
-  explicit compatibility/version decisions.
+B0-B6 froze the browser delivery boundary above Reference Raster Contract v1:
+zero-import WASM memory/view lifetime rules, deterministic RGBA16-to-sRGB8
+export, Canvas/ImageData presentation, DPR/resize synchronization, Hybrid DOM
+coordinate serialization, real Firefox/Chrome execution and browser delivery
+performance. The browser C and JavaScript function surfaces remain
+`UNFROZEN_CONSTRUCTION`; delivery semantics are frozen independently of those
+evolving APIs. See `docs/BROWSER_PRECISION_SURFACE_B0_B6.md`.
+
+## Post-B6
+
+WebGPU may be developed as an accelerator only. It must reproduce the frozen
+Reference Raster and Browser Precision Surface v1 delivery semantics. HTML/CSS
+remains a parallel independent first-class rendering path.

@@ -342,3 +342,13 @@ The renderer reference layer is constructed above frozen Q32.32 Geometry
 Numerical Contract v1. It must not mutate Assembly ABI v1, CR0-CR8 or Geometry
 v1 identities. R9 freezes byte-level software raster semantics while leaving the
 higher C renderer API in UNFROZEN_CONSTRUCTION state.
+
+## Browser Precision Surface B0-B6
+
+B0-B6 is frozen strictly above Reference Raster Contract v1. It does not mutate
+Assembly ABI v1, CR0-CR8, Geometry Numerical Contract v1 or Reference Raster
+Contract v1. Canvas/ImageData is a presentation boundary; the canonical RGBA16
+software raster remains authoritative. Browser delivery semantics are frozen as
+Browser Precision Surface Contract v1 while the browser C/JavaScript function
+surfaces remain `UNFROZEN_CONSTRUCTION`. WebGPU is post-B6 accelerator scope
+and cannot redefine either raster or browser-delivery truth.
