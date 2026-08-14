@@ -1,0 +1,317 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Arborcore WebGPU Post-W6 OPT0-OPT5 Qualification</title>
+<style>
+  body { font-family: monospace; }
+  #canvases { display: grid; grid-template-columns: repeat(2, minmax(0, 320px)); gap: 8px; }
+  canvas { width: 320px; height: 180px; border: 1px solid #777; }
+  canvas[hidden] { display: none; }
+  pre { white-space: pre-wrap; }
+</style>
+<div id="canvases">
+  <canvas id="baseline-webgpu" width="640" height="360"></canvas>
+  <canvas id="baseline-fallback" width="640" height="360"></canvas>
+  <canvas id="optimized" width="640" height="360"></canvas>
+  <canvas id="direct" width="640" height="360"></canvas>
+</div>
+<pre id="result">RUNNING</pre>
+<script type="module">
+import {
+  AdaptivePrecisionSurfacePresenter,
+  webGpuApiAvailable
+} from '/webgpu_accelerator.js';
+import {
+  OptimizedRgba8WebGpuPresenter,
+  WEBGPU_POSTFREEZE_OPTIMIZER_VERSION,
+  median
+} from '/webgpu_postfreeze_optimizer.js';
+import {
+  DirectRgba16WebGpuExperiment,
+  WEBGPU_RGBA16_EXPERIMENT_VERSION
+} from '/webgpu_rgba16_experiment.js';
+
+function check(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+async function sha256Hex(view) {
+  const copy = new Uint8Array(view.byteLength);
+  copy.set(new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
+  const digest = await crypto.subtle.digest('SHA-256', copy);
+  return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function profileMedians(profiles) {
+  const keys = ['viewAcquireMs', 'writeTextureCallMs', 'encodeMs', 'submitCallMs', 'totalSubmitPathMs'];
+  const result = {};
+  for (const key of keys) result[key] = median(profiles.map(p => p[key]));
+  return result;
+}
+
+function failureClass(adaptive) {
+  const capability = adaptive.webgpu.capabilityRecord();
+  const reason = adaptive.lastWebGpuFailure || capability.reason || '';
+  if (adaptive.webgpu.state === 'lost' || adaptive.webgpu.state === 'unavailable' ||
+      /VK_ERROR_OUT_OF_DEVICE_MEMORY|out of (device )?memory|device.?lost/i.test(reason)) {
+    return 'DEVICE_LOSS_OR_PLATFORM_ALLOCATION_FAILURE';
+  }
+  return 'NONLOSS_PROGRAMMING_OR_VALIDATION_FAILURE';
+}
+
+async function run() {
+  const qualificationMode = new URLSearchParams(location.search).get('qualification') || 'unspecified';
+  check(window.isSecureContext === true, 'post-W6 qualification requires a secure context');
+  const response = await fetch('/arborcore-browser-postfreeze.wasm', { cache: 'no-store' });
+  check(response.ok, 'post-W6 WASM fetch failed');
+  const bytes = await response.arrayBuffer();
+  const module = await WebAssembly.compile(bytes);
+  check(WebAssembly.Module.imports(module).length === 0, 'post-W6 WASM must have zero imports');
+  const instance = await WebAssembly.instantiate(module, {});
+  const ex = instance.exports;
+  check(ex.postfreeze_wasm_prepare_vectors() === 0, 'postfreeze vector preparation failed');
+  check(ex.postfreeze_wasm_prepare_perf() === 0, 'postfreeze performance preparation failed');
+
+  const vector16Ptr = ex.postfreeze_wasm_vector_rgba16_ptr();
+  const vector16Size = ex.postfreeze_wasm_vector_rgba16_size();
+  const vector8Ptr = ex.postfreeze_wasm_vector_rgba8_ptr();
+  const vector8Size = ex.postfreeze_wasm_vector_rgba8_size();
+  const vectorWidth = ex.postfreeze_wasm_vector_width();
+  const vectorHeight = ex.postfreeze_wasm_vector_height();
+  const vector16Stride = ex.postfreeze_wasm_vector_rgba16_stride();
+  const expectedVector = new Uint8Array(ex.memory.buffer, vector8Ptr, vector8Size);
+  const vector16Hash = await sha256Hex(new Uint8Array(ex.memory.buffer, vector16Ptr, vector16Size));
+  const vector8Hash = await sha256Hex(expectedVector);
+
+  const perf16Ptr = ex.postfreeze_wasm_perf_rgba16_ptr();
+  const perf16Size = ex.postfreeze_wasm_perf_rgba16_size();
+  const perf8Ptr = ex.postfreeze_wasm_perf_rgba8_ptr();
+  const perf8Size = ex.postfreeze_wasm_perf_rgba8_size();
+  const perfWidth = ex.postfreeze_wasm_perf_width();
+  const perfHeight = ex.postfreeze_wasm_perf_height();
+  const perf16Stride = ex.postfreeze_wasm_perf_rgba16_stride();
+  const perf8Stride = ex.postfreeze_wasm_perf_rgba8_stride();
+  const perf16Hash = await sha256Hex(new Uint8Array(ex.memory.buffer, perf16Ptr, perf16Size));
+  const perf8Hash = await sha256Hex(new Uint8Array(ex.memory.buffer, perf8Ptr, perf8Size));
+
+  const baselineWebGpuCanvas = document.getElementById('baseline-webgpu');
+  const baselineFallbackCanvas = document.getElementById('baseline-fallback');
+  const optimizedCanvas = document.getElementById('optimized');
+  const directCanvas = document.getElementById('direct');
+  const adaptive = new AdaptivePrecisionSurfacePresenter(baselineWebGpuCanvas, baselineFallbackCanvas, ex.memory);
+  const initial = await adaptive.initialize();
+  let mode = initial.mode;
+  let runtimeFailure = '';
+  let runtimeFailureClass = '';
+
+  let opt1 = null;
+  let opt2 = null;
+  let opt3 = null;
+
+  if (mode === 'webgpu') {
+    const first = adaptive.presentRgba8(perf8Ptr, perfWidth, perfHeight, perf8Stride);
+    if (first.mode !== 'webgpu') {
+      await Promise.resolve();
+      runtimeFailure = adaptive.lastWebGpuFailure || adaptive.webgpu.capabilityRecord().reason || 'first presentation fallback';
+      runtimeFailureClass = failureClass(adaptive);
+      if (runtimeFailureClass !== 'DEVICE_LOSS_OR_PLATFORM_ALLOCATION_FAILURE') {
+        throw new Error(`post-W6 baseline WebGPU fell back for non-platform reason: ${runtimeFailure}`);
+      }
+      mode = 'fallback';
+    }
+  }
+
+  if (mode === 'webgpu') {
+    let completionError = null;
+    try {
+      await adaptive.webgpu.awaitWorkDone();
+    } catch (error) {
+      completionError = error;
+    }
+    await Promise.resolve();
+    if (completionError || adaptive.webgpu.state !== 'ready' || adaptive.mode !== 'webgpu') {
+      runtimeFailure = adaptive.lastWebGpuFailure || adaptive.webgpu.capabilityRecord().reason || String(completionError || 'completion failure');
+      runtimeFailureClass = failureClass(adaptive);
+      if (runtimeFailureClass !== 'DEVICE_LOSS_OR_PLATFORM_ALLOCATION_FAILURE') {
+        throw new Error(`post-W6 baseline WebGPU became unavailable for non-platform reason: ${runtimeFailure}`);
+      }
+      mode = 'fallback';
+    }
+  }
+
+  if (mode === 'webgpu') {
+    const baselineReadback = await adaptive.webgpu.readbackUploadedRgba8();
+    check(await sha256Hex(baselineReadback) === perf8Hash, 'frozen v1 baseline upload/readback differs from B1 output');
+
+    const optimized = new OptimizedRgba8WebGpuPresenter(optimizedCanvas, ex.memory);
+    check(await optimized.initialize(), 'OPT2 optimized RGBA8 presenter initialization failed');
+    optimized.presentRgba8(perf8Ptr, perfWidth, perfHeight, perf8Stride);
+    await optimized.awaitWorkDone();
+    const optimizedReadback = await optimized.readbackUploadedRgba8();
+    const optimizedReadbackHash = await sha256Hex(optimizedReadback);
+    check(optimizedReadbackHash === perf8Hash, 'OPT2 optimized upload/readback differs from frozen B1 output');
+
+    const exportSamples = [];
+    for (let i = 0; i < 31; ++i) {
+      const start = performance.now();
+      check(ex.postfreeze_wasm_export_perf() === 0, 'B1 WASM export failed during OPT1 measurement');
+      exportSamples.push(performance.now() - start);
+    }
+
+    const baselineSubmitSamples = [];
+    for (let i = 0; i < 31; ++i) {
+      const start = performance.now();
+      adaptive.webgpu.presentRgba8(perf8Ptr, perfWidth, perfHeight, perf8Stride);
+      baselineSubmitSamples.push(performance.now() - start);
+    }
+    await adaptive.webgpu.awaitWorkDone();
+
+    const optimizedSubmitSamples = [];
+    for (let i = 0; i < 31; ++i) {
+      const start = performance.now();
+      optimized.presentRgba8(perf8Ptr, perfWidth, perfHeight, perf8Stride);
+      optimizedSubmitSamples.push(performance.now() - start);
+    }
+    await optimized.awaitWorkDone();
+
+    const profileSamples = [];
+    for (let i = 0; i < 21; ++i) {
+      profileSamples.push(optimized.presentRgba8Profiled(perf8Ptr, perfWidth, perfHeight, perf8Stride).profile);
+    }
+    await optimized.awaitWorkDone();
+
+    const completionSamples = [];
+    for (let i = 0; i < 7; ++i) {
+      const start = performance.now();
+      optimized.presentRgba8(perf8Ptr, perfWidth, perfHeight, perf8Stride);
+      await optimized.awaitWorkDone();
+      completionSamples.push(performance.now() - start);
+    }
+
+    const burstStart = performance.now();
+    for (let i = 0; i < 120; ++i) {
+      optimized.presentRgba8(perf8Ptr, perfWidth, perfHeight, perf8Stride);
+    }
+    const burstSubmitEnd = performance.now();
+    await optimized.awaitWorkDone();
+    const burstCompleteEnd = performance.now();
+
+    opt1 = {
+      wasmB1Export640x360MedianMs: median(exportSamples),
+      baselineRgba8Submit640x360MedianMs: median(baselineSubmitSamples),
+      optimizedProfileMedianMs: profileMedians(profileSamples),
+      optimizedCompletionCallback640x360MedianMs: median(completionSamples),
+      optimizedBurst120SubmitTotalMs: burstSubmitEnd - burstStart,
+      optimizedBurst120CompleteTotalMs: burstCompleteEnd - burstStart
+    };
+
+    opt2 = {
+      exactFrozenRgba8: true,
+      optimizedReadbackHash,
+      optimizedRgba8Submit640x360MedianMs: median(optimizedSubmitSamples),
+      stats: optimized.statsRecord(),
+      optimizerVersion: WEBGPU_POSTFREEZE_OPTIMIZER_VERSION
+    };
+
+    const direct = new DirectRgba16WebGpuExperiment(directCanvas, ex.memory);
+    await direct.initializeFromPresenter(optimized);
+    const converted = await direct.convertRgba16ToRgba8Readback(
+      vector16Ptr, vectorWidth, vectorHeight, vector16Stride);
+    check(converted.byteLength === expectedVector.byteLength, 'OPT3 exact-conversion byte length mismatch');
+    let firstMismatch = -1;
+    for (let i = 0; i < converted.length; ++i) {
+      if (converted[i] !== expectedVector[i]) { firstMismatch = i; break; }
+    }
+    check(firstMismatch === -1, `OPT3 direct RGBA16 conversion mismatch at byte ${firstMismatch}`);
+    const gpuVectorHash = await sha256Hex(converted);
+    check(gpuVectorHash === vector8Hash, 'OPT3 direct RGBA16 conversion hash mismatch');
+
+    direct.presentRgba16(perf16Ptr, perfWidth, perfHeight, perf16Stride);
+    await direct.awaitWorkDone();
+    const directSubmitSamples = [];
+    const directProfileSamples = [];
+    for (let i = 0; i < 31; ++i) {
+      const start = performance.now();
+      direct.presentRgba16(perf16Ptr, perfWidth, perfHeight, perf16Stride);
+      directSubmitSamples.push(performance.now() - start);
+    }
+    await direct.awaitWorkDone();
+    for (let i = 0; i < 21; ++i) {
+      directProfileSamples.push(direct.presentRgba16(perf16Ptr, perfWidth, perfHeight, perf16Stride, true).profile);
+    }
+    await direct.awaitWorkDone();
+
+    const perfConverted = await direct.convertRgba16ToRgba8Readback(
+      perf16Ptr, perfWidth, perfHeight, perf16Stride);
+    const directPerfRgba8Hash = await sha256Hex(perfConverted);
+    check(directPerfRgba8Hash === perf8Hash, 'OPT3 640x360 direct conversion differs from frozen B1 output');
+
+    opt3 = {
+      exactEquivalence: true,
+      vectorPolicy: 'OPAQUE_LINEAR16_EXHAUSTIVE_PLUS_16384_MIXED_ALPHA_VECTORS',
+      vectorRgba16Hash: vector16Hash,
+      expectedVectorRgba8Hash: vector8Hash,
+      gpuVectorRgba8Hash: gpuVectorHash,
+      perfRgba16Hash: perf16Hash,
+      expectedPerfRgba8Hash: perf8Hash,
+      gpuPerfRgba8Hash: directPerfRgba8Hash,
+      directRgba16Submit640x360MedianMs: median(directSubmitSamples),
+      directProfileMedianMs: profileMedians(directProfileSamples),
+      experimentVersion: WEBGPU_RGBA16_EXPERIMENT_VERSION,
+      contractAdmission: 'NONE_REQUIRES_FUTURE_CONTRACT_REVISION'
+    };
+
+    direct.destroy();
+    optimized.destroy();
+  } else {
+    if (!runtimeFailureClass) {
+      runtimeFailure = adaptive.lastWebGpuFailure || adaptive.webgpu.capabilityRecord().reason || 'WebGPU unavailable';
+      runtimeFailureClass = 'WEBGPU_UNAVAILABLE_FROZEN_FALLBACK';
+    }
+  }
+
+  const capability = adaptive.webgpu.capabilityRecord();
+  adaptive.destroy();
+  const report = {
+    result: 'PASS',
+    userAgent: navigator.userAgent,
+    qualificationMode,
+    secureContext: window.isSecureContext === true,
+    webGpuApiAvailable: webGpuApiAvailable(),
+    qualifiedMode: mode,
+    webGpuRuntimeFailure: runtimeFailure,
+    webGpuRuntimeFailureClass: runtimeFailureClass,
+    capability,
+    opt1,
+    opt2,
+    opt3,
+    broadBrowserReleaseClaim: 'NOT_ADMITTED_WEBKIT_SAFARI_NOT_FORMALLY_QUALIFIED'
+  };
+  document.getElementById('result').textContent = JSON.stringify(report, null, 2);
+  try {
+    await fetch('/report', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(report)
+    });
+  } catch (_) {}
+}
+
+run().catch(async error => {
+  const report = {
+    result: 'FAIL',
+    error: error?.stack || String(error),
+    userAgent: navigator.userAgent,
+    qualificationMode: new URLSearchParams(location.search).get('qualification') || 'unspecified',
+    secureContext: window.isSecureContext === true,
+    webGpuApiAvailable: webGpuApiAvailable()
+  };
+  document.getElementById('result').textContent = JSON.stringify(report, null, 2);
+  try {
+    await fetch('/report', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(report)
+    });
+  } catch (_) {}
+});
+</script>
