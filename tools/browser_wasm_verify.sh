@@ -39,7 +39,6 @@ clang --target=wasm32 \
   -Wl,--export-memory -Wl,--strip-all \
   -o "$MODULE"
 
-node "$ROOT/tests/js/browser_precision_unit_test.mjs"
 node - "$MODULE" "$EXPECTED_RGBA16" "$EXPECTED_RGBA8" <<'NODE'
 const fs = require('fs');
 const crypto = require('crypto');

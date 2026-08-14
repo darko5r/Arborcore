@@ -38,6 +38,7 @@ source_sha="$({ printf '%s\0' \
   browser/shaders/rgba16_exact_convert.wgsl browser/arborcore-browser-language-boundary-2.contract \
   | LC_ALL=C sort -z | xargs -0 sha256sum; } | sha256sum | awk '{print $1}')"
 repro_sha="$(awk -F= '$1=="LBV2_ARCHIVE_SHA256"{print $2}' build/browser-language-boundary-v2-repro/result.env)"
+qualification_repro_sha="$(awk -F= '$1=="LBV2_QUALIFICATION_ARCHIVE_SHA256"{print $2}' build/browser-language-boundary-v2-repro/result.env)"
 cat > build/browser-language-boundary-v2.env <<EVIDENCE
 LBV2_PHASE=LB0-LB8
 LBV2_STATE=FROZEN_V2
@@ -56,6 +57,10 @@ LBV2_OPT2_STATE=REIMPLEMENTED_UNDER_V2_HOST_BOUNDARY
 LBV2_OPT3_STATE=TEST_ONLY_EXPERIMENT_FUTURE_CONTRACT_REVISION_REQUIRED
 LBV2_BROAD_BROWSER_RELEASE_CLAIM=NOT_ADMITTED_WEBKIT_SAFARI_NOT_FORMALLY_QUALIFIED
 LBV2_ARCHIVE_SHA256=$repro_sha
+LBV2_ARCHIVE_FILE_COUNT=21
+LBV2_QUALIFICATION_ARCHIVE_SHA256=$qualification_repro_sha
+LBV2_QUALIFICATION_ARCHIVE_FILE_COUNT=23
+LBV2_QUALIFICATION_ARCHIVE_ROLE=POST_FREEZE_CURRENT_QUALIFICATION
 LBV2_CONTRACT_STATE=FROZEN
 LBV2_DELIVERY_STATE=FROZEN_V2
 EVIDENCE

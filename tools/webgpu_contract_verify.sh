@@ -1,30 +1,54 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
 ROOT="${ARBORCORE_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+
 CONTRACT="$ROOT/browser/arborcore-browser-webgpu-1.contract"
-JS="$ROOT/browser/webgpu_accelerator.js"
 BASE_CONTRACT="$ROOT/browser/arborcore-browser-surface-1.contract"
+HISTORY="$ROOT/tools/browser_v1_history_verify.sh"
+
+WEBGPU_FREEZE="66574f02102c0b5bdcc97590ddfb3b30e298cf97"
+
 EXPECTED_BASE_CONTRACT="7bd78690444e7925913010e2187cab80dfb5631dc97e3b126047ede2cda5f4b7"
 EXPECTED_BASE_SOURCE="a970816b979dae1021853bc649f2b37ae8703403376f893d8ca4ab678725cfd3"
 EXPECTED_WEBGPU_CONTRACT="a0d95467817504dbdc4db38c22b10c210b208e0604857ab752aa2730e97a144b"
 EXPECTED_WEBGPU_JS="b42d48d8f30a9c3cd11c63c68219effe4ad7126d511f0233583fd1a1a59e38bb"
 EXPECTED_WEBGPU_SOURCE="351cfe3e3240661a3251b25a0ecbd61dd724edfd5fbbb39dab8795199784e666"
+
 cd "$ROOT"
 
-base_source="$({ printf '%s\0' \
-  include/arborcore/browser_surface.h \
-  src/c/browser_surface.c \
-  browser/precision_surface.js \
-  browser/linear16_srgb8_bucket12.h \
-  browser/arborcore-browser-surface-1.contract \
-  | LC_ALL=C sort -z | xargs -0 sha256sum; } | sha256sum | awk '{print $1}')"
-base_contract="$(sha256sum "$BASE_CONTRACT" | awk '{print $1}')"
-webgpu_contract="$(sha256sum "$CONTRACT" | awk '{print $1}')"
-webgpu_js="$(sha256sum "$JS" | awk '{print $1}')"
-webgpu_source="$({ printf '%s\0' \
-  browser/arborcore-browser-webgpu-1.contract \
-  browser/webgpu_accelerator.js \
-  | LC_ALL=C sort -z | xargs -0 sha256sum; } | sha256sum | awk '{print $1}')"
+history="$(
+  ARBORCORE_ROOT="$ROOT" \
+  bash "$HISTORY"
+)"
+
+base_source="$(
+  printf '%s\n' "$history" |
+  awk -F= \
+    '$1=="PRECISION_V1_SOURCE_SHA256" {print $2}'
+)"
+
+webgpu_js="$(
+  printf '%s\n' "$history" |
+  awk -F= \
+    '$1=="WEBGPU_V1_JS_SHA256" {print $2}'
+)"
+
+webgpu_source="$(
+  printf '%s\n' "$history" |
+  awk -F= \
+    '$1=="WEBGPU_V1_SOURCE_SHA256" {print $2}'
+)"
+
+base_contract="$(
+  sha256sum "$BASE_CONTRACT" |
+  awk '{print $1}'
+)"
+
+webgpu_contract="$(
+  sha256sum "$CONTRACT" |
+  awk '{print $1}'
+)"
 
 printf 'base_browser_source_sha256=%s\n' "$base_source"
 printf 'base_browser_contract_sha256=%s\n' "$base_contract"
@@ -60,12 +84,23 @@ grep -qx 'WEBGPU_PERFORMANCE_POLICY=DIAGNOSTIC_UNTIL_REAL_HOST_BASELINE_ACCEPTED
 grep -qx 'HTML_CSS_POLICY=PARALLEL_INDEPENDENT_RENDERING_PATH' "$CONTRACT"
 grep -qx 'WEBGPU_CONTRACT_STATE=FROZEN' "$CONTRACT"
 
-grep -q "textureLoad(source_texture" "$JS"
-grep -q "navigator.gpu.getPreferredCanvasFormat\|gpu.getPreferredCanvasFormat" "$JS"
-grep -q "device.lost" "$JS"
-grep -q "context.unconfigure" "$JS"
-grep -q "queue.writeTexture" "$JS"
-grep -q "copyTextureToBuffer" "$JS"
-grep -q "PrecisionSurfacePresenter" "$JS"
-echo 'PASS: frozen B0-B6 browser delivery identities remain byte-exact'
-echo 'PASS: WebGPU Accelerator Contract v1 frozen source and qualification invariants'
+historical_js="$(
+  git show \
+    "$WEBGPU_FREEZE:browser/webgpu_accelerator.js"
+)"
+
+for pattern in \
+  'textureLoad(source_texture' \
+  'getPreferredCanvasFormat' \
+  'device.lost' \
+  'context.unconfigure' \
+  'queue.writeTexture' \
+  'copyTextureToBuffer' \
+  'PrecisionSurfacePresenter'
+do
+  printf '%s\n' "$historical_js" |
+  grep -Fq "$pattern"
+done
+
+echo 'PASS: frozen B0-B6 browser delivery identities remain byte-exact in Git history'
+echo 'PASS: WebGPU Accelerator Contract v1 historical source and contract invariants'

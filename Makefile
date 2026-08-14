@@ -1906,14 +1906,13 @@ renderer-r4-r9-gate: $(RENDERER_R4_R9_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(RENDERER_R4_R9_GATE)
 
 # ============================================================
-# Browser Precision Surface B0-B6 reference delivery
+# Browser Precision Surface v1 — retained C/WASM lower layer
 # ============================================================
 
 BROWSER_BUILD_DIR := $(BUILD_DIR)/browser-surface
 BROWSER_TEST_BUILD_DIR := $(BUILD_DIR)/browser-tests
 BROWSER_HEADER := include/arborcore/browser_surface.h
 BROWSER_SOURCE := src/c/browser_surface.c
-BROWSER_JS := browser/precision_surface.js
 BROWSER_CONTRACT := browser/arborcore-browser-surface-1.contract
 BROWSER_EXPORT_ACCEL := browser/linear16_srgb8_bucket12.h
 BROWSER_OBJECT := $(BROWSER_BUILD_DIR)/browser_surface.o
@@ -1931,16 +1930,13 @@ BROWSER_BENCH := $(BUILD_DIR)/browser-surface-bench
 BROWSER_LOWER_VERIFY := $(TOOLS_DIR)/browser_b0_b6_lower_layer_verify.sh
 BROWSER_CONTRACT_VERIFY := $(TOOLS_DIR)/browser_contract_verify.sh
 BROWSER_WASM_VERIFY := $(TOOLS_DIR)/browser_wasm_verify.sh
-BROWSER_REAL_VERIFY := $(TOOLS_DIR)/browser_real_browser_verify.sh
 BROWSER_REPRO_VERIFY := $(TOOLS_DIR)/browser_reproducibility_verify.sh
 BROWSER_SANITIZE_VERIFY := $(TOOLS_DIR)/browser_sanitize_verify.sh
 BROWSER_BENCH_VERIFY := $(TOOLS_DIR)/browser_benchmark_verify.sh
-BROWSER_GATE := $(TOOLS_DIR)/browser_b0_b6_gate.sh
 
 .PHONY: browser-library browser-check browser-b0-b6-lower-layer-verify
-.PHONY: browser-contract-verify browser-wasm-verify browser-real-browser-verify
+.PHONY: browser-contract-verify browser-wasm-verify
 .PHONY: browser-reproducibility-verify browser-sanitize-verify browser-benchmark-verify
-.PHONY: browser-b0-b6-gate
 
 $(BROWSER_BUILD_DIR) $(BROWSER_TEST_BUILD_DIR):
 	mkdir -p $@
@@ -1960,7 +1956,7 @@ $(BROWSER_TEST): $(BROWSER_TEST_OBJ) $(BROWSER_LIB) $(RENDERER_LIB) $(GEOMETRY_L
 	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $^
 
 $(BROWSER_GOLDEN_NATIVE_OBJ): $(BROWSER_GOLDEN_NATIVE_SRC) $(BROWSER_HEADER) $(RENDERER_GOLDEN_SCENE) | $(BROWSER_TEST_BUILD_DIR)
-	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -I$(C_TEST_DIR) -c $< -o $@
+	$(CC) $(ARBORCORE_C_CPPFLAGS) -I$(C_TEST_DIR) $(ARBORCORE_C_CFLAGS) -c $< -o $@
 
 $(BROWSER_GOLDEN_NATIVE): $(BROWSER_GOLDEN_NATIVE_OBJ) $(BROWSER_LIB) $(RENDERER_LIB) $(GEOMETRY_LIB)
 	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $^
@@ -1981,11 +1977,8 @@ browser-b0-b6-lower-layer-verify: $(BROWSER_LOWER_VERIFY)
 browser-contract-verify: $(BROWSER_LIB) $(BROWSER_CONTRACT) $(BROWSER_CONTRACT_VERIFY)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_CONTRACT_VERIFY)
 
-browser-wasm-verify: $(BROWSER_GOLDEN_NATIVE) $(BROWSER_WASM_VERIFY) $(BROWSER_WASM_SELFTEST_SRC) $(BROWSER_JS)
+browser-wasm-verify: $(BROWSER_GOLDEN_NATIVE) $(BROWSER_WASM_VERIFY) $(BROWSER_WASM_SELFTEST_SRC)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_WASM_VERIFY)
-
-browser-real-browser-verify: browser-wasm-verify $(BROWSER_REAL_VERIFY)
-	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_REAL_VERIFY)
 
 browser-reproducibility-verify: $(BROWSER_REPRO_VERIFY)
 	@ARBORCORE_ROOT=$(ROOT_DIR) CC=$(CC) AR=$(AR) bash $(BROWSER_REPRO_VERIFY)
@@ -1996,61 +1989,17 @@ browser-sanitize-verify: $(BROWSER_SANITIZE_VERIFY)
 browser-benchmark-verify: $(BROWSER_BENCH) $(BROWSER_BENCH_VERIFY)
 	@ARBORCORE_ROOT=$(ROOT_DIR) ARBOR_BROWSER_BENCH=$(ROOT_DIR)/$(BROWSER_BENCH) bash $(BROWSER_BENCH_VERIFY)
 
-browser-b0-b6-gate: $(BROWSER_GATE)
-	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_GATE)
-
 # ============================================================
-# Browser WebGPU Accelerator W0-W6
+# Browser WebGPU v1 — historical contract only
 # ============================================================
 
-WEBGPU_JS := browser/webgpu_accelerator.js
 WEBGPU_CONTRACT := browser/arborcore-browser-webgpu-1.contract
-WEBGPU_BROWSER_TEST := tests/browser/webgpu_accelerator_browser_test.html
-WEBGPU_JS_TEST := tests/js/browser_webgpu_unit_test.mjs
-WEBGPU_W0_VERIFY := $(TOOLS_DIR)/webgpu_w0_host_verify.sh
 WEBGPU_CONTRACT_VERIFY := $(TOOLS_DIR)/webgpu_contract_verify.sh
-WEBGPU_REAL_RUNNER := $(TOOLS_DIR)/webgpu_real_browser_runner.mjs
-WEBGPU_REAL_VERIFY := $(TOOLS_DIR)/webgpu_real_browser_verify.sh
-WEBGPU_ISOLATED_RUNNER := $(TOOLS_DIR)/webgpu_isolated_browser_runner.mjs
-WEBGPU_ISOLATED_VERIFY := $(TOOLS_DIR)/webgpu_isolated_browser_verify.sh
-WEBGPU_BENCH_VERIFY := $(TOOLS_DIR)/webgpu_benchmark_verify.sh
-WEBGPU_REPRO_VERIFY := $(TOOLS_DIR)/webgpu_reproducibility_verify.sh
-WEBGPU_GATE := $(TOOLS_DIR)/webgpu_w1_w6_gate.sh
 
-.PHONY: webgpu-w0-host-verify webgpu-js-check webgpu-contract-verify
-.PHONY: webgpu-live-browser-verify webgpu-live-browser-evidence-verify
-.PHONY: webgpu-real-browser-verify webgpu-isolated-browser-verify webgpu-benchmark-verify
-.PHONY: webgpu-reproducibility-verify webgpu-w1-w6-gate
+.PHONY: webgpu-contract-verify
 
-webgpu-w0-host-verify: $(WEBGPU_W0_VERIFY)
-	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_W0_VERIFY)
-
-webgpu-js-check: $(WEBGPU_JS) $(WEBGPU_JS_TEST) $(BROWSER_JS)
-	@node $(WEBGPU_JS_TEST)
-
-webgpu-contract-verify: $(WEBGPU_CONTRACT) $(WEBGPU_JS) $(WEBGPU_CONTRACT_VERIFY)
+webgpu-contract-verify: $(WEBGPU_CONTRACT) $(WEBGPU_CONTRACT_VERIFY)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_CONTRACT_VERIFY)
-
-webgpu-live-browser-verify: browser-wasm-verify $(WEBGPU_JS) $(WEBGPU_BROWSER_TEST) $(WEBGPU_REAL_RUNNER) $(WEBGPU_REAL_VERIFY)
-	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_REAL_VERIFY) serve
-
-webgpu-live-browser-evidence-verify: $(WEBGPU_REAL_VERIFY)
-	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_REAL_VERIFY) evidence
-
-# Backward-compatible alias: real-browser qualification now means the live normal-profile path.
-webgpu-real-browser-verify: webgpu-live-browser-verify
-
-webgpu-isolated-browser-verify: browser-wasm-verify $(WEBGPU_JS) $(WEBGPU_BROWSER_TEST) $(WEBGPU_ISOLATED_RUNNER) $(WEBGPU_ISOLATED_VERIFY)
-	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_ISOLATED_VERIFY)
-
-webgpu-benchmark-verify: $(WEBGPU_BENCH_VERIFY)
-	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_BENCH_VERIFY)
-
-webgpu-reproducibility-verify: $(WEBGPU_REPRO_VERIFY) $(WEBGPU_GATE)
-	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_REPRO_VERIFY)
-
-webgpu-w1-w6-gate: $(WEBGPU_GATE)
-	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_GATE)
 
 # ============================================================
 # Browser Language Boundary v2 — Assembly/C/WASM/WGSL first
@@ -2096,3 +2045,39 @@ browser-language-boundary-v2-reproducibility-verify: $(LBV2_REPRO_VERIFY) $(LBV2
 
 browser-language-boundary-v2-gate: $(LBV2_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(LBV2_GATE)
+
+# ============================================================
+# Browser/WebGPU v1 historical implementation verification
+# ============================================================
+
+BROWSER_V1_HISTORY_VERIFY := $(TOOLS_DIR)/browser_v1_history_verify.sh
+BROWSER_V1_PRECISION_VECTORS := tests/data/browser_v1_precision_vectors.json
+
+.PHONY: browser-v1-history-verify
+
+browser-v1-history-verify: \
+	$(BROWSER_V1_HISTORY_VERIFY) \
+	$(BROWSER_V1_PRECISION_VECTORS) \
+	browser/arborcore-browser-surface-1.contract \
+	browser/arborcore-browser-webgpu-1.contract
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_V1_HISTORY_VERIFY)
+
+# ============================================================
+# Browser v1 JavaScript retirement
+# ============================================================
+
+BROWSER_V1_JS_RETIREMENT_VERIFY := $(TOOLS_DIR)/browser_v1_js_retirement_verify.sh
+BROWSER_V1_JS_RETIREMENT_GATE := $(TOOLS_DIR)/browser_v1_js_retirement_gate.sh
+BROWSER_V1_JS_RETIREMENT_CONTRACT := browser/arborcore-browser-v1-js-retirement-1.contract
+
+.PHONY: browser-v1-js-retirement-verify browser-v1-js-retirement-gate
+
+browser-v1-js-retirement-verify: \
+	$(BROWSER_V1_JS_RETIREMENT_VERIFY) \
+	$(BROWSER_V1_JS_RETIREMENT_CONTRACT) \
+	$(BROWSER_V1_PRECISION_VECTORS)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_V1_JS_RETIREMENT_VERIFY)
+
+browser-v1-js-retirement-gate: \
+	$(BROWSER_V1_JS_RETIREMENT_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_V1_JS_RETIREMENT_GATE)

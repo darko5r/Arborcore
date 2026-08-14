@@ -1,0 +1,108 @@
+{
+  "schema": "ARBORCORE_BROWSER_V1_PRECISION_VECTORS_1",
+  "source": {
+    "freezeCommit": "80395372243fcfb2995ed03beca8a3af3e873964",
+    "gitBlob": "e5595c063ff438a63efc9dfb7c324c60d0099e3f",
+    "sha256": "e6e228daaf3cd220a727e5622fdca5bf24f8ff1fc67816e76adcf35f39ccf13e"
+  },
+  "q32Css": [
+    {
+      "raw": "0",
+      "css": "0.000000000px"
+    },
+    {
+      "raw": "1",
+      "css": "0.000000000px"
+    },
+    {
+      "raw": "-1",
+      "css": "0.000000000px"
+    },
+    {
+      "raw": "2147483648",
+      "css": "0.500000000px"
+    },
+    {
+      "raw": "-2147483648",
+      "css": "-0.500000000px"
+    },
+    {
+      "raw": "4294967296",
+      "css": "1.000000000px"
+    },
+    {
+      "raw": "-4294967296",
+      "css": "-1.000000000px"
+    },
+    {
+      "raw": "1250999896491",
+      "css": "291.271111111px"
+    },
+    {
+      "raw": "-1250999896491",
+      "css": "-291.271111111px"
+    },
+    {
+      "raw": "9223372036854775807",
+      "css": "2147483648.000000000px"
+    },
+    {
+      "raw": "-9223372036854775808",
+      "css": "-2147483648.000000000px"
+    }
+  ],
+  "deviceSize": [
+    {
+      "name": "device-pixel-content-box",
+      "entry": {
+        "devicePixelContentBoxSize": [
+          {
+            "inlineSize": 640,
+            "blockSize": 360
+          }
+        ]
+      },
+      "dpr": 2,
+      "expectedWidth": 640,
+      "expectedHeight": 360
+    },
+    {
+      "name": "content-box-fractional",
+      "entry": {
+        "contentBoxSize": [
+          {
+            "inlineSize": 100.25,
+            "blockSize": 50.25
+          }
+        ]
+      },
+      "dpr": 2,
+      "expectedWidth": 201,
+      "expectedHeight": 101
+    },
+    {
+      "name": "content-rect-integral-dpr",
+      "entry": {
+        "contentRect": {
+          "width": 319.5,
+          "height": 179.5
+        }
+      },
+      "dpr": 1,
+      "expectedWidth": 320,
+      "expectedHeight": 180
+    },
+    {
+      "name": "content-rect-fractional-dpr",
+      "entry": {
+        "contentRect": {
+          "width": 10.1,
+          "height": 10.9
+        }
+      },
+      "dpr": 1.5,
+      "expectedWidth": 15,
+      "expectedHeight": 16
+    }
+  ]
+}
