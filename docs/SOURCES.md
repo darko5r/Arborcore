@@ -14,6 +14,23 @@
 
 - Barry Burd, *Quantum Computing Algorithms*, Packt Publishing, 2023.
 
+## C and Software Engineering
+
+- Noel Kalicharan, *Advanced Topics in C: Core Concepts in Data Structures*,
+  Apress, 2013.
+  Print ISBN 978-1-4302-6400-2; e-ISBN 978-1-4302-6401-9.
+
+- Kamran Amini,
+  *Extreme C: Taking You to the Limit in Concurrency, OOP, and the Most Advanced Capabilities of C*,
+  Packt Publishing, October 2019.
+  ISBN 978-1-78934-362-5.
+
+- Robert C. Martin,
+  *Clean Code: A Handbook of Agile Software Craftsmanship*, Second Edition,
+  Pearson Education, 2026.
+  EPUB metadata identifier 9780135398548;
+  copyright-page ISBN-13 978-0-13-539857-9.
+
 ### Reference policy
 
 These sources are used for conceptual, mathematical, and algorithmic guidance.

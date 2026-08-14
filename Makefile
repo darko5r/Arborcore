@@ -2051,3 +2051,48 @@ webgpu-reproducibility-verify: $(WEBGPU_REPRO_VERIFY) $(WEBGPU_GATE)
 
 webgpu-w1-w6-gate: $(WEBGPU_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_GATE)
+
+# ============================================================
+# Browser Language Boundary v2 — Assembly/C/WASM/WGSL first
+# ============================================================
+
+LBV2_HEADER := include/arborcore/browser_host_v2.h
+LBV2_C_SOURCE := src/c/browser_host_v2.c
+LBV2_HOST_JS := browser/arborcore_host.js
+LBV2_CONTRACT := browser/arborcore-browser-language-boundary-2.contract
+LBV2_NATIVE_TEST_SRC := tests/c/browser_host_v2_test.c
+LBV2_NATIVE_TEST := $(BUILD_DIR)/browser-host-v2-test
+LBV2_CONTRACT_VERIFY := $(TOOLS_DIR)/browser_language_boundary_v2_contract_verify.sh
+LBV2_WASM_VERIFY := $(TOOLS_DIR)/browser_language_boundary_v2_wasm_verify.sh
+LBV2_LIVE_VERIFY := $(TOOLS_DIR)/browser_language_boundary_v2_live_verify.sh
+LBV2_REPRO_VERIFY := $(TOOLS_DIR)/browser_language_boundary_v2_reproducibility_verify.sh
+LBV2_GATE := $(TOOLS_DIR)/browser_language_boundary_v2_gate.sh
+
+.PHONY: browser-language-boundary-v2-native-test browser-language-boundary-v2-contract-verify
+.PHONY: browser-language-boundary-v2-wasm-verify browser-language-boundary-v2-live-verify
+.PHONY: browser-language-boundary-v2-live-evidence-verify browser-language-boundary-v2-reproducibility-verify
+.PHONY: browser-language-boundary-v2-gate
+
+$(LBV2_NATIVE_TEST): $(LBV2_NATIVE_TEST_SRC) $(LBV2_C_SOURCE) $(LBV2_HEADER) | $(BUILD_DIR)
+	$(CC) -Iinclude -std=c17 -O2 -Wall -Wextra -Wpedantic -Werror -Wconversion -Wsign-conversion -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Wformat=2 -Wundef $(LBV2_NATIVE_TEST_SRC) $(LBV2_C_SOURCE) -o $@
+
+browser-language-boundary-v2-native-test: $(LBV2_NATIVE_TEST)
+	@$(LBV2_NATIVE_TEST)
+
+browser-language-boundary-v2-contract-verify: $(LBV2_CONTRACT) $(LBV2_HOST_JS) $(LBV2_CONTRACT_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(LBV2_CONTRACT_VERIFY)
+
+browser-language-boundary-v2-wasm-verify: $(LBV2_WASM_VERIFY) $(LBV2_C_SOURCE) $(LBV2_HEADER)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(LBV2_WASM_VERIFY)
+
+browser-language-boundary-v2-live-verify: $(LBV2_LIVE_VERIFY) $(LBV2_HOST_JS)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(LBV2_LIVE_VERIFY) serve
+
+browser-language-boundary-v2-live-evidence-verify: $(LBV2_LIVE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(LBV2_LIVE_VERIFY) evidence
+
+browser-language-boundary-v2-reproducibility-verify: $(LBV2_REPRO_VERIFY) $(LBV2_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(LBV2_REPRO_VERIFY)
+
+browser-language-boundary-v2-gate: $(LBV2_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(LBV2_GATE)
