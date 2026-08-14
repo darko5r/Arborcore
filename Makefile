@@ -1998,3 +1998,56 @@ browser-benchmark-verify: $(BROWSER_BENCH) $(BROWSER_BENCH_VERIFY)
 
 browser-b0-b6-gate: $(BROWSER_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_GATE)
+
+# ============================================================
+# Browser WebGPU Accelerator W0-W6
+# ============================================================
+
+WEBGPU_JS := browser/webgpu_accelerator.js
+WEBGPU_CONTRACT := browser/arborcore-browser-webgpu-1.contract
+WEBGPU_BROWSER_TEST := tests/browser/webgpu_accelerator_browser_test.html
+WEBGPU_JS_TEST := tests/js/browser_webgpu_unit_test.mjs
+WEBGPU_W0_VERIFY := $(TOOLS_DIR)/webgpu_w0_host_verify.sh
+WEBGPU_CONTRACT_VERIFY := $(TOOLS_DIR)/webgpu_contract_verify.sh
+WEBGPU_REAL_RUNNER := $(TOOLS_DIR)/webgpu_real_browser_runner.mjs
+WEBGPU_REAL_VERIFY := $(TOOLS_DIR)/webgpu_real_browser_verify.sh
+WEBGPU_ISOLATED_RUNNER := $(TOOLS_DIR)/webgpu_isolated_browser_runner.mjs
+WEBGPU_ISOLATED_VERIFY := $(TOOLS_DIR)/webgpu_isolated_browser_verify.sh
+WEBGPU_BENCH_VERIFY := $(TOOLS_DIR)/webgpu_benchmark_verify.sh
+WEBGPU_REPRO_VERIFY := $(TOOLS_DIR)/webgpu_reproducibility_verify.sh
+WEBGPU_GATE := $(TOOLS_DIR)/webgpu_w1_w6_gate.sh
+
+.PHONY: webgpu-w0-host-verify webgpu-js-check webgpu-contract-verify
+.PHONY: webgpu-live-browser-verify webgpu-live-browser-evidence-verify
+.PHONY: webgpu-real-browser-verify webgpu-isolated-browser-verify webgpu-benchmark-verify
+.PHONY: webgpu-reproducibility-verify webgpu-w1-w6-gate
+
+webgpu-w0-host-verify: $(WEBGPU_W0_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_W0_VERIFY)
+
+webgpu-js-check: $(WEBGPU_JS) $(WEBGPU_JS_TEST) $(BROWSER_JS)
+	@node $(WEBGPU_JS_TEST)
+
+webgpu-contract-verify: $(WEBGPU_CONTRACT) $(WEBGPU_JS) $(WEBGPU_CONTRACT_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_CONTRACT_VERIFY)
+
+webgpu-live-browser-verify: browser-wasm-verify $(WEBGPU_JS) $(WEBGPU_BROWSER_TEST) $(WEBGPU_REAL_RUNNER) $(WEBGPU_REAL_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_REAL_VERIFY) serve
+
+webgpu-live-browser-evidence-verify: $(WEBGPU_REAL_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_REAL_VERIFY) evidence
+
+# Backward-compatible alias: real-browser qualification now means the live normal-profile path.
+webgpu-real-browser-verify: webgpu-live-browser-verify
+
+webgpu-isolated-browser-verify: browser-wasm-verify $(WEBGPU_JS) $(WEBGPU_BROWSER_TEST) $(WEBGPU_ISOLATED_RUNNER) $(WEBGPU_ISOLATED_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_ISOLATED_VERIFY)
+
+webgpu-benchmark-verify: $(WEBGPU_BENCH_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_BENCH_VERIFY)
+
+webgpu-reproducibility-verify: $(WEBGPU_REPRO_VERIFY) $(WEBGPU_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_REPRO_VERIFY)
+
+webgpu-w1-w6-gate: $(WEBGPU_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_GATE)
