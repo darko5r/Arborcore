@@ -2051,3 +2051,53 @@ webgpu-reproducibility-verify: $(WEBGPU_REPRO_VERIFY) $(WEBGPU_GATE)
 
 webgpu-w1-w6-gate: $(WEBGPU_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_GATE)
+
+# ============================================================
+# Browser WebGPU post-freeze optimization OPT0-OPT5
+# ============================================================
+
+WEBGPU_POSTFREEZE_CONTRACT := browser/arborcore-browser-webgpu-postfreeze-optimization-1.contract
+WEBGPU_POSTFREEZE_OPTIMIZER := browser/webgpu_postfreeze_optimizer.js
+WEBGPU_RGBA16_TABLES := browser/webgpu_rgba16_exact_tables.js
+WEBGPU_RGBA16_EXPERIMENT := browser/webgpu_rgba16_experiment.js
+WEBGPU_POSTFREEZE_JS_TEST := tests/js/browser_webgpu_postfreeze_unit_test.mjs
+WEBGPU_POSTFREEZE_WASM_TEST := tests/c/webgpu_postfreeze_wasm_selftest.c
+WEBGPU_POSTFREEZE_BROWSER_TEST := tests/browser/webgpu_postfreeze_browser_test.html
+WEBGPU_POSTFREEZE_TABLE_VERIFY := $(TOOLS_DIR)/webgpu_postfreeze_table_verify.mjs
+WEBGPU_POSTFREEZE_CONTRACT_VERIFY := $(TOOLS_DIR)/webgpu_postfreeze_contract_verify.sh
+WEBGPU_POSTFREEZE_WASM_VERIFY := $(TOOLS_DIR)/webgpu_postfreeze_wasm_verify.sh
+WEBGPU_POSTFREEZE_REAL_RUNNER := $(TOOLS_DIR)/webgpu_postfreeze_real_browser_runner.mjs
+WEBGPU_POSTFREEZE_REAL_VERIFY := $(TOOLS_DIR)/webgpu_postfreeze_real_browser_verify.sh
+WEBGPU_POSTFREEZE_BENCH_VERIFY := $(TOOLS_DIR)/webgpu_postfreeze_benchmark_verify.sh
+WEBGPU_POSTFREEZE_REPRO_VERIFY := $(TOOLS_DIR)/webgpu_postfreeze_reproducibility_verify.sh
+WEBGPU_POSTFREEZE_GATE := $(TOOLS_DIR)/webgpu_postfreeze_opt0_opt5_gate.sh
+
+.PHONY: webgpu-postfreeze-js-check webgpu-postfreeze-contract-verify webgpu-postfreeze-wasm-verify
+.PHONY: webgpu-postfreeze-live-browser-verify webgpu-postfreeze-live-browser-evidence-verify
+.PHONY: webgpu-postfreeze-benchmark-verify webgpu-postfreeze-reproducibility-verify
+.PHONY: webgpu-postfreeze-opt0-opt5-gate
+
+webgpu-postfreeze-js-check: $(WEBGPU_POSTFREEZE_OPTIMIZER) $(WEBGPU_RGBA16_TABLES) $(WEBGPU_RGBA16_EXPERIMENT) $(WEBGPU_POSTFREEZE_JS_TEST) $(WEBGPU_POSTFREEZE_TABLE_VERIFY)
+	@node $(WEBGPU_POSTFREEZE_JS_TEST)
+	@ARBORCORE_ROOT=$(ROOT_DIR) node $(WEBGPU_POSTFREEZE_TABLE_VERIFY)
+
+webgpu-postfreeze-contract-verify: $(WEBGPU_POSTFREEZE_CONTRACT) $(WEBGPU_POSTFREEZE_CONTRACT_VERIFY) $(WEBGPU_POSTFREEZE_OPTIMIZER) $(WEBGPU_RGBA16_TABLES) $(WEBGPU_RGBA16_EXPERIMENT)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_POSTFREEZE_CONTRACT_VERIFY)
+
+webgpu-postfreeze-wasm-verify: $(WEBGPU_POSTFREEZE_WASM_TEST) $(WEBGPU_POSTFREEZE_WASM_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_POSTFREEZE_WASM_VERIFY)
+
+webgpu-postfreeze-live-browser-verify: webgpu-postfreeze-wasm-verify $(WEBGPU_POSTFREEZE_BROWSER_TEST) $(WEBGPU_POSTFREEZE_REAL_RUNNER) $(WEBGPU_POSTFREEZE_REAL_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_POSTFREEZE_REAL_VERIFY) serve
+
+webgpu-postfreeze-live-browser-evidence-verify: $(WEBGPU_POSTFREEZE_REAL_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_POSTFREEZE_REAL_VERIFY) evidence
+
+webgpu-postfreeze-benchmark-verify: $(WEBGPU_POSTFREEZE_BENCH_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_POSTFREEZE_BENCH_VERIFY)
+
+webgpu-postfreeze-reproducibility-verify: $(WEBGPU_POSTFREEZE_REPRO_VERIFY) $(WEBGPU_POSTFREEZE_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_POSTFREEZE_REPRO_VERIFY)
+
+webgpu-postfreeze-opt0-opt5-gate: $(WEBGPU_POSTFREEZE_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(WEBGPU_POSTFREEZE_GATE)
