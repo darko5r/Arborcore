@@ -2128,3 +2128,73 @@ browser-v2-hardening-prelive-gate:
 browser-v2-hardening-gate:
 	bash $(BV2H_GATE) full
 # <<< ARBORCORE BV2H0-BV2H9 INTEGRATED CANDIDATE <<<
+
+# ============================================================
+# Application / DDD / MVC Foundation AF0-AF1
+# ============================================================
+
+APPLICATION_FOUNDATION_CONTRACT := application/arborcore-application-ddd-mvc-foundation-1.contract
+APPLICATION_FOUNDATION_HEADER := include/arborcore/application.h
+APPLICATION_FOUNDATION_SOURCE := src/c/application_foundation.c
+APPLICATION_FOUNDATION_TEST_SOURCE := tests/c/application_foundation_test.c
+APPLICATION_FOUNDATION_BUILD_DIR := $(BUILD_DIR)/application-foundation
+APPLICATION_FOUNDATION_OBJ := $(APPLICATION_FOUNDATION_BUILD_DIR)/application_foundation.o
+APPLICATION_FOUNDATION_TEST_OBJ := $(APPLICATION_FOUNDATION_BUILD_DIR)/application_foundation_test.o
+APPLICATION_FOUNDATION_LIB := $(BUILD_DIR)/libarborcore_application.a
+APPLICATION_FOUNDATION_TEST := $(BUILD_DIR)/application-foundation-test
+APPLICATION_FOUNDATION_SANITIZE_TEST := $(BUILD_DIR)/application-foundation-sanitize-test
+APPLICATION_FOUNDATION_CONTRACT_VERIFY := tools/application_foundation_contract_verify.sh
+APPLICATION_FOUNDATION_FROZEN_VERIFY := tools/application_foundation_frozen_layers_verify.sh
+APPLICATION_FOUNDATION_NATIVE_VERIFY := tools/application_foundation_native_verify.sh
+APPLICATION_FOUNDATION_REPRO_VERIFY := tools/application_foundation_reproducibility_verify.sh
+APPLICATION_FOUNDATION_SCOPE_VERIFY := tools/application_foundation_scope_verify.sh
+APPLICATION_FOUNDATION_GATE := tools/application_foundation_gate.sh
+
+.PHONY: application-foundation-library application-foundation-native-test application-foundation-sanitize
+.PHONY: application-foundation-contract-verify application-foundation-frozen-layers-verify
+.PHONY: application-foundation-reproducibility-verify application-foundation-scope-verify application-foundation-gate
+
+$(APPLICATION_FOUNDATION_BUILD_DIR):
+	mkdir -p $@
+
+$(APPLICATION_FOUNDATION_OBJ): $(APPLICATION_FOUNDATION_SOURCE) $(APPLICATION_FOUNDATION_HEADER) include/arborcore/arborcore.h include/arborcore/assembly_abi.h | $(APPLICATION_FOUNDATION_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(APPLICATION_FOUNDATION_TEST_OBJ): $(APPLICATION_FOUNDATION_TEST_SOURCE) $(APPLICATION_FOUNDATION_HEADER) include/arborcore/arborcore.h include/arborcore/assembly_abi.h | $(APPLICATION_FOUNDATION_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(APPLICATION_FOUNDATION_LIB): $(APPLICATION_FOUNDATION_OBJ) | $(BUILD_DIR)
+	$(AR) rcsD $@ $(APPLICATION_FOUNDATION_OBJ)
+
+application-foundation-library: $(APPLICATION_FOUNDATION_LIB)
+
+$(APPLICATION_FOUNDATION_TEST): $(APPLICATION_FOUNDATION_TEST_OBJ) $(APPLICATION_FOUNDATION_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(APPLICATION_FOUNDATION_TEST_OBJ) $(APPLICATION_FOUNDATION_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+
+application-foundation-native-test: $(APPLICATION_FOUNDATION_TEST)
+	@$(APPLICATION_FOUNDATION_TEST)
+
+$(APPLICATION_FOUNDATION_SANITIZE_TEST): $(APPLICATION_FOUNDATION_TEST_SOURCE) $(APPLICATION_FOUNDATION_SOURCE) $(C_RUNTIME_SOURCES) $(STATIC_LIB) $(APPLICATION_FOUNDATION_HEADER) include/arborcore/arborcore.h include/arborcore/assembly_abi.h
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(APPLICATION_FOUNDATION_TEST_SOURCE) $(APPLICATION_FOUNDATION_SOURCE) $(C_RUNTIME_SOURCES) $(STATIC_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@
+
+application-foundation-sanitize: $(APPLICATION_FOUNDATION_SANITIZE_TEST)
+	@ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(APPLICATION_FOUNDATION_SANITIZE_TEST)
+	@echo "PASS: AF1 ASan/UBSan foundation qualification"
+
+application-foundation-contract-verify: $(APPLICATION_FOUNDATION_CONTRACT) $(APPLICATION_FOUNDATION_CONTRACT_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(APPLICATION_FOUNDATION_CONTRACT_VERIFY)
+
+application-foundation-frozen-layers-verify: $(APPLICATION_FOUNDATION_FROZEN_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(APPLICATION_FOUNDATION_FROZEN_VERIFY)
+
+application-foundation-scope-verify: $(APPLICATION_FOUNDATION_SCOPE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(APPLICATION_FOUNDATION_SCOPE_VERIFY)
+
+application-foundation-reproducibility-verify: $(APPLICATION_FOUNDATION_REPRO_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(APPLICATION_FOUNDATION_REPRO_VERIFY)
+
+application-foundation-gate: $(APPLICATION_FOUNDATION_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(APPLICATION_FOUNDATION_GATE)
