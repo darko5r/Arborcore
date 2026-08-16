@@ -2081,3 +2081,50 @@ browser-v1-js-retirement-verify: \
 browser-v1-js-retirement-gate: \
 	$(BROWSER_V1_JS_RETIREMENT_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(BROWSER_V1_JS_RETIREMENT_GATE)
+
+# >>> ARBORCORE BV2H0-BV2H9 INTEGRATED CANDIDATE >>>
+BV2H_INVENTORY := tools/browser_v2_hardening_inventory.sh
+BV2H_CONTRACT_VERIFY := tools/browser_v2_hardening_contract_verify.sh
+BV2H_NATIVE_VERIFY := tools/browser_v2_hardening_native_verify.sh
+BV2H_WASM_VERIFY := tools/browser_v2_hardening_wasm_verify.sh
+BV2H_LIVE_VERIFY := tools/browser_v2_hardening_live_verify.sh
+BV2H_PERFORMANCE_VERIFY := tools/browser_v2_hardening_performance_verify.py
+BV2H_OPT3_VERIFY := tools/browser_v2_opt3_qualification_verify.py
+BV2H_REPRO_VERIFY := tools/browser_v2_hardening_reproducibility_verify.sh
+BV2H_GATE := tools/browser_v2_hardening_gate.sh
+
+.PHONY: browser-v2-hardening-inventory browser-v2-hardening-contract-verify browser-v2-hardening-native-verify browser-v2-hardening-wasm-verify browser-v2-hardening-live-verify browser-v2-hardening-live-evidence-verify browser-v2-hardening-performance-verify browser-v2-opt3-qualification-verify browser-v2-hardening-reproducibility-verify browser-v2-hardening-prelive-gate browser-v2-hardening-gate
+
+browser-v2-hardening-inventory:
+	bash $(BV2H_INVENTORY)
+
+browser-v2-hardening-contract-verify:
+	bash $(BV2H_CONTRACT_VERIFY)
+
+browser-v2-hardening-native-verify:
+	bash $(BV2H_NATIVE_VERIFY)
+
+browser-v2-hardening-wasm-verify:
+	bash $(BV2H_WASM_VERIFY)
+
+browser-v2-hardening-live-verify:
+	bash $(BV2H_LIVE_VERIFY)
+
+browser-v2-hardening-live-evidence-verify:
+	bash $(BV2H_LIVE_VERIFY) evidence
+
+browser-v2-hardening-performance-verify:
+	python3 $(BV2H_PERFORMANCE_VERIFY)
+
+browser-v2-opt3-qualification-verify:
+	python3 $(BV2H_OPT3_VERIFY)
+
+browser-v2-hardening-reproducibility-verify:
+	bash $(BV2H_REPRO_VERIFY)
+
+browser-v2-hardening-prelive-gate:
+	bash $(BV2H_GATE) prelive
+
+browser-v2-hardening-gate:
+	bash $(BV2H_GATE) full
+# <<< ARBORCORE BV2H0-BV2H9 INTEGRATED CANDIDATE <<<

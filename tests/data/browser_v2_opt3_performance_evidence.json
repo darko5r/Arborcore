@@ -1,0 +1,58 @@
+{
+  "chrome": {
+    "error": "OperationError: A valid external Instance reference no longer exists.",
+    "opt3Equivalence": "NOT_ESTABLISHED",
+    "state": "QUALIFIED_PLATFORM_FAILURE_EXTERNAL_INSTANCE_LOSS",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "disposition": "QUALIFIED_TEST_ONLY_PROMISING_FUTURE_CONTRACT_REVISION",
+  "firefox": {
+    "authoritativeJsLogic": "ZERO",
+    "exactAll": true,
+    "performanceSignal": "STRONG_POSITIVE",
+    "sizes": [
+      {
+        "cpuHash": "274982ce56a8f584e21b3dbf681485757af686f3fc3d99cc36a66b16d50f49f5",
+        "cpuWasmConvertMedianNs": 10500000,
+        "currentGpuRenderMedianNs": 18272,
+        "currentHostEnqueueMedianNs": 12000000,
+        "directGpuComputeMedianNs": 101248,
+        "directGpuPassTotalMedianNs": 192576,
+        "directGpuRenderMedianNs": 91424,
+        "directHash": "274982ce56a8f584e21b3dbf681485757af686f3fc3d99cc36a66b16d50f49f5",
+        "directHostEnqueueMedianNs": 1750000,
+        "gpuTimestampScope": "PASS_DURATIONS_EXCLUDE_QUEUE_WRITETEXTURE_TRANSFER",
+        "height": 360,
+        "hostEnqueueReductionPct": 85.42,
+        "pixels": 230400,
+        "rgba16Bytes": 1843200,
+        "rgba8Bytes": 921600,
+        "width": 640
+      },
+      {
+        "cpuHash": "764d46c5c9bb7767174a99b3943bbe57ba25e97416b1033ea75cebfae3b02f85",
+        "cpuWasmConvertMedianNs": 35750000,
+        "currentGpuRenderMedianNs": 78592,
+        "currentHostEnqueueMedianNs": 40750000,
+        "directGpuComputeMedianNs": 373088,
+        "directGpuPassTotalMedianNs": 715552,
+        "directGpuRenderMedianNs": 342560,
+        "directHash": "764d46c5c9bb7767174a99b3943bbe57ba25e97416b1033ea75cebfae3b02f85",
+        "directHostEnqueueMedianNs": 7000000,
+        "gpuTimestampScope": "PASS_DURATIONS_EXCLUDE_QUEUE_WRITETEXTURE_TRANSFER",
+        "height": 720,
+        "hostEnqueueReductionPct": 82.82,
+        "pixels": 921600,
+        "rgba16Bytes": 7372800,
+        "rgba8Bytes": 3686400,
+        "width": 1280
+      }
+    ],
+    "timestampQuerySupported": true,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0",
+    "wasmImportCount": 0
+  },
+  "productionAdmission": "DEFERRED",
+  "role": "ENVIRONMENT_SPECIFIC_DIAGNOSTIC_EVIDENCE_NOT_UNIVERSAL_THRESHOLD",
+  "schema": "ARBORCORE_BV2H_OPT3_PERFORMANCE_EVIDENCE_1"
+}

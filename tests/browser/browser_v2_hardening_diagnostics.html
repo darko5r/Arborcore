@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Arborcore Browser v2 Hardening / Optimization Qualification</title>
+<style>
+  :root { color-scheme: light dark; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  body { margin: 0; padding: 20px; max-width: 1500px; margin-inline: auto; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { opacity: .72; margin-bottom: 18px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(290px,1fr)); gap: 12px; }
+  .card { border: 1px solid color-mix(in srgb,currentColor 22%,transparent); border-radius: 8px; padding: 12px; min-width: 0; }
+  .card h2 { font-size: 14px; margin: 0 0 9px; }
+  dl { display: grid; grid-template-columns: minmax(130px,1fr) minmax(120px,1.4fr); gap: 4px 10px; margin: 0; font-size: 12px; }
+  dt { opacity: .68; } dd { margin: 0; overflow-wrap: anywhere; }
+  .pass { font-weight: 700; } .fail { font-weight: 700; }
+  .canvases { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+  figure { margin:0; } figcaption { font-size:11px; opacity:.68; margin-top:4px; }
+  canvas { width:128px; height:128px; image-rendering:pixelated; border:1px solid color-mix(in srgb,currentColor 30%,transparent); }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  th,td { border-bottom:1px solid color-mix(in srgb,currentColor 15%,transparent); padding:4px 6px; text-align:right; }
+  th:first-child,td:first-child { text-align:left; }
+  pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:11px; max-height:620px; overflow:auto; border:1px solid color-mix(in srgb,currentColor 18%,transparent); padding:12px; border-radius:8px; }
+</style>
+<body>
+<h1>Arborcore Browser v2 — BV2H0→BV2H9 candidate</h1>
+<div class="sub">Rich diagnostics with C/WASM authority, WGSL GPU arithmetic, and zero authoritative JavaScript logic.</div>
+<div id="summary" class="grid"></div>
+<h2>Qualified surfaces</h2>
+<div class="canvases">
+  <figure><canvas id="canvas2d" width="16" height="16"></canvas><figcaption id="cap-canvas2d">Canvas2D frozen reference — RUNNING</figcaption></figure>
+  <figure><canvas id="webgpu" width="16" height="16"></canvas><figcaption id="cap-webgpu">WebGPU RGBA8 transport — RUNNING</figcaption></figure>
+  <figure><canvas id="direct" width="16" height="16"></canvas><figcaption id="cap-opt3">OPT3 direct RGBA16 experiment — RUNNING</figcaption></figure>
+  <figure><canvas id="recovery" width="16" height="16"></canvas><figcaption id="cap-recovery">device-loss recovery probe — RUNNING</figcaption></figure>
+</div>
+<h2>C/WASM timing aggregates</h2>
+<div id="timings"></div>
+<h2>DPR / device-size vectors</h2>
+<div id="dpr"></div>
+<h2>Raw qualification report</h2>
+<pre id="result">RUNNING</pre>
+
+<script type="module">
+import {
+  ArborcoreBrowserHostV2,
+  CanvasPresenterV2,
+  WebGpuPresenterV2,
+  ARBORCORE_HOST_JS_ROLE,
+  AUTHORITATIVE_JS_LOGIC
+} from '/browser/arborcore_host.js';
+import { DirectRgba16ExperimentV2 } from '/tests/js/browser_language_boundary_v2_experiment.mjs';
+import {
+  BrowserHardeningV2Authority,
+  BV2H_TEST_JS_ROLE,
+  BV2H_AUTHORITATIVE_JS_LOGIC,
+  LifecycleEvent,
+  Metric,
+  measuredPresentRgba8,
+  testDprVectors,
+  adapterDiagnostics,
+  measureTimerResolutionNs
+} from '/tests/js/browser_v2_hardening_runtime.mjs';
+
+const EXPECTED_RGBA16 = 'fda03aa982372e8bb181ecf4e65910478bd8ad66ae08cf12cc1a5f89288673ba';
+const EXPECTED_RGBA8 = 'a24be39e38b4fb654e79a2161177cf3670c354695f0b2fa13be677e8d1624dfd';
+const EXPECTED_OPAQUE = 'c21b35e3f28e676cedf24c13575a7346682e101a2d26aad9598d0cdbcee9ee3b';
+
+function check(value, message) { if (!value) throw new Error(message); }
+function esc(value) { return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function sha256Hex(view) {
+  const copy = new Uint8Array(view.byteLength);
+  copy.set(new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
+  const hash = await crypto.subtle.digest('SHA-256', copy);
+  return Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, '0')).join('');
+}
+async function canvasHash(canvas, width, height) {
+  const bitmap = await createImageBitmap(canvas);
+  try {
+    const sink = document.createElement('canvas'); sink.width=width; sink.height=height;
+    const ctx = sink.getContext('2d', { alpha:true, colorSpace:'srgb' }); ctx.drawImage(bitmap,0,0);
+    return sha256Hex(ctx.getImageData(0,0,width,height).data);
+  } finally { bitmap.close(); }
+}
+async function sourceTextureReadback(presenter) {
+  const width=presenter.sourceWidth, height=presenter.sourceHeight, tight=width*4, row=Math.ceil(tight/256)*256;
+  const buffer=presenter.device.createBuffer({size:row*height,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
+  try {
+    const encoder=presenter.device.createCommandEncoder();
+    encoder.copyTextureToBuffer({texture:presenter.sourceTexture},{buffer,bytesPerRow:row,rowsPerImage:height},{width,height,depthOrArrayLayers:1});
+    presenter.device.queue.submit([encoder.finish()]); await buffer.mapAsync(GPUMapMode.READ);
+    const mapped=new Uint8Array(buffer.getMappedRange()), out=new Uint8Array(tight*height);
+    for(let y=0;y<height;++y) out.set(mapped.subarray(y*row,y*row+tight),y*tight);
+    buffer.unmap(); return out;
+  } finally { buffer.destroy(); }
+}
+function card(title, entries) {
+  return `<section class="card"><h2>${esc(title)}</h2><dl>${Object.entries(entries).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></section>`;
+}
+function render(report) {
+  const s=document.getElementById('summary');
+  s.innerHTML = [
+    card('Runtime', {result:report.result,browser:report.browserKind,userAgent:report.userAgent,secureContext:report.secureContext,WASM:report.wasm.importCount===0?'ZERO_IMPORT_ACTIVE':'INVALID',WebGPU:report.qualifiedMode,jsRole:report.jsRole,authoritativeJsLogic:report.authoritativeJsLogic}),
+    card('Rendering', {rgba16:report.rgba16Hash,rgba8:report.rgba8Hash,canvas2d:report.fallbackHash,upload:report.uploadHash||'N/A',webgpuCanvas:report.webgpuCanvasHash||'N/A',opt3Exact:report.opt3Exact,opt3Admission:report.opt3ContractAdmission}),
+    card('Geometry / display', {cssOne:report.cssOne,devicePixelRatio:report.devicePixelRatio,timerResolutionNs:report.timerResolutionNs,dprVectors:`${report.dpr.passCount}/${report.dpr.totalCount}`,wasmBytes:report.wasm.memoryBytes,memoryGrowthProbe:report.memoryGrowthProbe?.result||'N/A'}),
+    card('WebGPU', {attempted:report.webGpuAttempted,initialized:report.webGpuInitialized,failureClass:report.webGpuFailureClass,failureStage:report.webGpuFailureStage,measuredBeforeFallback:report.webGpuMeasuredPresentations,canvasFormat:report.webgpu?.canvasFormat||'N/A',adapter:report.webgpu?.info&&Object.keys(report.webgpu.info).length?JSON.stringify(report.webgpu.info):'REDACTED_OR_UNAVAILABLE',deviceFeatures:report.webgpu?.deviceFeatures?.length||0,liveRecovery:report.lifecycleRecovery?.succeeded??'N/A'}),
+    card('Resource lifetime / OPT2', report.metrics),
+    card('Lifecycle', {beforeDestroy:report.lifecycleBeforeDestroy.name,generation:report.lifecycleBeforeDestroy.generation,afterDestroy:report.lifecycleFinal.name,broadRelease:report.broadBrowserReleaseClaim})
+  ].join('');
+
+  const timingRows=Object.entries(report.timings).map(([name,v])=>`<tr><td>${esc(name)}</td><td>${v.count}</td><td>${v.minNs}</td><td>${v.meanNs}</td><td>${v.p50Ns}</td><td>${v.p95Ns}</td><td>${v.p99Ns}</td><td>${v.maxNs}</td></tr>`).join('');
+  document.getElementById('timings').innerHTML=`<table><thead><tr><th>stage</th><th>n</th><th>min ns</th><th>mean ns</th><th>p50 ns</th><th>p95 ns</th><th>p99 ns</th><th>max ns</th></tr></thead><tbody>${timingRows}</tbody></table>`;
+  document.getElementById('dpr').innerHTML=`<table><thead><tr><th>vector</th><th>expected</th><th>actual</th><th>result</th></tr></thead><tbody>${report.dpr.results.map(v=>`<tr><td>${esc(v.name)}</td><td>${v.expected.width}×${v.expected.height} mode ${v.expected.mode}</td><td>${v.actual.width}×${v.actual.height} mode ${v.actual.mode}</td><td>${v.pass?'PASS':'FAIL'}</td></tr>`).join('')}</tbody></table>`;
+  document.getElementById('cap-canvas2d').textContent='Canvas2D frozen reference — PASS';
+  const webgpuQualified=report.qualifiedMode==='webgpu' && Boolean(report.uploadHash) && Boolean(report.webgpuCanvasHash);
+  document.getElementById('cap-webgpu').textContent=`WebGPU RGBA8 transport — ${webgpuQualified?'PASS':'NOT QUALIFIED'}`;
+  document.getElementById('cap-opt3').textContent=`OPT3 direct RGBA16 experiment — ${report.opt3Exact?'PASS (TEST-ONLY)':'NOT QUALIFIED'}`;
+  document.getElementById('cap-recovery').textContent=`device-loss recovery probe — ${report.lifecycleRecovery?.succeeded?'PASS':(report.lifecycleRecovery?.attempted?'FALLBACK':'NOT QUALIFIED')}`;
+  document.getElementById('result').textContent=JSON.stringify(report,null,2);
+}
+
+async function run() {
+  check(window.isSecureContext===true,'secure context required');
+  check(ARBORCORE_HOST_JS_ROLE==='BROWSER_HOST_SYSCALL_SHIM_ONLY','production host role mismatch');
+  check(AUTHORITATIVE_JS_LOGIC==='ZERO','production authoritative JS must be zero');
+  check(BV2H_AUTHORITATIVE_JS_LOGIC==='ZERO','diagnostic JS authority marker mismatch');
+
+  const wasmResponse=await fetch('/arborcore-browser-v2-hardening.wasm',{cache:'no-store'}); check(wasmResponse.ok,'WASM fetch failed');
+  const wasmBytes=await wasmResponse.arrayBuffer(); const module=await WebAssembly.compile(wasmBytes);
+  const imports=WebAssembly.Module.imports(module); check(imports.length===0,'BV2H WASM must have zero imports');
+  const instance=await WebAssembly.instantiate(module,{}), ex=instance.exports;
+  check(ex.browser_wasm_prepare()===0,'browser reference prepare failed');
+  check(ex.browser_host_v2_selftest()===0,'LBv2 C/WASM selftest failed');
+  check(ex.browser_hardening_v2_selftest()===0,'BV2H C/WASM selftest failed');
+  const host=new ArborcoreBrowserHostV2(instance), authority=new BrowserHardeningV2Authority(instance);
+  const timerResolutionNs=measureTimerResolutionNs();
+
+  const rgba16Ptr=ex.browser_wasm_rgba16_ptr(), rgba16Size=ex.browser_wasm_rgba16_size();
+  const rgba8Ptr=ex.browser_wasm_rgba8_ptr(), rgba8Size=ex.browser_wasm_rgba8_size();
+  const width=ex.browser_wasm_width(), height=ex.browser_wasm_height(), stride=ex.browser_wasm_rgba8_stride();
+  const rgba16Hash=await sha256Hex(new Uint8Array(ex.memory.buffer,rgba16Ptr,rgba16Size));
+  const rgba8Hash=await sha256Hex(new Uint8Array(ex.memory.buffer,rgba8Ptr,rgba8Size));
+  check(rgba16Hash===EXPECTED_RGBA16,'frozen RGBA16 mismatch'); check(rgba8Hash===EXPECTED_RGBA8,'frozen RGBA8 mismatch');
+
+  const cssOne=host.q32Css(4294967296n); check(cssOne==='1.000000000px','Q32 CSS mismatch');
+  const opaquePtr=ex.browser_wasm_opaque_rgba8_ptr(), opaqueWidth=ex.browser_wasm_opaque_width(), opaqueHeight=ex.browser_wasm_opaque_height(), opaqueStride=ex.browser_wasm_opaque_rgba8_stride();
+  const fallback=new CanvasPresenterV2(document.getElementById('canvas2d'),host); fallback.presentRgba8(opaquePtr,opaqueWidth,opaqueHeight,opaqueStride);
+  const fallbackHash=await canvasHash(document.getElementById('canvas2d'),opaqueWidth,opaqueHeight); check(fallbackHash===EXPECTED_OPAQUE,'Canvas2D frozen transport mismatch');
+
+  const dprData=await (await fetch('/tests/data/browser_v2_dpr_vectors.json',{cache:'no-store'})).json();
+  const dprResults=testDprVectors(host,dprData.vectors), dprPassCount=dprResults.filter(v=>v.pass).length;
+  check(dprPassCount===dprResults.length,'DPR vector mismatch');
+
+  const webgpu=new WebGpuPresenterV2(document.getElementById('webgpu'),host);
+  authority.transition(LifecycleEvent.PROBE_BEGIN);
+  let mode='fallback', failureClass=0, uploadHash='', webgpuCanvasHash='', opt3Hash='', opt3Exact=false, webgpuInfo=null;
+  let lifecycleRecovery={attempted:false,succeeded:false,result:'NOT_APPLICABLE'};
+  let webGpuAttempted=true, webGpuInitialized=false, webGpuFailureStage='initialize', webGpuFailureMessage='';
+  let memoryGrowthProbe={attempted:false,succeeded:false,result:'NOT_APPLICABLE'};
+  const ready=await webgpu.initialize();
+  webGpuInitialized=ready;
+  if(ready){
+    authority.transition(LifecycleEvent.WEBGPU_READY); authority.metric(Metric.PIPELINE_CREATIONS);
+    try {
+      webGpuFailureStage='adapter-diagnostics'; webgpuInfo=await adapterDiagnostics(webgpu);
+      webGpuFailureStage='measured-rgba8';
+      for(let i=0;i<32;++i) await measuredPresentRgba8(authority,webgpu,rgba8Ptr,width,height,stride);
+
+      webGpuFailureStage='wasm-memory-growth';
+      memoryGrowthProbe={attempted:true,succeeded:false,result:'ATTEMPTED'};
+      const memoryBefore=ex.memory.buffer, bytesBefore=memoryBefore.byteLength, viewCreationsBefore=webgpu.stats.sourceViewCreations;
+      ex.memory.grow(1);
+      check(ex.memory.buffer!==memoryBefore,'WASM memory growth did not replace ArrayBuffer identity');
+      authority.metric(Metric.MEMORY_BUFFER_CHANGES);
+      webgpu.presentRgba8(rgba8Ptr,width,height,stride); await webgpu.device.queue.onSubmittedWorkDone();
+      const recreated=webgpu.stats.sourceViewCreations>viewCreationsBefore; check(recreated,'WASM memory growth did not invalidate cached source view');
+      authority.metric(Metric.SOURCE_VIEW_CREATIONS);
+      memoryGrowthProbe={attempted:true,succeeded:true,result:'BUFFER_REPLACED_SOURCE_VIEW_RECREATED',bytesBefore,bytesAfter:ex.memory.buffer.byteLength};
+
+      webGpuFailureStage='upload-readback';
+      uploadHash=await sha256Hex(await sourceTextureReadback(webgpu)); check(uploadHash===EXPECTED_RGBA8,'measured WebGPU upload mismatch');
+      webGpuFailureStage='webgpu-canvas';
+      webgpu.presentRgba8(opaquePtr,opaqueWidth,opaqueHeight,opaqueStride); await webgpu.device.queue.onSubmittedWorkDone();
+      webgpuCanvasHash=await canvasHash(document.getElementById('webgpu'),opaqueWidth,opaqueHeight); check(webgpuCanvasHash===EXPECTED_OPAQUE,'WebGPU canvas mismatch');
+
+      webGpuFailureStage='opt3';
+      const direct=new DirectRgba16ExperimentV2(document.getElementById('direct'),host); await direct.initializeFromPresenter(webgpu);
+      direct.presentRgba16(rgba16Ptr,width,height,width*8); await webgpu.device.queue.onSubmittedWorkDone();
+      opt3Hash=await sha256Hex(await direct.readbackRgba8()); opt3Exact=opt3Hash===EXPECTED_RGBA8; check(opt3Exact,'OPT3 exact conversion mismatch'); direct.destroy();
+      mode='webgpu';
+
+      webGpuFailureStage='recovery';
+      lifecycleRecovery={attempted:true,succeeded:false,result:'ATTEMPTED'};
+      webgpu.device.destroy(); await webgpu.device.lost;
+      if(authority.transition(LifecycleEvent.DEVICE_LOST)!==0) throw new Error('BV2H device-loss transition rejected');
+      if(authority.transition(LifecycleEvent.RECOVER_BEGIN)!==0) throw new Error('BV2H recovery-begin transition rejected');
+      const recovery=new WebGpuPresenterV2(document.getElementById('recovery'),host); const recovered=await recovery.initialize();
+      if(recovered){
+        authority.transition(LifecycleEvent.RECOVER_SUCCESS); await measuredPresentRgba8(authority,recovery,rgba8Ptr,width,height,stride);
+        lifecycleRecovery={attempted:true,succeeded:true,result:'WEBGPU_REACQUIRED'}; recovery.destroy();
+      } else {
+        authority.transition(LifecycleEvent.RECOVER_FALLBACK); lifecycleRecovery={attempted:true,succeeded:false,result:'QUALIFIED_FALLBACK'};
+      }
+    } catch(error){
+      webGpuFailureMessage=String(error?.message||error);
+      failureClass=host.classifyGpuFailure(error); host.markGpuFailure(failureClass);
+      if(failureClass===3) throw error;
+      const state=authority.lifecycle().state;
+      if(state===1) authority.transition(LifecycleEvent.PLATFORM_FALLBACK);
+      else if(state===2) authority.transition(LifecycleEvent.RUNTIME_FALLBACK);
+      else if(state===5) authority.transition(LifecycleEvent.RECOVER_FALLBACK);
+      fallback.presentRgba8(opaquePtr,opaqueWidth,opaqueHeight,opaqueStride);
+      check(await canvasHash(document.getElementById('canvas2d'),opaqueWidth,opaqueHeight)===EXPECTED_OPAQUE,'fallback after WebGPU failure mismatch');
+    }
+  } else {
+    webGpuFailureStage='initialize';
+    failureClass=host.stateRecord().failureClass; authority.transition(LifecycleEvent.PLATFORM_FALLBACK);
+  }
+
+  if(failureClass===0){ webGpuFailureStage='NONE'; webGpuFailureMessage=''; }
+  const lifecycleBeforeDestroy=authority.lifecycle(), metrics=authority.metrics(), timings=authority.timingSummary();
+  authority.transition(LifecycleEvent.DESTROY); const lifecycleFinal=authority.lifecycle();
+  try { webgpu.destroy(); } catch (_) {}
+
+  const report={
+    result:'PASS',
+    browserKind:/Firefox\//.test(navigator.userAgent)?'firefox':(/Chrome\//.test(navigator.userAgent)&&!/Edg\//.test(navigator.userAgent)?'chrome':'other'),
+    userAgent:navigator.userAgent,
+    qualificationMode:new URLSearchParams(location.search).get('qualification')||'unspecified',
+    secureContext:window.isSecureContext===true,
+    jsRole:ARBORCORE_HOST_JS_ROLE,
+    diagnosticJsRole:BV2H_TEST_JS_ROLE,
+    authoritativeJsLogic:AUTHORITATIVE_JS_LOGIC,
+    rgba16Hash, rgba8Hash, cssOne, fallbackHash,
+    devicePixelRatio:window.devicePixelRatio, timerResolutionNs, memoryGrowthProbe,
+    qualifiedMode:mode, webGpuAttempted, webGpuInitialized, webGpuFailureClass:failureClass, webGpuFailureStage, webGpuFailureMessage, webGpuMeasuredPresentations:metrics.presentations, uploadHash, webgpuCanvasHash,
+    opt2Reuse:{sourceViewCreations:metrics.sourceViewCreations,sourceViewReuses:metrics.sourceViewReuses,presentations:metrics.presentations,textureCreations:metrics.textureCreations,textureReuses:metrics.textureReuses,bindGroupCreations:metrics.bindGroupCreations,bindGroupReuses:metrics.bindGroupReuses,pipelineCreations:metrics.pipelineCreations,pipelineReuses:metrics.pipelineReuses},
+    opt3Exact,opt3Hash,opt3ContractAdmission:'CANDIDATE_NOT_ADMITTED_REQUIRES_BV2H4_REVIEW',
+    lifecycleRecovery,lifecycleBeforeDestroy,lifecycleFinal,metrics,timings,
+    timingSemantics:{hostEnqueue:'CPU-observed validation/view/upload-call/encode/submit latency',queueCompletionLatency:'queue.onSubmittedWorkDone callback latency; NOT GPU execution time',synchronizedPresent:'diagnostic synchronized latency; NOT production frame latency',timerResolutionNs},
+    dpr:{schema:dprData.schema,totalCount:dprResults.length,passCount:dprPassCount,results:dprResults},
+    webgpu:webgpuInfo,
+    wasm:{importCount:imports.length,memoryBytes:ex.memory.buffer.byteLength,hardeningVersion:ex.arbor_browser_hardening_v2_version()},
+    visualQualification:{scenes:['frozen-rgba16-golden','frozen-rgba8-golden','canvas2d-opaque-transport',...(mode==='webgpu'?['webgpu-rgba8-upload','webgpu-opaque-canvas','opt3-direct-rgba16-experiment']:[])],differencePixels:0},
+    broadBrowserReleaseClaim:'NOT_ADMITTED_WEBKIT_SAFARI_NOT_FORMALLY_QUALIFIED',
+    bv2hState:'QUALIFIED_LIVE_CANDIDATE_NOT_FROZEN'
+  };
+  render(report); return report;
+}
+
+async function send(payload){
+  if(payload.result!=='PASS') document.getElementById('result').textContent=JSON.stringify(payload,null,2);
+  try{await fetch('/report',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});}catch(_){}
+}
+run().then(send).catch(error=>send({result:'FAIL',error:String(error?.stack||error),userAgent:navigator.userAgent,browserKind:/Firefox\//.test(navigator.userAgent)?'firefox':(/Chrome\//.test(navigator.userAgent)&&!/Edg\//.test(navigator.userAgent)?'chrome':'other'),qualificationMode:new URLSearchParams(location.search).get('qualification')||'unspecified'}));
+</script>
+</body>
+</html>

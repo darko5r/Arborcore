@@ -1,0 +1,16 @@
+{
+  "schema": "ARBORCORE_BROWSER_V2_DPR_VECTORS_1",
+  "authority": "C_WASM_DEVICE_SIZE_RESOLUTION",
+  "rounding": "positive-nearest-via-plus-0.5-under-frozen-LBv2-contract",
+  "vectors": [
+    {"name":"dpr-1","cssWidth":16,"cssHeight":16,"dpr":1,"expectedWidth":16,"expectedHeight":16,"expectedMode":2},
+    {"name":"dpr-1.25","cssWidth":16,"cssHeight":16,"dpr":1.25,"expectedWidth":20,"expectedHeight":20,"expectedMode":2},
+    {"name":"dpr-1.5","cssWidth":16,"cssHeight":16,"dpr":1.5,"expectedWidth":24,"expectedHeight":24,"expectedMode":2},
+    {"name":"dpr-2","cssWidth":16,"cssHeight":16,"dpr":2,"expectedWidth":32,"expectedHeight":32,"expectedMode":2},
+    {"name":"dpr-2.625","cssWidth":16,"cssHeight":16,"dpr":2.625,"expectedWidth":42,"expectedHeight":42,"expectedMode":2},
+    {"name":"dpr-3","cssWidth":16,"cssHeight":16,"dpr":3,"expectedWidth":48,"expectedHeight":48,"expectedMode":2},
+    {"name":"fractional-a","cssWidth":10.4,"cssHeight":7.2,"dpr":1.25,"expectedWidth":13,"expectedHeight":9,"expectedMode":2},
+    {"name":"fractional-b","cssWidth":10.8,"cssHeight":7.8,"dpr":1.5,"expectedWidth":16,"expectedHeight":12,"expectedMode":2},
+    {"name":"device-box-wins","deviceWidth":641,"deviceHeight":361,"cssWidth":320,"cssHeight":180,"dpr":2,"expectedWidth":641,"expectedHeight":361,"expectedMode":1}
+  ]
+}
