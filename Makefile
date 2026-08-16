@@ -2198,3 +2198,73 @@ application-foundation-reproducibility-verify: $(APPLICATION_FOUNDATION_REPRO_VE
 
 application-foundation-gate: $(APPLICATION_FOUNDATION_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(APPLICATION_FOUNDATION_GATE)
+
+# ============================================================
+# Application / DDD / MVC AF2 Shared Capability Kernel
+# ============================================================
+
+APPLICATION_CAPABILITY_KERNEL_CONTRACT := application/arborcore-application-capability-kernel-1.contract
+APPLICATION_CAPABILITY_KERNEL_HEADER := include/arborcore/capability.h
+APPLICATION_CAPABILITY_KERNEL_SOURCE := src/c/capability_kernel.c
+APPLICATION_CAPABILITY_KERNEL_TEST_SOURCE := tests/c/application_capability_kernel_test.c
+APPLICATION_CAPABILITY_KERNEL_BUILD_DIR := $(BUILD_DIR)/application-capability-kernel
+APPLICATION_CAPABILITY_KERNEL_OBJ := $(APPLICATION_CAPABILITY_KERNEL_BUILD_DIR)/capability_kernel.o
+APPLICATION_CAPABILITY_KERNEL_TEST_OBJ := $(APPLICATION_CAPABILITY_KERNEL_BUILD_DIR)/application_capability_kernel_test.o
+APPLICATION_CAPABILITY_KERNEL_LIB := $(BUILD_DIR)/libarborcore_capability.a
+APPLICATION_CAPABILITY_KERNEL_TEST := $(BUILD_DIR)/application-capability-kernel-test
+APPLICATION_CAPABILITY_KERNEL_SANITIZE_TEST := $(BUILD_DIR)/application-capability-kernel-sanitize-test
+APPLICATION_CAPABILITY_KERNEL_BASELINE_VERIFY := tools/application_capability_kernel_baseline_verify.sh
+APPLICATION_CAPABILITY_KERNEL_CONTRACT_VERIFY := tools/application_capability_kernel_contract_verify.sh
+APPLICATION_CAPABILITY_KERNEL_NATIVE_VERIFY := tools/application_capability_kernel_native_verify.sh
+APPLICATION_CAPABILITY_KERNEL_REPRO_VERIFY := tools/application_capability_kernel_reproducibility_verify.sh
+APPLICATION_CAPABILITY_KERNEL_SCOPE_VERIFY := tools/application_capability_kernel_scope_verify.sh
+APPLICATION_CAPABILITY_KERNEL_GATE := tools/application_capability_kernel_gate.sh
+
+.PHONY: application-capability-kernel-library application-capability-kernel-native-test application-capability-kernel-sanitize
+.PHONY: application-capability-kernel-baseline-verify application-capability-kernel-contract-verify
+.PHONY: application-capability-kernel-reproducibility-verify application-capability-kernel-scope-verify application-capability-kernel-gate
+
+$(APPLICATION_CAPABILITY_KERNEL_BUILD_DIR):
+	mkdir -p $@
+
+$(APPLICATION_CAPABILITY_KERNEL_OBJ): $(APPLICATION_CAPABILITY_KERNEL_SOURCE) $(APPLICATION_CAPABILITY_KERNEL_HEADER) include/arborcore/application.h include/arborcore/arborcore.h include/arborcore/assembly_abi.h | $(APPLICATION_CAPABILITY_KERNEL_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(APPLICATION_CAPABILITY_KERNEL_TEST_OBJ): $(APPLICATION_CAPABILITY_KERNEL_TEST_SOURCE) $(APPLICATION_CAPABILITY_KERNEL_HEADER) include/arborcore/application.h include/arborcore/arborcore.h include/arborcore/assembly_abi.h | $(APPLICATION_CAPABILITY_KERNEL_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(APPLICATION_CAPABILITY_KERNEL_LIB): $(APPLICATION_CAPABILITY_KERNEL_OBJ) | $(BUILD_DIR)
+	$(AR) rcsD $@ $(APPLICATION_CAPABILITY_KERNEL_OBJ)
+
+application-capability-kernel-library: $(APPLICATION_CAPABILITY_KERNEL_LIB)
+
+$(APPLICATION_CAPABILITY_KERNEL_TEST): $(APPLICATION_CAPABILITY_KERNEL_TEST_OBJ) $(APPLICATION_CAPABILITY_KERNEL_LIB) $(APPLICATION_FOUNDATION_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(APPLICATION_CAPABILITY_KERNEL_TEST_OBJ) $(APPLICATION_CAPABILITY_KERNEL_LIB) $(APPLICATION_FOUNDATION_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+
+application-capability-kernel-native-test: $(APPLICATION_CAPABILITY_KERNEL_TEST)
+	@$(APPLICATION_CAPABILITY_KERNEL_TEST)
+
+$(APPLICATION_CAPABILITY_KERNEL_SANITIZE_TEST): $(APPLICATION_CAPABILITY_KERNEL_TEST_SOURCE) $(APPLICATION_CAPABILITY_KERNEL_SOURCE) $(APPLICATION_FOUNDATION_SOURCE) $(C_RUNTIME_SOURCES) $(STATIC_LIB) $(APPLICATION_CAPABILITY_KERNEL_HEADER) $(APPLICATION_FOUNDATION_HEADER) include/arborcore/arborcore.h include/arborcore/assembly_abi.h
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(APPLICATION_CAPABILITY_KERNEL_TEST_SOURCE) $(APPLICATION_CAPABILITY_KERNEL_SOURCE) $(APPLICATION_FOUNDATION_SOURCE) $(C_RUNTIME_SOURCES) $(STATIC_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@
+
+application-capability-kernel-sanitize: $(APPLICATION_CAPABILITY_KERNEL_SANITIZE_TEST)
+	@ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(APPLICATION_CAPABILITY_KERNEL_SANITIZE_TEST)
+	@echo "PASS: AF2 ASan/UBSan capability-kernel qualification"
+
+application-capability-kernel-baseline-verify: $(APPLICATION_CAPABILITY_KERNEL_BASELINE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(APPLICATION_CAPABILITY_KERNEL_BASELINE_VERIFY)
+
+application-capability-kernel-contract-verify: $(APPLICATION_CAPABILITY_KERNEL_CONTRACT) $(APPLICATION_CAPABILITY_KERNEL_CONTRACT_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(APPLICATION_CAPABILITY_KERNEL_CONTRACT_VERIFY)
+
+application-capability-kernel-scope-verify: $(APPLICATION_CAPABILITY_KERNEL_SCOPE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(APPLICATION_CAPABILITY_KERNEL_SCOPE_VERIFY)
+
+application-capability-kernel-reproducibility-verify: $(APPLICATION_CAPABILITY_KERNEL_REPRO_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(APPLICATION_CAPABILITY_KERNEL_REPRO_VERIFY)
+
+application-capability-kernel-gate: $(APPLICATION_CAPABILITY_KERNEL_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(APPLICATION_CAPABILITY_KERNEL_GATE)
