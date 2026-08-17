@@ -2664,3 +2664,157 @@ mvc0-reproducibility-verify: $(MVC0_REPRO_VERIFY)
 
 mvc0-gate: $(MVC0_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(MVC0_GATE)
+
+# ============================================================
+# HTTP0 Message Metadata + Final-Response Semantics
+# ============================================================
+
+HTTP0_CONTRACT := http/arborcore-http-message-semantics-1.contract
+HTTP0_HEADER := include/arborcore/http.h
+HTTP0_C_SOURCE := src/c/http.c
+HTTP0_HEADER_ASM_SOURCE := src/asm/http_header.asm
+HTTP0_RESPONSE_ASM_SOURCE := src/asm/http_response_v2.asm
+HTTP0_ABI_SOURCE := tests/asm/http0_abi_test.asm
+HTTP0_HEADER_TEST_SOURCE := tests/c/http0_header_test.c
+HTTP0_RESPONSE_TEST_SOURCE := tests/c/http0_response_test.c
+HTTP0_ADVERSARIAL_TEST_SOURCE := tests/c/http0_adversarial_test.c
+HTTP0_INTEGRATION_TEST_SOURCE := tests/c/http0_integration_test.c
+HTTP0_BENCH_SOURCE := bench/http0_response_bench.c
+HTTP0_BUILD_DIR := $(BUILD_DIR)/http0
+HTTP0_C_OBJ := $(HTTP0_BUILD_DIR)/http.o
+HTTP0_HEADER_ASM_OBJ := $(HTTP0_BUILD_DIR)/http_header.o
+HTTP0_RESPONSE_ASM_OBJ := $(HTTP0_BUILD_DIR)/http_response_v2.o
+HTTP0_ABI_OBJ := $(HTTP0_BUILD_DIR)/http0_abi_test.o
+HTTP0_HEADER_TEST_OBJ := $(HTTP0_BUILD_DIR)/http0_header_test.o
+HTTP0_RESPONSE_TEST_OBJ := $(HTTP0_BUILD_DIR)/http0_response_test.o
+HTTP0_ADVERSARIAL_TEST_OBJ := $(HTTP0_BUILD_DIR)/http0_adversarial_test.o
+HTTP0_INTEGRATION_TEST_OBJ := $(HTTP0_BUILD_DIR)/http0_integration_test.o
+HTTP0_BENCH_OBJ := $(HTTP0_BUILD_DIR)/http0_response_bench.o
+HTTP0_LIB := $(BUILD_DIR)/libarborcore_http0.a
+HTTP0_HEADER_TEST := $(BUILD_DIR)/http0-header-test
+HTTP0_RESPONSE_TEST := $(BUILD_DIR)/http0-response-test
+HTTP0_ADVERSARIAL_TEST := $(BUILD_DIR)/http0-adversarial-test
+HTTP0_INTEGRATION_TEST := $(BUILD_DIR)/http0-integration-test
+HTTP0_HEADER_SANITIZE_TEST := $(BUILD_DIR)/http0-header-sanitize-test
+HTTP0_RESPONSE_SANITIZE_TEST := $(BUILD_DIR)/http0-response-sanitize-test
+HTTP0_ADVERSARIAL_SANITIZE_TEST := $(BUILD_DIR)/http0-adversarial-sanitize-test
+HTTP0_INTEGRATION_SANITIZE_TEST := $(BUILD_DIR)/http0-integration-sanitize-test
+HTTP0_BENCH := $(BUILD_DIR)/http0-response-bench
+HTTP0_BASELINE_VERIFY := tools/http0_baseline_verify.sh
+HTTP0_CONTRACT_VERIFY := tools/http0_contract_verify.sh
+HTTP0_NATIVE_VERIFY := tools/http0_native_verify.sh
+HTTP0_ABI_VERIFY := tools/http0_abi_verify.sh
+HTTP0_SCOPE_VERIFY := tools/http0_scope_verify.sh
+HTTP0_REPRO_VERIFY := tools/http0_reproducibility_verify.sh
+HTTP0_BENCH_RUN := tools/http0_benchmark_run.sh
+HTTP0_GATE := tools/http0_gate.sh
+
+.PHONY: http0-library http0-header-test http0-response-test http0-adversarial-test http0-integration-test
+.PHONY: http0-sanitize http0-baseline-verify http0-contract-verify http0-native-verify http0-abi-verify
+.PHONY: http0-scope-verify http0-reproducibility-verify http0-benchmark-run http0-gate
+
+$(HTTP0_BUILD_DIR):
+	mkdir -p $@
+
+$(HTTP0_C_OBJ): $(HTTP0_C_SOURCE) $(HTTP0_HEADER) include/arborcore/arborcore.h include/arborcore/assembly_abi.h | $(HTTP0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(HTTP0_HEADER_ASM_OBJ): $(HTTP0_HEADER_ASM_SOURCE) | $(HTTP0_BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(HTTP0_RESPONSE_ASM_OBJ): $(HTTP0_RESPONSE_ASM_SOURCE) | $(HTTP0_BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(HTTP0_ABI_OBJ): $(HTTP0_ABI_SOURCE) | $(HTTP0_BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(HTTP0_HEADER_TEST_OBJ): $(HTTP0_HEADER_TEST_SOURCE) $(HTTP0_HEADER) | $(HTTP0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(HTTP0_RESPONSE_TEST_OBJ): $(HTTP0_RESPONSE_TEST_SOURCE) $(HTTP0_HEADER) | $(HTTP0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(HTTP0_ADVERSARIAL_TEST_OBJ): $(HTTP0_ADVERSARIAL_TEST_SOURCE) $(HTTP0_HEADER) | $(HTTP0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(HTTP0_INTEGRATION_TEST_OBJ): $(HTTP0_INTEGRATION_TEST_SOURCE) $(HTTP0_HEADER) | $(HTTP0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(HTTP0_BENCH_OBJ): $(HTTP0_BENCH_SOURCE) $(HTTP0_HEADER) | $(HTTP0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(HTTP0_LIB): $(HTTP0_C_OBJ) $(HTTP0_HEADER_ASM_OBJ) $(HTTP0_RESPONSE_ASM_OBJ) | $(BUILD_DIR)
+	$(AR) rcsD $@ $(HTTP0_C_OBJ) $(HTTP0_HEADER_ASM_OBJ) $(HTTP0_RESPONSE_ASM_OBJ)
+
+http0-library: $(HTTP0_LIB)
+
+$(HTTP0_HEADER_TEST): $(HTTP0_HEADER_TEST_OBJ) $(HTTP0_ABI_OBJ) $(HTTP0_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(HTTP0_HEADER_TEST_OBJ) $(HTTP0_ABI_OBJ) $(HTTP0_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+http0-header-test: $(HTTP0_HEADER_TEST)
+	@$(HTTP0_HEADER_TEST)
+
+$(HTTP0_RESPONSE_TEST): $(HTTP0_RESPONSE_TEST_OBJ) $(HTTP0_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(HTTP0_RESPONSE_TEST_OBJ) $(HTTP0_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+http0-response-test: $(HTTP0_RESPONSE_TEST)
+	@$(HTTP0_RESPONSE_TEST)
+
+$(HTTP0_ADVERSARIAL_TEST): $(HTTP0_ADVERSARIAL_TEST_OBJ) $(HTTP0_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(HTTP0_ADVERSARIAL_TEST_OBJ) $(HTTP0_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+http0-adversarial-test: $(HTTP0_ADVERSARIAL_TEST)
+	@$(HTTP0_ADVERSARIAL_TEST)
+
+$(HTTP0_INTEGRATION_TEST): $(HTTP0_INTEGRATION_TEST_OBJ) $(HTTP0_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(HTTP0_INTEGRATION_TEST_OBJ) $(HTTP0_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+http0-integration-test: $(HTTP0_INTEGRATION_TEST)
+	@$(HTTP0_INTEGRATION_TEST)
+
+$(HTTP0_BENCH): $(HTTP0_BENCH_OBJ) $(HTTP0_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(HTTP0_BENCH_OBJ) $(HTTP0_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+
+$(HTTP0_HEADER_SANITIZE_TEST): $(HTTP0_HEADER_TEST_SOURCE) $(HTTP0_C_SOURCE) $(C_RUNTIME_SOURCES) $(HTTP0_HEADER_ASM_OBJ) $(HTTP0_RESPONSE_ASM_OBJ) $(HTTP0_ABI_OBJ) $(STATIC_LIB) $(HTTP0_HEADER)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(HTTP0_HEADER_TEST_SOURCE) $(HTTP0_C_SOURCE) $(C_RUNTIME_SOURCES) \
+		$(HTTP0_HEADER_ASM_OBJ) $(HTTP0_RESPONSE_ASM_OBJ) $(HTTP0_ABI_OBJ) $(STATIC_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@
+
+$(HTTP0_RESPONSE_SANITIZE_TEST): $(HTTP0_RESPONSE_TEST_SOURCE) $(HTTP0_C_SOURCE) $(C_RUNTIME_SOURCES) $(HTTP0_HEADER_ASM_OBJ) $(HTTP0_RESPONSE_ASM_OBJ) $(STATIC_LIB) $(HTTP0_HEADER)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(HTTP0_RESPONSE_TEST_SOURCE) $(HTTP0_C_SOURCE) $(C_RUNTIME_SOURCES) \
+		$(HTTP0_HEADER_ASM_OBJ) $(HTTP0_RESPONSE_ASM_OBJ) $(STATIC_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@
+
+$(HTTP0_ADVERSARIAL_SANITIZE_TEST): $(HTTP0_ADVERSARIAL_TEST_SOURCE) $(HTTP0_C_SOURCE) $(C_RUNTIME_SOURCES) $(HTTP0_HEADER_ASM_OBJ) $(HTTP0_RESPONSE_ASM_OBJ) $(STATIC_LIB) $(HTTP0_HEADER)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(HTTP0_ADVERSARIAL_TEST_SOURCE) $(HTTP0_C_SOURCE) $(C_RUNTIME_SOURCES) \
+		$(HTTP0_HEADER_ASM_OBJ) $(HTTP0_RESPONSE_ASM_OBJ) $(STATIC_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@
+
+$(HTTP0_INTEGRATION_SANITIZE_TEST): $(HTTP0_INTEGRATION_TEST_SOURCE) $(HTTP0_C_SOURCE) $(C_RUNTIME_SOURCES) $(HTTP0_HEADER_ASM_OBJ) $(HTTP0_RESPONSE_ASM_OBJ) $(STATIC_LIB) $(HTTP0_HEADER)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(HTTP0_INTEGRATION_TEST_SOURCE) $(HTTP0_C_SOURCE) $(C_RUNTIME_SOURCES) \
+		$(HTTP0_HEADER_ASM_OBJ) $(HTTP0_RESPONSE_ASM_OBJ) $(STATIC_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@
+
+http0-sanitize: $(HTTP0_HEADER_SANITIZE_TEST) $(HTTP0_RESPONSE_SANITIZE_TEST) $(HTTP0_ADVERSARIAL_SANITIZE_TEST) $(HTTP0_INTEGRATION_SANITIZE_TEST)
+	@ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(HTTP0_HEADER_SANITIZE_TEST)
+	@ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(HTTP0_RESPONSE_SANITIZE_TEST)
+	@ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(HTTP0_ADVERSARIAL_SANITIZE_TEST)
+	@ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(HTTP0_INTEGRATION_SANITIZE_TEST)
+	@echo "PASS: HTTP0 ASan/UBSan header, response, adversarial and integration qualification"
+
+http0-baseline-verify: $(HTTP0_BASELINE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(HTTP0_BASELINE_VERIFY)
+http0-contract-verify: $(HTTP0_CONTRACT) $(HTTP0_CONTRACT_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(HTTP0_CONTRACT_VERIFY)
+http0-native-verify: $(HTTP0_NATIVE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(HTTP0_NATIVE_VERIFY)
+http0-abi-verify: $(HTTP0_ABI_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(HTTP0_ABI_VERIFY)
+http0-scope-verify: $(HTTP0_SCOPE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(HTTP0_SCOPE_VERIFY)
+http0-reproducibility-verify: $(HTTP0_REPRO_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(HTTP0_REPRO_VERIFY)
+http0-benchmark-run: $(HTTP0_BENCH_RUN)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(HTTP0_BENCH_RUN)
+http0-gate: $(HTTP0_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(HTTP0_GATE)
