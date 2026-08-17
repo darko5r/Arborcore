@@ -2383,3 +2383,112 @@ application-service-runtime-reproducibility-verify: $(APPLICATION_SERVICE_RUNTIM
 
 application-service-runtime-gate: $(APPLICATION_SERVICE_RUNTIME_GATE)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(APPLICATION_SERVICE_RUNTIME_GATE)
+
+
+# ============================================================
+# Application / DDD / MVC AF4 DDD Support
+# ============================================================
+
+DDD_SUPPORT_CONTRACT := application/arborcore-application-ddd-support-1.contract
+DDD_SUPPORT_HEADER := include/arborcore/ddd_support.h
+DDD_SUPPORT_SOURCE := src/c/ddd_support.c
+DDD_SUPPORT_TEST_SOURCE := tests/c/ddd_support_test.c
+DDD_SUPPORT_ADVERSARIAL_SOURCE := tests/c/ddd_support_adversarial_test.c
+DDD_SUPPORT_ABI_SOURCE := tests/asm/ddd_support_abi_test.asm
+DDD_SUPPORT_BUILD_DIR := $(BUILD_DIR)/ddd-support
+DDD_SUPPORT_OBJ := $(DDD_SUPPORT_BUILD_DIR)/ddd_support.o
+DDD_SUPPORT_TEST_OBJ := $(DDD_SUPPORT_BUILD_DIR)/ddd_support_test.o
+DDD_SUPPORT_ADVERSARIAL_OBJ := $(DDD_SUPPORT_BUILD_DIR)/ddd_support_adversarial_test.o
+DDD_SUPPORT_ABI_OBJ := $(DDD_SUPPORT_BUILD_DIR)/ddd_support_abi_test.o
+DDD_SUPPORT_LIB := $(BUILD_DIR)/libarborcore_ddd_support.a
+DDD_SUPPORT_TEST := $(BUILD_DIR)/ddd-support-test
+DDD_SUPPORT_ADVERSARIAL_TEST := $(BUILD_DIR)/ddd-support-adversarial-test
+DDD_SUPPORT_SANITIZE_TEST := $(BUILD_DIR)/ddd-support-sanitize-test
+DDD_SUPPORT_ADVERSARIAL_SANITIZE_TEST := $(BUILD_DIR)/ddd-support-adversarial-sanitize-test
+DDD_SUPPORT_BASELINE_VERIFY := tools/ddd_support_baseline_verify.sh
+DDD_SUPPORT_CONTRACT_VERIFY := tools/ddd_support_contract_verify.sh
+DDD_SUPPORT_NATIVE_VERIFY := tools/ddd_support_native_verify.sh
+DDD_SUPPORT_ABI_VERIFY := tools/ddd_support_abi_verify.sh
+DDD_SUPPORT_SCOPE_VERIFY := tools/ddd_support_scope_verify.sh
+DDD_SUPPORT_REPRO_VERIFY := tools/ddd_support_reproducibility_verify.sh
+DDD_SUPPORT_GATE := tools/ddd_support_gate.sh
+
+.PHONY: ddd-support-library ddd-support-native-test ddd-support-adversarial-test
+.PHONY: ddd-support-sanitize ddd-support-baseline-verify ddd-support-contract-verify
+.PHONY: ddd-support-native-verify ddd-support-abi-verify ddd-support-scope-verify
+.PHONY: ddd-support-reproducibility-verify ddd-support-gate
+
+$(DDD_SUPPORT_BUILD_DIR):
+	mkdir -p $@
+
+$(DDD_SUPPORT_OBJ): $(DDD_SUPPORT_SOURCE) $(DDD_SUPPORT_HEADER) $(APPLICATION_CAPABILITY_KERNEL_HEADER) include/arborcore/arborcore.h include/arborcore/assembly_abi.h | $(DDD_SUPPORT_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(DDD_SUPPORT_TEST_OBJ): $(DDD_SUPPORT_TEST_SOURCE) $(DDD_SUPPORT_HEADER) $(APPLICATION_CAPABILITY_KERNEL_HEADER) include/arborcore/arborcore.h include/arborcore/assembly_abi.h | $(DDD_SUPPORT_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(DDD_SUPPORT_ADVERSARIAL_OBJ): $(DDD_SUPPORT_ADVERSARIAL_SOURCE) $(DDD_SUPPORT_HEADER) $(APPLICATION_CAPABILITY_KERNEL_HEADER) include/arborcore/arborcore.h include/arborcore/assembly_abi.h | $(DDD_SUPPORT_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(DDD_SUPPORT_ABI_OBJ): $(DDD_SUPPORT_ABI_SOURCE) | $(DDD_SUPPORT_BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(DDD_SUPPORT_LIB): $(DDD_SUPPORT_OBJ) | $(BUILD_DIR)
+	$(AR) rcsD $@ $(DDD_SUPPORT_OBJ)
+
+ddd-support-library: $(DDD_SUPPORT_LIB)
+
+$(DDD_SUPPORT_TEST): $(DDD_SUPPORT_TEST_OBJ) $(DDD_SUPPORT_ABI_OBJ) $(DDD_SUPPORT_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(DDD_SUPPORT_TEST_OBJ) $(DDD_SUPPORT_ABI_OBJ) $(DDD_SUPPORT_LIB) \
+		$(C_RUNTIME_LIB) $(STATIC_LIB)
+
+ddd-support-native-test: $(DDD_SUPPORT_TEST)
+	@$(DDD_SUPPORT_TEST)
+
+$(DDD_SUPPORT_ADVERSARIAL_TEST): $(DDD_SUPPORT_ADVERSARIAL_OBJ) $(DDD_SUPPORT_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(DDD_SUPPORT_ADVERSARIAL_OBJ) $(DDD_SUPPORT_LIB) \
+		$(C_RUNTIME_LIB) $(STATIC_LIB)
+
+ddd-support-adversarial-test: $(DDD_SUPPORT_ADVERSARIAL_TEST)
+	@$(DDD_SUPPORT_ADVERSARIAL_TEST)
+
+$(DDD_SUPPORT_SANITIZE_TEST): $(DDD_SUPPORT_TEST_SOURCE) $(DDD_SUPPORT_SOURCE) $(C_RUNTIME_SOURCES) $(DDD_SUPPORT_ABI_OBJ) $(STATIC_LIB) $(DDD_SUPPORT_HEADER) $(APPLICATION_CAPABILITY_KERNEL_HEADER) include/arborcore/arborcore.h include/arborcore/assembly_abi.h
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(DDD_SUPPORT_TEST_SOURCE) $(DDD_SUPPORT_SOURCE) $(C_RUNTIME_SOURCES) \
+		$(DDD_SUPPORT_ABI_OBJ) $(STATIC_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@
+
+$(DDD_SUPPORT_ADVERSARIAL_SANITIZE_TEST): $(DDD_SUPPORT_ADVERSARIAL_SOURCE) $(DDD_SUPPORT_SOURCE) $(C_RUNTIME_SOURCES) $(STATIC_LIB) $(DDD_SUPPORT_HEADER) $(APPLICATION_CAPABILITY_KERNEL_HEADER) include/arborcore/arborcore.h include/arborcore/assembly_abi.h
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(DDD_SUPPORT_ADVERSARIAL_SOURCE) $(DDD_SUPPORT_SOURCE) $(C_RUNTIME_SOURCES) \
+		$(STATIC_LIB) $(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@
+
+ddd-support-sanitize: $(DDD_SUPPORT_SANITIZE_TEST) $(DDD_SUPPORT_ADVERSARIAL_SANITIZE_TEST)
+	@ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(DDD_SUPPORT_SANITIZE_TEST)
+	@ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(DDD_SUPPORT_ADVERSARIAL_SANITIZE_TEST)
+	@echo "PASS: AF4 ASan/UBSan DDD-support qualification"
+
+ddd-support-baseline-verify: $(DDD_SUPPORT_BASELINE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(DDD_SUPPORT_BASELINE_VERIFY)
+
+ddd-support-contract-verify: $(DDD_SUPPORT_CONTRACT) $(DDD_SUPPORT_CONTRACT_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(DDD_SUPPORT_CONTRACT_VERIFY)
+
+ddd-support-native-verify: $(DDD_SUPPORT_NATIVE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(DDD_SUPPORT_NATIVE_VERIFY)
+
+ddd-support-abi-verify: $(DDD_SUPPORT_ABI_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(DDD_SUPPORT_ABI_VERIFY)
+
+ddd-support-scope-verify: $(DDD_SUPPORT_SCOPE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(DDD_SUPPORT_SCOPE_VERIFY)
+
+ddd-support-reproducibility-verify: $(DDD_SUPPORT_REPRO_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(DDD_SUPPORT_REPRO_VERIFY)
+
+ddd-support-gate: $(DDD_SUPPORT_GATE)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(DDD_SUPPORT_GATE)
