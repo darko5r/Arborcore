@@ -46,6 +46,12 @@ static int64_t test_dispatch(
     }
     if (context->mode == 2u) {
         *response_out = (arbor_response_plan){
+            UINT64_C(600), body_ok, (uint64_t)sizeof(body_ok), ARBOR_RESPONSE_PLAN_FLAG_NONE
+        };
+        return 0;
+    }
+    if (context->mode == 4u) {
+        *response_out = (arbor_response_plan){
             UINT64_C(202), body_ok, (uint64_t)sizeof(body_ok), ARBOR_RESPONSE_PLAN_FLAG_NONE
         };
         return 0;
@@ -123,19 +129,21 @@ int main(void)
     arena.offset = 0u;
 
     static const uint64_t supported[] = {
-        UINT64_C(200), UINT64_C(201), UINT64_C(204),
-        UINT64_C(400), UINT64_C(404), UINT64_C(500)
+        UINT64_C(200), UINT64_C(201), UINT64_C(202), UINT64_C(204), UINT64_C(205),
+        UINT64_C(302), UINT64_C(304), UINT64_C(400), UINT64_C(404), UINT64_C(422),
+        UINT64_C(500), UINT64_C(503), UINT64_C(599)
     };
     for (size_t i = 0u; i < sizeof(supported) / sizeof(supported[0]); ++i) {
         arbor_span body = {body_ok, (uint64_t)sizeof(body_ok)};
-        if (supported[i] == UINT64_C(204)) {
+        if (supported[i] == UINT64_C(204) || supported[i] == UINT64_C(205) ||
+            supported[i] == UINT64_C(304)) {
             body = (arbor_span){NULL, 0u};
         }
         arbor_response_plan plan = {0};
         status = arbor_response_plan_make(
             supported[i], body, ARBOR_RESPONSE_PLAN_FLAG_NONE, &plan);
         if (status.native != 0 || plan.status != supported[i]) {
-            return fail("supported response status");
+            return fail("HTTP1 expanded final response status");
         }
     }
 
@@ -144,21 +152,34 @@ int main(void)
     };
     arbor_response_plan unchanged_plan = sentinel_plan;
     status = arbor_response_plan_make(
-        UINT64_C(202),
+        UINT64_C(199),
         (arbor_span){body_ok, (uint64_t)sizeof(body_ok)},
         ARBOR_RESPONSE_PLAN_FLAG_NONE,
         &sentinel_plan);
     if (status.native != -EINVAL || !plan_equal(sentinel_plan, unchanged_plan)) {
-        return fail("unsupported response status transactional failure");
+        return fail("status below final response range rejected transactionally");
     }
-
     status = arbor_response_plan_make(
-        UINT64_C(204),
+        UINT64_C(600),
         (arbor_span){body_ok, (uint64_t)sizeof(body_ok)},
         ARBOR_RESPONSE_PLAN_FLAG_NONE,
         &sentinel_plan);
-    if (status.native != -EINVAL) {
-        return fail("204 nonempty body rejected");
+    if (status.native != -EINVAL || !plan_equal(sentinel_plan, unchanged_plan)) {
+        return fail("status above final response range rejected transactionally");
+    }
+
+    static const uint64_t no_body_statuses[] = {
+        UINT64_C(204), UINT64_C(205), UINT64_C(304)
+    };
+    for (size_t i = 0u; i < sizeof(no_body_statuses) / sizeof(no_body_statuses[0]); ++i) {
+        status = arbor_response_plan_make(
+            no_body_statuses[i],
+            (arbor_span){body_ok, (uint64_t)sizeof(body_ok)},
+            ARBOR_RESPONSE_PLAN_FLAG_NONE,
+            &sentinel_plan);
+        if (status.native != -EINVAL) {
+            return fail("HTTP1 no-body status rejects nonempty body");
+        }
     }
 
     status = arbor_response_plan_make(
@@ -234,6 +255,17 @@ int main(void)
         return fail("invalid callback response is rejected transactionally");
     }
 
+    context.mode = 4u;
+    status = arbor_application_invoke(&capabilities, &scope, &invoked);
+    if (status.native != 0 ||
+        invoked.status != UINT64_C(202) ||
+        invoked.body_data != body_ok ||
+        invoked.body_length != (uint64_t)sizeof(body_ok) ||
+        invoked.flags != ARBOR_RESPONSE_PLAN_FLAG_NONE) {
+        return fail("HTTP1 expanded final callback response accepted");
+    }
+    unchanged_plan = invoked;
+
     context.mode = 3u;
     status = arbor_application_invoke(&capabilities, &scope, &invoked);
     if (status.native != -EINVAL || !plan_equal(invoked, unchanged_plan)) {
@@ -259,6 +291,24 @@ int main(void)
         &serial_plan);
     if (status.native != 0) {
         return fail("serialization plan construction");
+    }
+
+    arbor_response_plan redirect_plan = {0};
+    status = arbor_response_plan_make(
+        UINT64_C(302),
+        (arbor_span){NULL, UINT64_C(0)},
+        ARBOR_RESPONSE_PLAN_FLAG_KEEP_ALIVE,
+        &redirect_plan);
+    if (status.native != 0) {
+        return fail("HTTP1 redirect plan accepted by AF1");
+    }
+    uint64_t redirect_written = UINT64_C(77);
+    status = arbor_response_plan_serialize(&output, &redirect_plan, &redirect_written);
+    if (status.native != -EINVAL || redirect_written != 0u) {
+        return fail("legacy AF1 serializer rejects expanded HTTP1-only status");
+    }
+    if (buffer_reset(&output).status != 0) {
+        return fail("lower buffer reset before legacy serialization");
     }
 
     uint64_t written = 0u;

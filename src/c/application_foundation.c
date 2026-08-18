@@ -35,6 +35,11 @@ static arbor_status ok_status(void)
 
 static bool response_status_supported(uint64_t status)
 {
+    return status >= UINT64_C(200) && status <= UINT64_C(599);
+}
+
+static bool response_status_legacy_serializer_supported(uint64_t status)
+{
     return status == UINT64_C(200) ||
            status == UINT64_C(201) ||
            status == UINT64_C(204) ||
@@ -101,7 +106,10 @@ arbor_status arbor_response_plan_validate(const arbor_response_plan *plan)
     if (plan->body_length != 0u && plan->body_data == NULL) {
         return invalid_argument_status();
     }
-    if (plan->status == UINT64_C(204) && plan->body_length != 0u) {
+    if ((plan->status == UINT64_C(204) ||
+         plan->status == UINT64_C(205) ||
+         plan->status == UINT64_C(304)) &&
+        plan->body_length != 0u) {
         return invalid_argument_status();
     }
     return ok_status();
@@ -144,6 +152,9 @@ arbor_status arbor_response_plan_serialize(
     arbor_status valid = arbor_response_plan_validate(plan);
     if (valid.native != 0) {
         return valid;
+    }
+    if (!response_status_legacy_serializer_supported(plan->status)) {
+        return invalid_argument_status();
     }
 
     return arbor_response_serialize(

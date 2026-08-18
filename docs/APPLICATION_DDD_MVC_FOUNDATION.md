@@ -87,10 +87,13 @@ AF1 intentionally matches the currently qualified bounded response serializer.
 - borrowed body span;
 - response flags (`KEEP_ALIVE` currently).
 
-Supported statuses are 200, 201, 204, 400, 404 and 500. Status 204 requires an
-empty body. Arbitrary headers, cookies, redirects, streaming and broader status
-coverage are not silently invented in AF1; they require a later explicit
-response-contract phase.
+AF1 originally qualified the bounded status subset 200, 201, 204, 400, 404 and
+500. HTTP1 performs the documented controlled semantic retrofit without changing
+the 32-byte response-plan ABI: final statuses 200 through 599 are accepted, while
+204, 205 and 304 require an empty body. The historical AF1 serializer remains
+limited to its six-status subset; broader final statuses are serialized only by
+the HTTP1 -> HTTP0 path. HTTP-specific response fields remain outside AF1 and are
+carried by the explicit request-local HTTP1 sidecar.
 
 The body remains caller-owned and must stay valid through serialization. The
 existing lower serializer retains its whole-operation snapshot/transactional
@@ -173,3 +176,13 @@ Framework-to-application dispatch now accepts exactly zero as callback success,
 normalizes negative mechanism failures, and rejects positive callback values
 transactionally. This does not change the capability-table layout or any protected
 lower-layer source.
+
+## HTTP1 controlled AF1 semantic retrofit
+
+HTTP1 proves the deferred response-contract need without changing the stable AF1
+request-scope, response-plan or capability-table layouts. The response-plan status
+field now accepts final HTTP statuses 200-599. Statuses 204, 205 and 304 prohibit a
+body at AF1 validation. `arbor_response_plan_serialize()` remains the legacy
+six-status serializer and intentionally rejects broader statuses; the richer HTTP1
+transport converts the plan plus request-local HTTP fields into HTTP0. All AF1
+dependents are requalified as part of HTTP1.
