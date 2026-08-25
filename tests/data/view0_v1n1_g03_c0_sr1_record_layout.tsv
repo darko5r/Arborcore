@@ -1,0 +1,14 @@
+ordinal	field	type	sentinel_or_domain	semantics
+1	standard_element_id	uint64_t	0=nonstandard/unmapped	Stable Arborcore standard-element ID for the source start tag.
+2	source_offset	uint64_t	ARBOR_VIEW0_NATIVE_SOURCE_OFFSET_NONE unavailable	Source start-tag name offset for exact source-token correlation and diagnostic anchoring.
+3	source_length	uint64_t	0 only when unavailable	Source start-tag name length.
+4	initial_current_standard_element_id	uint64_t	0=no HTML standard current element	Current open HTML standard element before downstream tree processing of the source token.
+5	initial_current_source_offset	uint64_t	SOURCE_OFFSET_NONE=synthetic/unavailable	Existing provenance offset of the initial current element; NONE distinguishes synthetic context.
+6	initial_insertion_mode_id	uint64_t	0=NONE	Stable Arborcore insertion-mode ID captured before downstream tree processing.
+7	initial_open_elements_depth	uint64_t	bounded by parser/input limits	Open-elements stack depth at the source-token point.
+8	insertion_seen	uint64_t	0 or 1	One iff the exact correlated source token reaches one successful source-backed element insertion.
+9	insertion_current_standard_element_id	uint64_t	0 when insertion_seen=0 or unmapped	Current open HTML standard element immediately before the correlated insertion.
+10	insertion_current_source_offset	uint64_t	SOURCE_OFFSET_NONE=synthetic/unavailable	Existing provenance offset of insertion current element; synthetic implied parents remain distinguishable.
+11	insertion_mode_id	uint64_t	0 when insertion_seen=0	Stable Arborcore insertion-mode ID immediately before the correlated insertion.
+12	insertion_open_elements_depth	uint64_t	0 when insertion_seen=0	Open-elements stack depth immediately before correlated insertion.
+13	insertion_flags	uint64_t	bit0=FOSTER_PARENTING; all other bits zero in SR1	Neutral parser state; bit0 mirrors tree foster-parenting state at correlated insertion.

@@ -1,0 +1,7 @@
+fixture_id	class	fixture	owner	expected
+F11-R6-F001	POSITIVE_VALID_SCALAR	U+00E9 text/attribute	M1 accepts; tokenizer clean	NO_DIAGNOSTIC
+F11-R6-F002	POSITIVE_ASCII_WHITESPACE	TAB/LF/FF/CR/SPACE in text/attribute positions	R6-P0 10_OF_10 clean	NO_DIAGNOSTIC
+F11-R6-F003	NEGATIVE_MALFORMED_UTF8	surrogate encoding / malformed sequence	M1 arbor_view_utf8_validate	html.utf8.invalid
+F11-R6-F004	NEGATIVE_NONCHARACTER	U+FDD0 literal and numeric reference in text/attribute	pinned tokenizer/native	noncharacter-in-input-stream OR noncharacter-character-reference
+F11-R6-F005	NEGATIVE_FORBIDDEN_CONTROL	U+000B literal and numeric reference in text/attribute	pinned tokenizer/native	control-character-in-input-stream OR control-character-reference
+F11-R6-F006	NEGATIVE_NONSCALAR_REFERENCE	U+D800 / U+110000 representative numeric references	pinned tokenizer/native	surrogate-character-reference OR character-reference-outside-unicode-range

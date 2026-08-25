@@ -1,0 +1,13 @@
+class	classification	disposition	reason
+stable_standard_subjects_62	KNOWN_SUBJECT	IMPLEMENT_R7A	content model stably allows flow or phrasing content
+div_default_flow_branch	KNOWN_SUBJECT	IMPLEMENT_R7A	div not child of dl and not descendant of option/optgroup/select => flow content
+div_child_of_dl_branch	KNOWN_NOT_SUBJECT	NO_R7_WARNING	active model is dt/dd name-value group, not flow/phrasing
+div_transparent_branch	UNRESOLVED_SUBJECT	DEFER_G04_NO_WARNING	active model is transparent and iterative resolution is G04-owned
+time_with_datetime	KNOWN_SUBJECT	IMPLEMENT_R7A	active model is phrasing content
+time_without_datetime	KNOWN_NOT_SUBJECT	NO_R7_WARNING	active model is Text
+option_label_and_value	KNOWN_NOT_SUBJECT	NO_R7_WARNING	active model is Nothing
+option_label_only	KNOWN_NOT_SUBJECT	NO_R7_WARNING	active model is Text
+option_no_label_in_datalist	KNOWN_NOT_SUBJECT	NO_R7_WARNING	active model is Text
+option_no_label_not_in_datalist	KNOWN_SUBJECT	IMPLEMENT_R7A	active model allows div or phrasing content
+parser_implied_subject	UNANCHORED	NO_R7_WARNING	R7 diagnostic requires an authored subject source anchor
+custom_or_unclassified_subject	UNRESOLVED_SUBJECT	DEFER_G13_NO_WARNING	do not fabricate custom-element content-model applicability

@@ -1,0 +1,19 @@
+fixture_id	class	html	expected_r7
+R7F001	direct_nonwhitespace_text	<!doctype html><title>x</title><body><p>x</p></body>	NO_R7_WARNING
+R7F002	empty_subject	<!doctype html><title>x</title><body><p></p></body>	R7_WARNING
+R7F003	inter_element_whitespace_only	<!doctype html><title>x</title><body><div>   </div></body>	R7_WARNING
+R7F004	visible_standard_palpable_child	<!doctype html><title>x</title><body><div><span>x</span></div></body>	NO_R7_WARNING
+R7F005	hidden_standard_palpable_child	<!doctype html><title>x</title><body><div><span hidden>x</span></div></body>	R7_WARNING
+R7F006	nonpalpable_direct_child_with_palpable_descendant_text	<!doctype html><title>x</title><body><div><style>x</style></div></body>	R7_WARNING
+R7F007	input_nonhidden_state_child	<!doctype html><title>x</title><body><div><input></div></body>	NO_R7_WARNING
+R7F008	input_hidden_state_child	<!doctype html><title>x</title><body><div><input type=hidden></div></body>	R7_WARNING
+R7F009	conditional_ul_with_li	<!doctype html><title>x</title><body><div><ul><li>x</li></ul></div></body>	NO_R7_WARNING
+R7F010	conditional_ul_without_li	<!doctype html><title>x</title><body><div><ul></ul></div></body>	R7_WARNING
+R7F011	foreign_svg_child	<!doctype html><title>x</title><body><div><svg></svg></div></body>	NO_R7_WARNING
+R7F012	unknown_custom_child	<!doctype html><title>x</title><body><div><x-r7></x-r7></div></body>	NO_R7_WARNING_DEFER_G13
+R7F013	time_datetime_subject_empty	<!doctype html><title>x</title><body><time datetime=2026-01-01></time></body>	R7_WARNING
+R7F014	time_text_only_branch_empty	<!doctype html><title>x</title><body><time></time></body>	NO_R7_WARNING_NOT_SUBJECT
+R7F015	option_subject_branch_empty	<!doctype html><title>x</title><body><select><option></option></select></body>	R7_WARNING_IF_ACTIVE_BRANCH_NOT_DATALIST
+R7F016	option_nothing_branch_empty	<!doctype html><title>x</title><body><select><option label=x value=y></option></select></body>	NO_R7_WARNING_NOT_SUBJECT
+R7F017	div_dl_child_non_subject	<!doctype html><title>x</title><body><dl><div><dt>x</dt><dd>y</dd></div></dl></body>	NO_R7_WARNING_NOT_SUBJECT
+R7F018	div_transparent_branch	<!doctype html><title>x</title><body><select><option><div></div></option></select></body>	NO_R7_WARNING_DEFER_G04

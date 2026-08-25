@@ -1,0 +1,14 @@
+child_class	classification	disposition	reason
+non_inter_element_whitespace_text	PALPABLE	SATISFIES	direct text child with whitespace flag clear
+inter_element_whitespace_text	NOT_PALPABLE	DOES_NOT_SATISFY	pinned text rule
+standard_unconditional_palpable_67	PALPABLE_IF_NOT_HIDDEN	SATISFIES_IF_VISIBLE	exact P0 palpable inventory
+audio	CONDITIONAL	controls && !hidden	local attribute state
+input	CONDITIONAL	type != hidden && !hidden	local type state
+dl	CONDITIONAL	has_name_value_group && !hidden	direct-child/name-value structure observable
+menu_ol_ul	CONDITIONAL	has_li_child && !hidden	local list child structure observable
+mathml_math	PALPABLE	SATISFIES	foreign namespace/local-name observable
+svg_svg	PALPABLE	SATISFIES	foreign namespace/local-name observable
+autonomous_custom_element	UNRESOLVED	DEFER_G13_BLOCK_WARNING	unknown child may be palpable; avoid false warning
+other_known_nonpalpable_element	NOT_PALPABLE	DOES_NOT_SATISFY	not in frozen palpable category
+hidden_known_palpable_element	EXCLUDED	DOES_NOT_SATISFY	general rule explicitly excludes hidden palpable child
+non_direct_descendant_only	OUT_OF_RELATION	DOES_NOT_SATISFY	contents means direct DOM children

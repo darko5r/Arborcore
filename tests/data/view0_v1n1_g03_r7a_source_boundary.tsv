@@ -1,0 +1,12 @@
+field	value	status
+rule_id	0x0000000030030007	UNCHANGED
+rule_symbol	ARBOR_VIEW_V1_G03_PALPABLE_PHRASING_NONEMPTY	UNCHANGED
+source_locator	general-sections/G03-palpable-content-line-13955.whatwg-source WHATWG lines 13955-14060	UNCHANGED
+source_fingerprint_sha256	2dd078358ccda7fe981f54cbf39650627fec15de549b8674bac2a698d817b5e5	UNCHANGED
+severity	WARNING	UNCHANGED
+source_requirement	CORRECTED_TO_PINNED_SEMANTICS	CHANGED
+C0_C0_SR1_retrofit	NO	BOUND
+second_HTML_parser	NO	BOUND
+new_R7_evaluator	YES	BOUND
+G04_transparent_div	DEFER_NO_WARNING	BOUND
+G13_custom_element	DEFER_NO_WARNING	BOUND

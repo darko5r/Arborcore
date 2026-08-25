@@ -1,0 +1,9 @@
+obligation	decision	reason
+severity	WARNING	unchanged; source says not a hard requirement
+anchor	AUTHORED_SUBJECT_SOURCE_START	warning belongs to subject whose contents lack qualifying child
+emit_precondition_subject	KNOWN_ACTIVE_FLOW_OR_PHRASING	never warn when subject applicability unresolved
+emit_precondition_children	ALL_DIRECT_CHILDREN_CLASSIFIED_NO_SATISFIER	unknown custom child blocks warning
+relation	DIRECT_DOM_CHILD_ONLY	descendant-only content never satisfies
+parser_semantics	PARSED_DOM_AUTHORITATIVE	repair/reparenting affects contents; reuse C0/C0-SR1
+prior_diagnostics	INDEPENDENT_WARNING_CHANNEL	R7 warning may coexist with earlier diagnostics when applicability remains known
+failure_atomicity	GLOBAL_CHECKER_TWO_PASS	R7 must compose with existing capacity/UTF-8 precedence contract

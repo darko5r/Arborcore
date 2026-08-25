@@ -1,0 +1,8 @@
+obligation_id	obligation	existing_mechanism_owner	diagnostic_anchor_or_control	f1_r11_disposition
+R6O001	raw malformed/non-scalar UTF-8 byte sequences	M1 arbor_view_utf8_validate + html.utf8.invalid	html.utf8.invalid	RETAIN_OWNER_NO_R6_DUPLICATE
+R6O002	numeric character references outside scalar-value range	pinned tokenizer surrogate-character-reference / character-reference-outside-unicode-range	html.parse.tokenizer.surrogate-character-reference OR html.parse.tokenizer.character-reference-outside-unicode-range	RETAIN_OWNER_NO_R6_DUPLICATE
+R6O003	literal noncharacters encoded as valid UTF-8 scalars	pinned tokenizer noncharacter-in-input-stream	html.parse.tokenizer.noncharacter-in-input-stream	RETAIN_OWNER_NO_R6_DUPLICATE
+R6O004	numeric character references to noncharacters	pinned tokenizer noncharacter-character-reference	html.parse.tokenizer.noncharacter-character-reference	RETAIN_OWNER_NO_R6_DUPLICATE
+R6O005	literal forbidden controls encoded as valid UTF-8 scalars	pinned tokenizer unexpected-null-character / control-character-in-input-stream	html.parse.tokenizer.unexpected-null-character OR html.parse.tokenizer.control-character-in-input-stream	RETAIN_OWNER_NO_R6_DUPLICATE
+R6O006	numeric character references to forbidden controls	pinned tokenizer null-character-reference / control-character-reference	html.parse.tokenizer.null-character-reference OR html.parse.tokenizer.control-character-reference	RETAIN_OWNER_NO_R6_DUPLICATE
+R6O007	ASCII whitespace controls TAB LF FF CR SPACE	HTML requirement admits them; exhaustive literal text/attribute controls clean	NONE_CONTROL_ALLOWED	CONTROL_NO_R6_DIAGNOSTIC

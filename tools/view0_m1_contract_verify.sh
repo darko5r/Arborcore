@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${ARBORCORE_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"; cd "$ROOT"
+contract=view/arborcore-view-core-1.contract
+header=include/arborcore/view.h
+source=src/c/view.c
+doc=docs/VIEW_CORE_VIEW0.md
+for item in \
+ 'VIEW0_M1_CONTRACT_REVISION=0.1-VIEW0-M1' \
+ 'VIEW0_M1_SCOPE=MVC0_PRESENTER_HTTP1_UTF8_HTML_INTEGRATION' \
+ 'VIEW0_M1_PUBLIC_FUNCTION_COUNT=1' \
+ 'VIEW0_M1_TOTAL_PUBLIC_FUNCTION_COUNT=11' \
+ 'VIEW0_M1_UTF8_VALIDATOR=ARBOR_VIEW_UTF8_VALIDATE' \
+ 'VIEW0_M1_UTF8_STANDARD_BASIS=WHATWG_ENCODING_UTF8_FATAL_VALIDITY' \
+ 'VIEW0_M1_UTF8_OVERLONG=REJECT_EILSEQ' \
+ 'VIEW0_M1_UTF8_SURROGATE_ENCODING=REJECT_EILSEQ' \
+ 'VIEW0_M1_UTF8_ABOVE_U10FFFF=REJECT_EILSEQ' \
+ 'VIEW0_M1_UTF8_STRAY_OR_TRUNCATED_CONTINUATION=REJECT_EILSEQ' \
+ 'VIEW0_M1_UTF8_BOM=VALID_UTF8_NOT_STRIPPED' \
+ 'VIEW0_M1_UTF8_NORMALIZATION=NONE' \
+ 'VIEW0_M1_UTF8_HTML_CONFORMANCE=NOT_CLAIMED' \
+ 'VIEW0_M1_INTEGRATION_ABSTRACTION=APPLICATION_DEFINED_MVC0_PRESENTER_RECIPE' \
+ 'VIEW0_M1_NEW_PRESENTER_FRAMEWORK=NO' \
+ 'VIEW0_M1_NEW_HTTP_ADAPTER=NO' \
+ 'VIEW0_M1_COMMON_HTML_PUBLICATION_SEQUENCE=RENDER_VALIDATE_UTF8_MAKE_PLAN_APPEND_CONTENT_TYPE_PUBLISH_PLAN' \
+ 'VIEW0_M1_CONTENT_TYPE_VALUE=text/html; charset=utf-8' \
+ 'VIEW0_M1_CONTENT_TYPE_AUTHORITY=HTTP1_RESPONSE_FIELD_SIDECAR' \
+ 'VIEW0_M1_RESPONSE_PLAN_AUTHORITY=AF1_EXISTING_LAYOUT' \
+ 'VIEW0_M1_RESPONSE_SERIALIZATION_AUTHORITY=HTTP0_VIA_HTTP1' \
+ 'VIEW0_M1_INVALID_UTF8_BEFORE_HTTP_FIELD_APPEND=REQUIRED' \
+ 'VIEW0_M1_PLAN_PREPARED_BEFORE_HTTP_FIELD_APPEND=REQUIRED' \
+ 'VIEW0_M1_PARTIAL_RESPONSE_PLAN_PUBLICATION_ON_FAILURE=NO' \
+ 'VIEW0_M1_HTTP_FIELD_CAPACITY_FAILURE=ENOSPC_ZERO_RESPONSE_BYTES' \
+ 'VIEW0_M1_REAL_SOCKET_TEMPLATE_PATH=QUALIFIED' \
+ 'VIEW0_M1_REAL_SOCKET_NATIVE_C_PATH=QUALIFIED' \
+ 'VIEW0_M1_REAL_SOCKET_NASM_PATH=QUALIFIED' \
+ 'VIEW0_M1_FULL_DOCUMENT_CONFORMANCE=DEFERRED_TO_V1' \
+ 'VIEW0_M1_REQUEST_TIME_HTML_VALIDATOR=NO' \
+ 'VIEW0_M1_DATABASE_DEPENDENCY=NONE' \
+ 'VIEW0_M1_R_DEPENDENCY=NONE'; do
+  grep -Fxq "$item" "$contract" || { echo "FAIL: missing M1 contract marker: $item" >&2; exit 1; }
+done
+
+grep -Fq 'arbor_status arbor_view_utf8_validate(arbor_span bytes);' "$header"
+grep -Fq 'arbor_status arbor_view_utf8_validate(arbor_span bytes)' "$source"
+grep -Fq 'return arbor_status_from_native(-EILSEQ);' "$source"
+count=$(grep -Ec '^arbor_status arbor_view_[a-z0-9_]+\(' "$header")
+[[ "$count" -ge 11 ]] || { echo "FAIL: expected at least 11 cumulative VIEW public functions preserving M1, got $count" >&2; exit 1; }
+! grep -Eq '\b(malloc|calloc|realloc|free|pthread_|mtx_|atomic_)\b' "$source"
+grep -Fq '## M1: MVC0 presenter + HTTP1 UTF-8 HTML integration' "$doc"
+grep -Fq 'Content-Type: text/html; charset=utf-8' "$doc"
+grep -Fq 'does not yet claim that an arbitrary complete document' "$doc"
+echo 'VIEW0_M1_REQUIRED_PUBLIC_FUNCTION_COUNT=11'
+echo "VIEW0_TOTAL_PUBLIC_FUNCTION_COUNT=$count"
+echo 'VIEW0_M1_EXTENSION_AWARE_CONTRACT=YES'
+echo 'VIEW0_M1_HIDDEN_HEAP_COUNT=0'
+echo 'VIEW0_M1_INTERNAL_LOCK_ATOMIC_COUNT=0'
+echo 'PASS: VIEW0 M1 UTF-8 representation and existing MVC0/HTTP1 integration contract'

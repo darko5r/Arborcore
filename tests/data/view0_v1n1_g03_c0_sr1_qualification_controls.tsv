@@ -1,0 +1,12 @@
+control	requirement
+ordinary-body-p	BODY/IN_BODY at initial and insertion; foster=0; source-backed BODY context.
+omitted-body-p	Initial HEAD/IN_HEAD then insertion BODY/IN_BODY; foster=0; proves initial point alone is not authored-parent truth.
+table-p-fostered	TABLE/IN_TABLE at initial and insertion; foster=1; final DOM may be BODY>P.
+table-div-fostered	TABLE/IN_TABLE at initial and insertion; foster=1; second foster-parenting element control.
+table-tr-implied-tbody	Initial TABLE/IN_TABLE then insertion TBODY/IN_TABLE_BODY; foster=0; insertion current TBODY is synthetic/SOURCE_OFFSET_NONE.
+duplicate-body-no-insertion	Second source BODY start tag is observed but produces insertion_seen=0; ignored source tokens are representable without fabrication.
+exact-token-correlation	Synthetic/fake/reprocessed token not pointer-identical to current source token cannot publish a source insertion record.
+mode-map-completeness	All 23 possible tree->mode assignments in exact pinned source map to stable IDs; unknown pointer fails closed.
+observer-failure-atomicity	Injected source-repair callback failure returns mechanism failure and leaves published parse counts/facts/observation counts unchanged.
+canonical-source-immutability	Canonical Lexbor and LX1 derived compatibility source identities remain exact; no patch/mutation for SR1.
+regression	V1N0/G02/C0/C0-L1/R1A/R2A/R3A/R4A retained gates pass; R5-R7 rule IDs remain absent.
