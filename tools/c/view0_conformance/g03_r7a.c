@@ -1,4 +1,5 @@
 #include "g03_r7a.h"
+#include "g04_r1a.h"
 
 #include <errno.h>
 #include <stdbool.h>
@@ -26,8 +27,7 @@ typedef enum r7_child_class {
 typedef enum r7_subject_class {
     R7_SUBJECT_NO = 0,
     R7_SUBJECT_YES = 1,
-    R7_SUBJECT_DEFER_G04 = 2,
-    R7_SUBJECT_DEFER_G13 = 3
+    R7_SUBJECT_DEFER_G13 = 2
 } r7_subject_class;
 
 typedef struct g03_r7a_frame {
@@ -46,6 +46,7 @@ typedef struct g03_r7a_frame {
     bool direct_child_unknown;
     bool has_li_child;
     bool has_name_value_group;
+    bool datalist_ancestor;
 } g03_r7a_frame;
 
 typedef struct g03_r7a_context {
@@ -405,11 +406,19 @@ static r7_subject_class classify_subject(
     if (frame->standard_element_id == ARBOR_VIEW0_NATIVE_ELEMENT_DIV) {
         if (frame->parent_standard_element_id == ARBOR_VIEW0_NATIVE_ELEMENT_DL)
             return R7_SUBJECT_NO;
-        if (observation_has_ancestor(observation, ARBOR_VIEW0_NATIVE_ELEMENT_OPTION) ||
-            observation_has_ancestor(observation, ARBOR_VIEW0_NATIVE_ELEMENT_OPTGROUP) ||
-            observation_has_ancestor(observation, ARBOR_VIEW0_NATIVE_ELEMENT_SELECT)) {
-            set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_DEFERRED_G04_TRANSPARENT, true);
-            return R7_SUBJECT_DEFER_G04;
+        for (uint64_t depth = observation->depth; depth != 0u; --depth) {
+            const g03_r7a_frame *ancestor = &context->frames[depth - 1u];
+            if (ancestor->standard_element_id == ARBOR_VIEW0_NATIVE_ELEMENT_OPTION) {
+                return arbor_view0_native_g04_select_transparent_div_is_r7_subject(
+                    ARBOR_VIEW0_NATIVE_ELEMENT_OPTION,
+                    (ancestor->attribute_flags & R7_ATTR_LABEL) != 0u,
+                    ancestor->datalist_ancestor)
+                    ? R7_SUBJECT_YES : R7_SUBJECT_NO;
+            }
+            if (ancestor->standard_element_id == ARBOR_VIEW0_NATIVE_ELEMENT_OPTGROUP ||
+                ancestor->standard_element_id == ARBOR_VIEW0_NATIVE_ELEMENT_SELECT) {
+                return R7_SUBJECT_NO;
+            }
         }
         return R7_SUBJECT_YES;
     }
@@ -438,6 +447,8 @@ static arbor_status r7a_traversal_enter(void *context_void, const arbor_view0_na
     frame->source_offset = observation->source_offset;
     frame->source_length = observation->source_length;
     frame->authored = (observation->flags & ARBOR_VIEW0_NATIVE_ELEMENT_FLAG_SYNTHETIC) == 0u;
+    frame->datalist_ancestor = observation_has_ancestor(
+        observation, ARBOR_VIEW0_NATIVE_ELEMENT_DATALIST);
     frame->autonomous_custom = observation->namespace_id == ARBOR_VIEW0_NATIVE_NAMESPACE_HTML &&
         observation->standard_element_id == ARBOR_VIEW0_NATIVE_ELEMENT_NONE &&
         span_has_hyphen(observation->local_name);

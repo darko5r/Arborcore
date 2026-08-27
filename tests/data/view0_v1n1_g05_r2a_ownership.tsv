@@ -1,0 +1,7 @@
+class	predicate	R2_action
+GLOBAL_NAME	g05_c0 global classify	DEFER_TO_R1_ADMISSION
+BODY_WINDOW_EVENT_NAME	g05_c0 body extra catalog	DEFER_TO_R4
+LISTED_FOR_OWNER	g05_c0 element+attribute exact membership	ADMIT_STATIC_R2_R3_MAY_STILL_APPLY
+KNOWN_ELEMENT_NAME_NOT_LISTED_FOR_OWNER	name appears in frozen 261 but owner pair absent	ERROR_R2
+UNKNOWN_NAME	name absent from frozen element/body catalogs	DEFER_TO_R1_NO_DUPLICATE
+NONSTANDARD_OR_CUSTOM_OWNER	no frozen standard element id	OUTSIDE_R2_STANDARD_ELEMENT_SCOPE_G13

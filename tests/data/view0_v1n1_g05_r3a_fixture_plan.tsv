@@ -1,0 +1,13 @@
+case	kind	source	expected
+R3F001	FROZEN_POSITIVE	"<!doctype html><title>x</title><body><a href=""/"" target=""_blank"">x</a></body>"	NO_R3_DIAGNOSTIC
+R3F002	FROZEN_NEGATIVE	"<!doctype html><title>x</title><body><a target=""_blank"">x</a></body>"	ONE_R3_DIAGNOSTIC_AT_TARGET_ATTRIBUTE
+R3F003	INPUT_MISSING_TYPE_DEFAULT	"<!doctype html><title>x</title><body><input maxlength=""5""></body>"	TEXT_DEFAULT_NO_R3_DIAGNOSTIC
+R3F004	INPUT_INVALID_TYPE_DEFAULT	"<!doctype html><title>x</title><body><input type=""invalid"" maxlength=""5""></body>"	TEXT_DEFAULT_NO_R3_DIAGNOSTIC
+R3F005	ANCESTOR_CONTEXT	"<!doctype html><title>x</title><body><a href=""/""><img alt=""x"" ismap></a></body>"	NO_R3_DIAGNOSTIC
+R3F006	CHILD_CONTEXT	<!doctype html><title>x</title><body><select><optgroup><legend>x</legend><option>y</option></optgroup></select></body>	NO_R3_DIAGNOSTIC
+R3F007	VALUE_GRAMMAR_DEFERRAL	"<!doctype html><title>x</title><body><meter value=""not-a-number"">x</meter></body>"	NO_R3_DIAGNOSTIC_VALUE_LANGUAGE_DEFERRED
+R3F008	R1_OWNER	"<!doctype html><title>x</title><body><p bogus=""x"">x</p></body>"	NO_R3_DUPLICATE
+R3F009	R2_OWNER	"<!doctype html><title>x</title><body><p href=""/"">x</p></body>"	NO_R3_DUPLICATE
+R3F010	R4_OWNER	"<!doctype html><title>x</title><body><p onpageshow=""x()"">x</p></body>"	NO_R3_DIAGNOSTIC
+R3F011	G13_OWNER	"<!doctype html><title>x</title><body><x-foo target=""_blank"">x</x-foo></body>"	NO_R3_DIAGNOSTIC
+R3F012	CLAUSE_MATRIX	43 isolated negative fixtures in view0_v1n1_g05_r3a_conditional_matrix_test.c	43_OF_43_EXACT_CLAUSE_OWNERSHIP

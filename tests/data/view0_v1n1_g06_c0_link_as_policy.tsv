@@ -1,0 +1,5 @@
+rel_state	g05_presence_or_placement_owner	g06_present_value_policy	allowed_keywords
+PRELOAD_ONLY	G05_R3	HTML_PRELOAD_DESTINATION	fetch,font,image,script,style,track
+MODULEPRELOAD_ONLY	G05_R3	HTML_MODULE_PRELOAD_DESTINATION	json,style,text,audioworklet,paintworklet,script,serviceworker,sharedworker,worker
+PRELOAD_AND_MODULEPRELOAD	G05_R3	INTERSECTION_OF_BOTH	style,script
+NEITHER	G05_R3	SUPPRESS_G06_R2_PRIOR_OWNER	

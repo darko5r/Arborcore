@@ -1,0 +1,3 @@
+observer_id	input_event	borrowed_data	purpose	lifetime	failure_publication
+G04R1B-O01	PINNED_LEXBOR_AUTHORED_START_TAG	canonical local attribute name and tokenizer-decoded value plus standard owner id/source offset	Resolve option label/value branch from the same parser token that owns the authored start tag	CALLBACK_ONLY_NO_POINTER_RETENTION	LEXBOR_OBSERVE_FAILS_WITH_CALLER_OUTPUTS_UNCHANGED
+G04R1B-O02	PINNED_LEXBOR_AUTHORED_TEXT_TOKEN	raw token source range plus tokenizer-decoded text and pre-repair current-element/source/insertion context	Reject non-inter-element-whitespace text in transparent select/optgroup div tails even when DOM repair loses authored relation	CALLBACK_ONLY_NO_POINTER_RETENTION	LEXBOR_OBSERVE_FAILS_WITH_CALLER_OUTPUTS_UNCHANGED

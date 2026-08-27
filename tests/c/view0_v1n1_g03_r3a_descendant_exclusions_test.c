@@ -120,8 +120,7 @@ int main(void)
     if (expect("<!doctype html><title>x</title><a href=/><input></a>",
                0u, 0u, 1u, 0u) != 0) return 27;
     if (expect("<!doctype html><title>x</title><a href=/><input type=hidden></a>",
-               0u, 0u, 0u,
-               ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_INPUT_TYPE) != 0) return 28;
+               0u, 0u, 0u, 0u) != 0) return 28;
 
     if (expect("<!doctype html><title>x</title><canvas><textarea>x</textarea></canvas>",
                0u, 0u, 1u, 0u) != 0) return 29;
@@ -134,20 +133,17 @@ int main(void)
     if (expect("<!doctype html><title>x</title><canvas><select multiple><option>x</option></select></canvas>",
                0u, 0u, 0u, 0u) != 0) return 33;
     if (expect("<!doctype html><title>x</title><canvas><input type=checkbox></canvas>",
-               0u, 0u, 0u,
-               ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_CANVAS_INPUT_STATE) != 0) return 34;
+               0u, 0u, 0u, 0u) != 0) return 34;
     if (expect("<!doctype html><title>x</title><canvas><select size=2><option>x</option></select></canvas>",
-               0u, 0u, 0u,
-               ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_CANVAS_SELECT_SIZE) != 0) return 35;
+               0u, 0u, 0u, 0u) != 0) return 35;
 
     if (expect("<!doctype html><title>x</title><body><noscript><span>x</span></noscript></body>",
-               0u, 0u, 0u,
-               ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_NOSCRIPT) != 0) return 36;
+               0u, 0u, 0u, 0u) != 0) return 36;
 
     /* Same element is invalid under R1 and a distant R3 ancestor: R1 wins. */
     if (expect("<!doctype html><title>x</title><address><span><h1>x</h1></span></address>",
                1u, 0u, 0u, 0u) != 0) return 37;
 
-    puts("PASS: VIEW0 V1N1 G03 R3A static descendant exclusions, partial interactive/canvas/label branches, R1 suppression and explicit deferrals");
+    puts("PASS: VIEW0 V1N1 G03 R3A reconciled input/canvas/select/noscript descendant exclusions, label boundary and R1 suppression");
     return 0;
 }

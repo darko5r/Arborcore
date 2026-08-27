@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export LC_ALL=C
+ROOT="${ARBORCORE_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+cd "$ROOT"
+bash tools/view0_v1n1_g06_c0_scope_verify.sh
+bash tools/view0_v1n1_g06_c0_contract_verify.sh
+bash tools/view0_v1n1_g06_c0_native_verify.sh
+echo 'VIEW0_V1N1_G06_C0_GATE=PASS'
+echo 'VIEW0_V1N1_G06_C0_G06_DIAGNOSTIC_RULES_IMPLEMENTED=ZERO'
+echo 'VIEW0_V1N1_G06_C0_COMPLETE_HTML_CONFORMANCE_CLAIM=NO'
+echo 'PASS: G06 C0 full foundation gate passed'

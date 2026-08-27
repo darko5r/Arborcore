@@ -30,6 +30,29 @@ extern "C" {
 #define ARBOR_VIEW_V1_G03_NOTHING_MODEL UINT64_C(0x0000000030030004)
 #define ARBOR_VIEW_V1_G03_EXPLICIT_HTML_ELEMENT_ALLOWANCE UINT64_C(0x0000000030030005)
 #define ARBOR_VIEW_V1_G03_PALPABLE_PHRASING_NONEMPTY UINT64_C(0x0000000030030007)
+#define ARBOR_VIEW_V1_G04_TRANSPARENT_PARENT_MODEL UINT64_C(0x0000000030040001)
+#define ARBOR_VIEW_V1_G04_TRANSPARENT_PARENTLESS_FLOW UINT64_C(0x0000000030040002)
+#define ARBOR_VIEW_V1_G05_GLOBAL_ATTRIBUTE_APPLICABILITY UINT64_C(0x0000000030050001)
+#define ARBOR_VIEW_V1_G05_ELEMENT_ATTRIBUTE_APPLICABILITY UINT64_C(0x0000000030050002)
+#define ARBOR_VIEW_V1_G05_CONDITIONAL_ATTRIBUTE_APPLICABILITY UINT64_C(0x0000000030050003)
+#define ARBOR_VIEW_V1_G05_BODY_WINDOW_EVENT_ATTRIBUTE_APPLICABILITY UINT64_C(0x0000000030050004)
+#define ARBOR_VIEW_V1_G06_BOOLEAN_ATTRIBUTE UINT64_C(0x0000000030060001)
+#define ARBOR_VIEW_V1_G06_ENUMERATED_ATTRIBUTE UINT64_C(0x0000000030060002)
+#define ARBOR_VIEW_V1_G06_SIGNED_INTEGER UINT64_C(0x0000000030060003)
+#define ARBOR_VIEW_V1_G06_NON_NEGATIVE_INTEGER UINT64_C(0x0000000030060004)
+#define ARBOR_VIEW_V1_G06_FLOATING_POINT UINT64_C(0x0000000030060005)
+#define ARBOR_VIEW_V1_G06_MONTH UINT64_C(0x0000000030060006)
+#define ARBOR_VIEW_V1_G06_DATE UINT64_C(0x0000000030060007)
+#define ARBOR_VIEW_V1_G06_YEARLESS_DATE UINT64_C(0x0000000030060008)
+#define ARBOR_VIEW_V1_G06_TIME UINT64_C(0x0000000030060009)
+#define ARBOR_VIEW_V1_G06_LOCAL_DATE_TIME UINT64_C(0x000000003006000a)
+#define ARBOR_VIEW_V1_G06_TIME_ZONE_OFFSET UINT64_C(0x000000003006000b)
+#define ARBOR_VIEW_V1_G06_GLOBAL_DATE_TIME UINT64_C(0x000000003006000c)
+#define ARBOR_VIEW_V1_G06_WEEK UINT64_C(0x000000003006000d)
+#define ARBOR_VIEW_V1_G06_DURATION UINT64_C(0x000000003006000e)
+#define ARBOR_VIEW_V1_G06_DATE_OPTIONAL_TIME UINT64_C(0x000000003006000f)
+#define ARBOR_VIEW_V1_G06_SPACE_SEPARATED_TOKENS UINT64_C(0x0000000030060010)
+#define ARBOR_VIEW_V1_G06_COMMA_SEPARATED_TOKENS UINT64_C(0x0000000030060011)
 
 /* Zero tokenizer/tree parse errors; authoring diagnostics may still exist. */
 #define ARBOR_VIEW0_NATIVE_RESULT_FLAG_PARSE_CLEAN UINT64_C(0x1)
@@ -55,6 +78,13 @@ extern "C" {
 #define ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_PARTIAL UINT64_C(0x80000)
 #define ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_DEFERRED_G04_TRANSPARENT UINT64_C(0x100000)
 #define ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_DEFERRED_G13_CUSTOM UINT64_C(0x200000)
+#define ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_PARTIAL UINT64_C(0x400000)
+/* Reserved historical R1A/R1B bit. R1C freezes the checker to scripting disabled
+ * and no successful R1C path publishes this flag. */
+#define ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_DEFERRED_NOSCRIPT_SCRIPTING UINT64_C(0x800000)
+#define ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_DEFERRED_OPTION_BRANCH UINT64_C(0x1000000)
+#define ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_DEFERRED_G13_CUSTOM UINT64_C(0x2000000)
+#define ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R2_DEFERRED_G13_CUSTOM UINT64_C(0x4000000)
 
 typedef enum arbor_view0_native_severity {
     ARBOR_VIEW0_NATIVE_SEVERITY_ERROR = 1,
@@ -110,9 +140,18 @@ _Static_assert(sizeof(arbor_view0_native_source_anchor) == 8u,
  * DESCENDANT_EXCLUSIONS evaluator, the admitted partial G03 R4A
  * NOTHING_MODEL evaluator, the admitted partial G03 R5A
  * EXPLICIT_HTML_ELEMENT_ALLOWANCE evaluator, the R6A SCALAR_VALUE_TEXT retained-owner
- * integration, and the admitted partial G03 R7A PALPABLE_PHRASING_NONEMPTY warning
- * evaluator. Their documented deferred branches remain explicitly non-rejecting; complete
- * HTML conformance is not claimed.
+ * integration, the admitted partial G03 R7A PALPABLE_PHRASING_NONEMPTY warning
+ * evaluator, the admitted G04 R1 transparent-parent evaluator, the four-rule G05
+ * applicability partition, and the 17-rule G06 microsyntax consumer wave. G04 consumes
+ * authored start-tag/attribute/text provenance from the same pinned Lexbor parse
+ * where parser repair would otherwise erase the required parent-model relation.
+ * V1N1 G04 R1C explicitly configures that development parser with scripting
+ * disabled; the autonomous-custom-element transparency dependency remains G13-
+ * owned. Documented deferred branches remain non-rejecting; complete HTML
+ * conformance is not claimed. G06 R15 has no accepted author-facing consumer and
+ * therefore publishes no diagnostic; its bounded validator remains available to
+ * later owning rules. The `time` union admits the normative year-only branch without
+ * inventing a new V1N1 rule identity.
  *
  * input is borrowed immutable and must remain live through the call. diagnostics
  * and result_out are caller-owned writable objects and must not overlap input or
@@ -121,6 +160,20 @@ _Static_assert(sizeof(arbor_view0_native_source_anchor) == 8u,
  * modified. On success, the result reports zero or more document violations.
  */
 arbor_status arbor_view0_native_check(
+    arbor_span input,
+    arbor_view0_native_diagnostic *diagnostics,
+    uint64_t diagnostic_capacity,
+    arbor_view0_native_result *result_out);
+
+/*
+ * Development-tool-only explicit fragment-model checker. This mode does not
+ * run whole-document G02/G03 rules. It parses the supplied bytes as an HTML
+ * fragment in BODY context with the same pinned Lexbor parser and the same
+ * explicitly scripting-disabled mode, then evaluates the frozen G04 R2
+ * parentless-transparent fallback. The synthetic Lexbor fragment wrapper is
+ * not treated as an authored parent element.
+ */
+arbor_status arbor_view0_native_check_fragment_model(
     arbor_span input,
     arbor_view0_native_diagnostic *diagnostics,
     uint64_t diagnostic_capacity,
@@ -304,6 +357,39 @@ typedef arbor_status (*arbor_view0_native_source_repair_observer_f)(
     void *context,
     const arbor_view0_native_source_repair_context *observation);
 
+/*
+ * Private authored-token observations used only where DOM repair loses the
+ * authored relation needed by a frozen rule. local_name/value/text are
+ * callback-lifetime borrowed spans owned by the pinned Lexbor parse.
+ */
+typedef struct arbor_view0_native_source_attribute_observation {
+    uint64_t owner_standard_element_id;
+    uint64_t owner_source_offset;
+    uint64_t source_offset;
+    uint64_t source_length;
+    uint64_t ordinal;
+    arbor_span local_name;
+    arbor_span value;
+} arbor_view0_native_source_attribute_observation;
+
+typedef struct arbor_view0_native_source_text_observation {
+    uint64_t source_offset;
+    uint64_t source_length;
+    uint64_t initial_current_standard_element_id;
+    uint64_t initial_current_source_offset;
+    uint64_t initial_insertion_mode_id;
+    uint64_t initial_open_elements_depth;
+    arbor_span text;
+} arbor_view0_native_source_text_observation;
+
+typedef arbor_status (*arbor_view0_native_source_attribute_observer_f)(
+    void *context,
+    const arbor_view0_native_source_attribute_observation *observation);
+
+typedef arbor_status (*arbor_view0_native_source_text_observer_f)(
+    void *context,
+    const arbor_view0_native_source_text_observation *observation);
+
 typedef enum arbor_view0_native_namespace_id {
     ARBOR_VIEW0_NATIVE_NAMESPACE_NONE = 0,
     ARBOR_VIEW0_NATIVE_NAMESPACE_HTML = 1,
@@ -392,6 +478,8 @@ typedef struct arbor_view0_native_semantic_observer {
     arbor_view0_native_element_observer_f traversal_enter;
     arbor_view0_native_element_observer_f traversal_leave;
     arbor_view0_native_source_repair_observer_f source_repair;
+    arbor_view0_native_source_attribute_observer_f source_attribute;
+    arbor_view0_native_source_text_observer_f source_text;
 } arbor_view0_native_semantic_observer;
 
 /* Private adapter boundary; no Lexbor type crosses this header. */
@@ -494,6 +582,19 @@ arbor_status arbor_view0_native_lexbor_observe(
     arbor_view0_native_parse_counts *parse_counts_out,
     arbor_view0_native_document_facts *facts_out,
     arbor_view0_native_observation_counts *observation_counts_out);
+
+/* Private explicit-fragment counterparts used only by G04 R2. */
+arbor_status arbor_view0_native_lexbor_observe_fragment_model(
+    arbor_span input,
+    const arbor_view0_native_semantic_observer *observer,
+    arbor_view0_native_parse_counts *parse_counts_out,
+    arbor_view0_native_observation_counts *observation_counts_out);
+
+arbor_status arbor_view0_native_lexbor_fragment_collect_exact(
+    arbor_span input,
+    arbor_view0_native_diagnostic *diagnostics,
+    uint64_t diagnostic_capacity,
+    const arbor_view0_native_parse_counts *expected_counts);
 
 #ifdef __cplusplus
 } /* extern "C" */

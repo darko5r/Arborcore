@@ -1,0 +1,80 @@
+g06_rule_ordinal	consumer_subtype	actual_consumer	consumer_condition_or_state	ownership
+R1	DETAILS_OPEN	details@open		G06_V1N1
+R1	DIALOG_OPEN	dialog@open		G06_V1N1
+R1	IMG_CONTROLS	img@controls	img@alt present and nonempty	G06_V1N1
+R1	IMG_ISMAP	img@ismap	ancestor a has href	G06_V1N1
+R1	INPUT_COLOR_ALPHA	input@alpha	type=color	G05_G06_SHARED
+R1	INPUT_CHECKED	input@checked	state-dependent input common-attribute applicability	G05_G06_SHARED
+R1	INPUT_MULTIPLE	input@multiple	state-dependent input common-attribute applicability	G05_G06_SHARED
+R1	INPUT_READONLY	input@readonly	state-dependent input common-attribute applicability	G05_G06_SHARED
+R1	INPUT_REQUIRED	input@required	state-dependent input common-attribute applicability	G05_G06_SHARED
+R1	LINK_DISABLED	link@disabled	rel contains stylesheet	G06_V1N1
+R1	OL_REVERSED	ol@reversed		G06_V1N1
+R1	OPTION_DISABLED	option@disabled		G06_V1N1
+R1	OPTION_SELECTED	option@selected		G06_V1N1
+R1	SCRIPT_ASYNC_DEFER	script@async|script@defer		G06_V1N1
+R1	SCRIPT_NOMODULE	script@nomodule		G06_V1N1
+R1	SELECT_MULTIPLE	select@multiple		G06_V1N1
+R1	SELECT_REQUIRED	select@required		G06_V1N1
+R1	TEMPLATE_SHADOWROOTCLONABLE	template@shadowrootclonable		G06_V1N1
+R1	TEMPLATE_SHADOWROOTCUSTOMELEMENTREGISTRY	template@shadowrootcustomelementregistry		G06_V1N1
+R1	TEMPLATE_SHADOWROOTDELEGATESFOCUS	template@shadowrootdelegatesfocus		G06_V1N1
+R1	TEMPLATE_SHADOWROOTSERIALIZABLE	template@shadowrootserializable		G06_V1N1
+R1	TRACK_DEFAULT	track@default		G06_V1N1
+R2	AREA_SHAPE	area@shape		G06_V1N1
+R2	BUTTON_COMMAND	button@command		G06_V1N1
+R2	DIALOG_CLOSEDBY	dialog@closedby		G06_V1N1
+R2	GLOBAL_DIR	global@dir		G06_V1N1
+R2	GLOBAL_TRANSLATE	global@translate		G06_V1N1
+R2	INPUT_COLOR_COLORSPACE	input@colorspace	type=color	G05_G06_SHARED
+R2	LINK_AS	link@as	rel contains preload or modulepreload	G06_V1N1
+R2	TEMPLATE_SHADOWROOTMODE	template@shadowrootmode		G06_V1N1
+R2	TEMPLATE_SHADOWROOTSLOTASSIGNMENT	template@shadowrootslotassignment		G06_V1N1
+R2	TEXTAREA_WRAP	textarea@wrap		G06_V1N1
+R2	TH_SCOPE	th@scope		G06_V1N1
+R2	TRACK_KIND	track@kind		G06_V1N1
+R3	LI_VALUE	li@value		G06_V1N1
+R3	OL_START	ol@start		G06_V1N1
+R4	CANVAS_DIMENSIONS	canvas@width|canvas@height		G06_V1N1
+R4	COL_SPAN	col@span	lexical nonnegative plus consuming bound >0 and <=1000	G06_V1N1
+R4	COLGROUP_SPAN	colgroup@span	lexical nonnegative plus consuming bound >0 and <=1000	G06_V1N1
+R4	INPUT_SIZE	input@size	state-dependent input common-attribute applicability; >0	G05_G06_SHARED
+R4	LINK_SIZES_DIMENSION_COMPONENTS	link@sizes	each token is any or WIDTHxHEIGHT; rel contains icon/apple-touch-icon	G06_V1N1
+R4	META_REFRESH_CONTENT	meta@content	meta@http-equiv=refresh; leading delay component	G06_V1N1
+R4	SELECT_SIZE	select@size	>0	G06_V1N1
+R4	TEXTAREA_COLS	textarea@cols	>0	G06_V1N1
+R4	TEXTAREA_ROWS	textarea@rows	>0	G06_V1N1
+R5	INPUT_NUMBER_MIN_MAX	input@min|input@max	type=number	G05_G06_SHARED
+R5	INPUT_RANGE_MIN_MAX	input@min|input@max	type=range	G05_G06_SHARED
+R5	INPUT_STEP	input@step	state-dependent input common-attribute applicability; positive float or any	G05_G06_SHARED
+R5	INPUT_NUMBER_VALUE	input@value	type=number	G05_G06_SHARED
+R5	INPUT_RANGE_VALUE	input@value	type=range	G05_G06_SHARED
+R5	METER_FLOAT_ATTRIBUTES	meter@value|meter@min|meter@low|meter@high|meter@max|meter@optimum	lexical float plus additional cross-attribute constraints	G06_V1N1
+R5	PROGRESS_VALUE_MAX	progress@value|progress@max	lexical float plus consuming range constraints	G06_V1N1
+R6	INPUT_MONTH_MIN_MAX	input@min|input@max	type=month	G05_G06_SHARED
+R6	INPUT_MONTH_VALUE	input@value	type=month	G05_G06_SHARED
+R6	TIME_DATETIME_VALUE_MONTH	time@datetime OR time child text	datetime attribute when present; otherwise child text	G06_V1N1
+R7	INPUT_DATE_MIN_MAX	input@min|input@max	type=date	G05_G06_SHARED
+R7	INPUT_DATE_VALUE	input@value	type=date	G05_G06_SHARED
+R7	TIME_DATETIME_VALUE_DATE	time@datetime OR time child text	datetime attribute when present; otherwise child text	G06_V1N1
+R8	TIME_DATETIME_VALUE_YEARLESS_DATE	time@datetime OR time child text	datetime attribute when present; otherwise child text	G06_V1N1
+R9	INPUT_TIME_MIN_MAX	input@min|input@max	type=time	G05_G06_SHARED
+R9	INPUT_TIME_VALUE	input@value	type=time	G05_G06_SHARED
+R9	TIME_DATETIME_VALUE_TIME	time@datetime OR time child text	datetime attribute when present; otherwise child text	G06_V1N1
+R10	INPUT_LOCAL_DATETIME_MIN_MAX	input@min|input@max	type=datetime-local	G05_G06_SHARED
+R10	INPUT_LOCAL_DATETIME_VALUE	input@value	type=datetime-local	G05_G06_SHARED
+R10	TIME_DATETIME_VALUE_LOCAL_DATETIME	time@datetime OR time child text	datetime attribute when present; otherwise child text	G06_V1N1
+R11	TIME_DATETIME_VALUE_TIMEZONE	time@datetime OR time child text	datetime attribute when present; otherwise child text	G06_V1N1
+R12	TIME_DATETIME_VALUE_GLOBAL_DATETIME	time@datetime OR time child text	datetime attribute when present; otherwise child text	G06_V1N1
+R13	INPUT_WEEK_MIN_MAX	input@min|input@max	type=week	G05_G06_SHARED
+R13	INPUT_WEEK_VALUE	input@value	type=week	G05_G06_SHARED
+R13	TIME_DATETIME_VALUE_WEEK	time@datetime OR time child text	datetime attribute when present; otherwise child text	G06_V1N1
+R14	TIME_DATETIME_VALUE_DURATION	time@datetime OR time child text	datetime attribute when present; otherwise child text	G06_V1N1
+R16	FORM_REL	form@rel		G06_V1N1
+R16	GLOBAL_CLASS	global@class		G06_V1N1
+R16	LINK_REL	link@rel		G06_V1N1
+R16	LINK_SIZES_TOKEN_SET	link@sizes	rel contains icon or apple-touch-icon	G06_V1N1
+R16	OUTPUT_FOR	output@for		G06_V1N1
+R17	INPUT_FILE_ACCEPT	input@accept	type=file; comma-separated MIME/extension tokens	G05_G06_SHARED
+R17	INPUT_EMAIL_MULTIPLE_VALUE_LIST	input@value	type=email with multiple present; valid email-address-list consumer	G05_G06_SHARED
+R17	META_KEYWORDS_CONTENT	meta@content	meta@name=keywords	G06_V1N1

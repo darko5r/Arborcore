@@ -16,6 +16,11 @@ typedef enum output_format {
     OUTPUT_FORMAT_TSV = 1
 } output_format;
 
+typedef enum check_mode {
+    CHECK_MODE_DOCUMENT = 0,
+    CHECK_MODE_FRAGMENT_MODEL = 1
+} check_mode;
+
 static int tsv_path_is_safe(const char *path)
 {
     if (path == NULL) {
@@ -215,40 +220,53 @@ static int parse_arguments(
     int argc,
     char **argv,
     output_format *format_out,
+    check_mode *mode_out,
     const char **path_out)
 {
-    if (format_out == NULL || path_out == NULL) {
+    if (format_out == NULL || mode_out == NULL || path_out == NULL) {
         return 2;
     }
 
     *format_out = OUTPUT_FORMAT_HUMAN;
+    *mode_out = CHECK_MODE_DOCUMENT;
     *path_out = NULL;
 
-    if (argc == 2) {
-        *path_out = argv[1];
-        return 0;
+    int format_seen = 0;
+    int fragment_seen = 0;
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--format=human") == 0 ||
+            strcmp(argv[i], "--format=tsv") == 0) {
+            if (format_seen != 0) goto usage;
+            format_seen = 1;
+            *format_out = strcmp(argv[i], "--format=tsv") == 0
+                ? OUTPUT_FORMAT_TSV : OUTPUT_FORMAT_HUMAN;
+            continue;
+        }
+        if (strcmp(argv[i], "--fragment-model") == 0) {
+            if (fragment_seen != 0) goto usage;
+            fragment_seen = 1;
+            *mode_out = CHECK_MODE_FRAGMENT_MODEL;
+            continue;
+        }
+        if (argv[i][0] == '-' || *path_out != NULL) goto usage;
+        *path_out = argv[i];
     }
-    if (argc == 3 && strcmp(argv[1], "--format=human") == 0) {
-        *path_out = argv[2];
-        return 0;
-    }
-    if (argc == 3 && strcmp(argv[1], "--format=tsv") == 0) {
-        *format_out = OUTPUT_FORMAT_TSV;
-        *path_out = argv[2];
-        return 0;
-    }
+    if (*path_out != NULL) return 0;
 
+usage:
     (void)fprintf(
         stderr,
-        "usage: arborcore-view0-html-check [--format=human|--format=tsv] FILE\n");
+        "usage: arborcore-view0-html-check [--format=human|--format=tsv] "
+        "[--fragment-model] FILE\n");
     return 2;
 }
 
 int main(int argc, char **argv)
 {
     output_format format = OUTPUT_FORMAT_HUMAN;
+    check_mode mode = CHECK_MODE_DOCUMENT;
     const char *path = NULL;
-    int rc = parse_arguments(argc, argv, &format, &path);
+    int rc = parse_arguments(argc, argv, &format, &mode, &path);
     if (rc != 0) {
         return rc;
     }
@@ -279,11 +297,17 @@ int main(int argc, char **argv)
     }
 
     arbor_view0_native_result result = {0};
-    const arbor_status status = arbor_view0_native_check(
-        (arbor_span){data, length},
-        diagnostics,
-        ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS,
-        &result);
+    const arbor_status status = mode == CHECK_MODE_FRAGMENT_MODEL
+        ? arbor_view0_native_check_fragment_model(
+            (arbor_span){data, length},
+            diagnostics,
+            ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS,
+            &result)
+        : arbor_view0_native_check(
+            (arbor_span){data, length},
+            diagnostics,
+            ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS,
+            &result);
 
     if (status.native != 0) {
         (void)fprintf(
@@ -309,6 +333,38 @@ int main(int argc, char **argv)
         }
     }
 
+    if (mode == CHECK_MODE_FRAGMENT_MODEL) {
+        const char *parse_clean =
+            (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_PARSE_CLEAN) != 0u
+                ? "yes" : "no";
+        const char *g13 =
+            (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R2_DEFERRED_G13_CUSTOM) != 0u
+                ? "yes" : "no";
+        if (format == OUTPUT_FORMAT_TSV) {
+            (void)printf(
+                "SUMMARY\t%s\tmode=fragment-model\tdiagnostics=%" PRIu64
+                "\ttokenizer=%" PRIu64 "\ttree=%" PRIu64
+                "\tparse_clean=%s\tcomplete_conformance=no"
+                "\tg04_r2=standard-complete\tg04_r2_g13_custom_deferred=%s\n",
+                path,
+                result.diagnostic_count,
+                result.tokenizer_error_count,
+                result.tree_error_count,
+                parse_clean,
+                g13);
+        } else {
+            (void)printf(
+                "summary: mode=fragment-model diagnostics=%" PRIu64
+                " tokenizer=%" PRIu64 " tree=%" PRIu64
+                " parse_clean=%s complete_conformance=no"
+                " g04_r2=standard-complete g04_r2_g13_custom_deferred=%s\n",
+                result.diagnostic_count,
+                result.tokenizer_error_count,
+                result.tree_error_count,
+                parse_clean,
+                g13);
+        }
+    } else {
     if (format == OUTPUT_FORMAT_TSV) {
         (void)printf(
             "SUMMARY\t%s\tdiagnostics=%" PRIu64 "\ttokenizer=%" PRIu64
@@ -322,7 +378,10 @@ int main(int argc, char **argv)
             "\tr3_canvas_select_size_deferred=%s\tr3_noscript_deferred=%s"
             "\tg03_r4=partial\tr4_selectedcontent_provenance_deferred=%s"
             "\tg03_r5=partial\tg03_r7=partial\tr7_g04_transparent_deferred=%s"
-            "\tr7_g13_custom_deferred=%s\n",
+            "\tr7_g13_custom_deferred=%s\tg04_r1=partial"
+            "\tg04_r1_noscript_scripting_deferred=%s"
+            "\tg04_r1_option_branch_deferred=%s"
+            "\tg04_r1_g13_custom_deferred=%s\tg05_r1=complete\n",
             path,
             result.diagnostic_count,
             result.tokenizer_error_count,
@@ -342,7 +401,10 @@ int main(int argc, char **argv)
             (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_NOSCRIPT) != 0u ? "yes" : "no",
             (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R4_DEFERRED_SELECTEDCONTENT_PROVENANCE) != 0u ? "yes" : "no",
             (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_DEFERRED_G04_TRANSPARENT) != 0u ? "yes" : "no",
-            (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_DEFERRED_G13_CUSTOM) != 0u ? "yes" : "no");
+            (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_DEFERRED_G13_CUSTOM) != 0u ? "yes" : "no",
+            (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_DEFERRED_NOSCRIPT_SCRIPTING) != 0u ? "yes" : "no",
+            (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_DEFERRED_OPTION_BRANCH) != 0u ? "yes" : "no",
+            (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_DEFERRED_G13_CUSTOM) != 0u ? "yes" : "no");
     } else {
         (void)printf(
             "summary: diagnostics=%" PRIu64 " tokenizer=%" PRIu64
@@ -356,7 +418,10 @@ int main(int argc, char **argv)
             " r3_canvas_select_size_deferred=%s r3_noscript_deferred=%s"
             " g03_r4=partial r4_selectedcontent_provenance_deferred=%s"
             " g03_r5=partial g03_r7=partial r7_g04_transparent_deferred=%s"
-            " r7_g13_custom_deferred=%s\n",
+            " r7_g13_custom_deferred=%s g04_r1=partial"
+            " g04_r1_noscript_scripting_deferred=%s"
+            " g04_r1_option_branch_deferred=%s"
+            " g04_r1_g13_custom_deferred=%s g05_r1=complete\n",
             result.diagnostic_count,
             result.tokenizer_error_count,
             result.tree_error_count,
@@ -375,7 +440,12 @@ int main(int argc, char **argv)
             (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_NOSCRIPT) != 0u ? "yes" : "no",
             (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R4_DEFERRED_SELECTEDCONTENT_PROVENANCE) != 0u ? "yes" : "no",
             (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_DEFERRED_G04_TRANSPARENT) != 0u ? "yes" : "no",
-            (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_DEFERRED_G13_CUSTOM) != 0u ? "yes" : "no");
+            (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_DEFERRED_G13_CUSTOM) != 0u ? "yes" : "no",
+            (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_DEFERRED_NOSCRIPT_SCRIPTING) != 0u ? "yes" : "no",
+            (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_DEFERRED_OPTION_BRANCH) != 0u ? "yes" : "no",
+            (result.flags & ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_DEFERRED_G13_CUSTOM) != 0u ? "yes" : "no");
+    }
+
     }
 
     const int exit_code = has_error != 0 ? 1 : 0;

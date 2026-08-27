@@ -1,0 +1,8 @@
+case	kind	source	owner	expected
+R1F001	POSITIVE	<!doctype html><title>x</title><body><p id="x">ok</p></body>	G05-R1	NO_R1_DIAGNOSTIC
+R1F002	NEGATIVE	<!doctype html><title>x</title><body><p bogus="x">ok</p></body>	G05-R1	ONE_R1_DIAGNOSTIC_AT_ATTRIBUTE_NAME
+R1F003	GLOBAL_FAMILIES	p onclick/data-z/aria-label	G05-R1	ADMITTED_PLACEMENT
+R1F004	R2_HANDOFF	p href	G05-R2	NO_R1_DIAGNOSTIC
+R1F005	R4_HANDOFF	p onpageshow	G05-R4	NO_R1_DIAGNOSTIC
+R1F006	DATA_EMPTY_SUFFIX	p data-	G05-R1	ONE_R1_DIAGNOSTIC
+R1F007	NONSTANDARD_OWNER	x-foo bogus	G13/LATER	NO_R1_DIAGNOSTIC

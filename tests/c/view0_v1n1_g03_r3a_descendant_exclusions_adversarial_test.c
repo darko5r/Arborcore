@@ -109,11 +109,7 @@ int main(void)
                    ARBOR_VIEW_V1_G03_DESCENDANT_EXCLUSIONS) != 1u) return 6;
 
     const uint64_t deferred =
-        ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_INPUT_TYPE |
-        ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_LABELED_CONTROL |
-        ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_CANVAS_INPUT_STATE |
-        ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_CANVAS_SELECT_SIZE |
-        ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_NOSCRIPT;
+        ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_LABELED_CONTROL;
     static const char deferred_doc[] =
         "<!doctype html><title>x</title><body>"
         "<a href=/><input type=hidden></a>"

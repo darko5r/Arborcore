@@ -22,7 +22,6 @@ static uint64_t count_rule(const arbor_view0_native_diagnostic *d, uint64_t n, u
 int main(void)
 {
     const uint64_t r7_deferred_mask =
-        ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_DEFERRED_G04_TRANSPARENT |
         ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_DEFERRED_G13_CUSTOM;
     const uint64_t active_partial_flags =
         ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R1_PARTIAL |
@@ -88,9 +87,8 @@ int main(void)
         "<!doctype html><title>x</title><body><select><option><div></div></option></select></body>";
     arbor_view0_native_diagnostic transd[8] = {{0}}; arbor_view0_native_result transr = {0};
     st = arbor_view0_native_check(span_from_cstr(transparent), transd, 8u, &transr);
-    if (st.native != 0 || count_rule(transd,transr.diagnostic_count,R7_RULE_ID) != 0u ||
-        (transr.flags & r7_deferred_mask) !=
-            ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_DEFERRED_G04_TRANSPARENT) return 8;
+    if (st.native != 0 || count_rule(transd,transr.diagnostic_count,R7_RULE_ID) != 1u ||
+        (transr.flags & r7_deferred_mask) != 0u) return 8;
 
     static const char coexist[] = "<title>x</title><body><p></p></body>";
     arbor_view0_native_diagnostic co[8] = {{0}}; arbor_view0_native_result cor = {0};

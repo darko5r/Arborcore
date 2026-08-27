@@ -1,0 +1,5 @@
+case	html	element	source_offset	initial_depth	initial_current	initial_current_source	insertion_seen	semantic
+positive-root	<a><div>x</div></a>	a	1	1	html	NONE	1	authored top-level transparent element is parentless; synthetic html wrapper excluded
+positive-child	<a><div>x</div></a>	div	4	2	a	1	1	flow child admitted by parentless transparent fallback
+negative-root	<a><html></html></a>	a	1	1	html	NONE	1	authored top-level transparent element is parentless
+negative-child	<a><html></html></a>	html	4	2	a	1	0	source-repair provenance retains invalid non-flow child even when parser refuses insertion

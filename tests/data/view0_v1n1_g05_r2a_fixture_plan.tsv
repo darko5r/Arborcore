@@ -1,0 +1,9 @@
+case	kind	source	owner	expected
+R2F001	POSITIVE	<!doctype html><title>x</title><body><a href="/">x</a></body>	G05-R2	NO_R2_DIAGNOSTIC
+R2F002	NEGATIVE	<!doctype html><title>x</title><body><p href="/">x</p></body>	G05-R2	ONE_R2_DIAGNOSTIC_AT_ATTRIBUTE_NAME
+R2F003	GLOBAL_HANDOFF	<!doctype html><title>x</title><body><p id="x">x</p></body>	G05-R1	NO_R2_DIAGNOSTIC
+R2F004	R1_HANDOFF	<!doctype html><title>x</title><body><p bogus="x">x</p></body>	G05-R1	NO_R2_DUPLICATE
+R2F005	R3_HANDOFF	<!doctype html><title>x</title><body><a target="_blank">x</a></body>	G05-R3	STATICALLY_ADMITTED_NO_R2_DIAGNOSTIC
+R2F006	R4_HANDOFF	<!doctype html><title>x</title><body><p onpageshow="x()">x</p></body>	G05-R4	NO_R2_DIAGNOSTIC
+R2F007	CUSTOM_OWNER	<!doctype html><title>x</title><body><x-foo href="/">x</x-foo></body>	G13/LATER	NO_R2_DIAGNOSTIC
+R2F008	ELEMENT_PAIR	<!doctype html><title>x</title><body><img src="x" alt="x"><p src="x">y</p></body>	G05-R2	ONE_R2_DIAGNOSTIC_ON_P_SRC

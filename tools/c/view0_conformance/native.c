@@ -6,6 +6,13 @@
 #include "g03_r4a.h"
 #include "g03_r5a.h"
 #include "g03_r7a.h"
+#include "g04_r1a.h"
+#include "g04_r2a.h"
+#include "g05_r1a.h"
+#include "g05_r2a.h"
+#include "g05_r3a.h"
+#include "g05_r4a.h"
+#include "g06.h"
 
 #include <errno.h>
 #include <stddef.h>
@@ -826,7 +833,8 @@ arbor_status arbor_view0_native_check(
                 ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_PARTIAL |
                 ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R4_PARTIAL |
                 ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R5_PARTIAL |
-                ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_PARTIAL
+                ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_PARTIAL |
+                ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_PARTIAL
         };
         *result_out = result;
         return ok_status();
@@ -854,7 +862,8 @@ arbor_status arbor_view0_native_check(
                 ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_PARTIAL |
                 ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R4_PARTIAL |
                 ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R5_PARTIAL |
-                ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_PARTIAL
+                ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_PARTIAL |
+                ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_PARTIAL
         };
         *result_out = result;
         return ok_status();
@@ -1034,9 +1043,91 @@ arbor_status arbor_view0_native_check(
         return status;
     }
 
-    arbor_asm_result_u64 authoring_total = u64_add_checked(
+    arbor_asm_result_u64 through_r7_total = u64_add_checked(
         through_r5_total.value,
         r7a_measured.diagnostic_count);
+    if (through_r7_total.status != 0) {
+        return arbor_status_from_native(through_r7_total.status);
+    }
+    arbor_asm_result_u64 pre_g04_r1_required_total = u64_add_checked(
+        parse_total.value, through_r7_total.value);
+    if (pre_g04_r1_required_total.status != 0) {
+        return arbor_status_from_native(pre_g04_r1_required_total.status);
+    }
+    if (pre_g04_r1_required_total.value > ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS ||
+        pre_g04_r1_required_total.value > diagnostic_capacity) {
+        return status_from_errno_value(ENOSPC);
+    }
+
+    arbor_view0_native_g04_r1a_evaluation g04_r1a_measured = {0};
+    status = arbor_view0_native_g04_r1a_measure(input, &g04_r1a_measured);
+    if (status.native != 0) {
+        return status;
+    }
+
+    arbor_view0_native_g05_r1a_evaluation g05_r1a_measured = {0};
+    status = arbor_view0_native_g05_r1a_measure(input, &g05_r1a_measured);
+    if (status.native != 0) {
+        return status;
+    }
+
+    arbor_view0_native_g05_r2a_evaluation g05_r2a_measured = {0};
+    status = arbor_view0_native_g05_r2a_measure(input, &g05_r2a_measured);
+    if (status.native != 0) {
+        return status;
+    }
+
+    arbor_view0_native_g05_r3a_evaluation g05_r3a_measured = {0};
+    status = arbor_view0_native_g05_r3a_measure(input, &g05_r3a_measured);
+    if (status.native != 0) {
+        return status;
+    }
+
+    arbor_view0_native_g05_r4a_evaluation g05_r4a_measured = {0};
+    status = arbor_view0_native_g05_r4a_measure(input, &g05_r4a_measured);
+    if (status.native != 0) {
+        return status;
+    }
+
+    arbor_view0_native_g06_evaluation g06_measured = {0};
+    status = arbor_view0_native_g06_measure(input, &g06_measured);
+    if (status.native != 0) {
+        return status;
+    }
+
+    arbor_asm_result_u64 through_g04_total = u64_add_checked(
+        through_r7_total.value,
+        g04_r1a_measured.diagnostic_count);
+    if (through_g04_total.status != 0) {
+        return arbor_status_from_native(through_g04_total.status);
+    }
+    arbor_asm_result_u64 through_g05_r1_total = u64_add_checked(
+        through_g04_total.value,
+        g05_r1a_measured.diagnostic_count);
+    if (through_g05_r1_total.status != 0) {
+        return arbor_status_from_native(through_g05_r1_total.status);
+    }
+    arbor_asm_result_u64 through_g05_r2_total = u64_add_checked(
+        through_g05_r1_total.value,
+        g05_r2a_measured.diagnostic_count);
+    if (through_g05_r2_total.status != 0) {
+        return arbor_status_from_native(through_g05_r2_total.status);
+    }
+    arbor_asm_result_u64 through_g05_r3_total = u64_add_checked(
+        through_g05_r2_total.value,
+        g05_r3a_measured.diagnostic_count);
+    if (through_g05_r3_total.status != 0) {
+        return arbor_status_from_native(through_g05_r3_total.status);
+    }
+    arbor_asm_result_u64 through_g05_total = u64_add_checked(
+        through_g05_r3_total.value,
+        g05_r4a_measured.diagnostic_count);
+    if (through_g05_total.status != 0) {
+        return arbor_status_from_native(through_g05_total.status);
+    }
+    arbor_asm_result_u64 authoring_total = u64_add_checked(
+        through_g05_total.value,
+        g06_measured.diagnostic_count);
     if (authoring_total.status != 0) {
         return arbor_status_from_native(authoring_total.status);
     }
@@ -1051,7 +1142,8 @@ arbor_status arbor_view0_native_check(
         return status_from_errno_value(ENOSPC);
     }
 
-    arbor_view0_native_source_anchor g03_anchors[ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS] = {{0}};
+    arbor_view0_native_source_anchor authoring_anchors[ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS] = {{0}};
+    arbor_view0_native_g06_anchor g06_anchors[ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS] = {0};
     uint64_t anchor_index = 0u;
 
     if (r1a_measured.diagnostic_count > ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - anchor_index) {
@@ -1059,7 +1151,7 @@ arbor_status arbor_view0_native_check(
     }
     arbor_view0_native_g03_r1a_evaluation r1a_collected = {0};
     status = arbor_view0_native_g03_r1a_collect_anchors(
-        input, g03_anchors + anchor_index, r1a_measured.diagnostic_count, &r1a_collected);
+        input, authoring_anchors + anchor_index, r1a_measured.diagnostic_count, &r1a_collected);
     if (status.native != 0) return status;
     if (r1a_collected.diagnostic_count != r1a_measured.diagnostic_count ||
         r1a_collected.deferred_main_form_count != r1a_measured.deferred_main_form_count) {
@@ -1072,7 +1164,7 @@ arbor_status arbor_view0_native_check(
     }
     arbor_view0_native_g03_r2a_evaluation r2a_collected = {0};
     status = arbor_view0_native_g03_r2a_collect_anchors(
-        input, g03_anchors + anchor_index, r2a_measured.diagnostic_count, &r2a_collected);
+        input, authoring_anchors + anchor_index, r2a_measured.diagnostic_count, &r2a_collected);
     if (status.native != 0) return status;
     if (r2a_collected.diagnostic_count != r2a_measured.diagnostic_count ||
         r2a_collected.deferred_flags != r2a_measured.deferred_flags) {
@@ -1085,7 +1177,7 @@ arbor_status arbor_view0_native_check(
     }
     arbor_view0_native_g03_r3a_evaluation r3a_collected = {0};
     status = arbor_view0_native_g03_r3a_collect_anchors(
-        input, g03_anchors + anchor_index, r3a_measured.diagnostic_count, &r3a_collected);
+        input, authoring_anchors + anchor_index, r3a_measured.diagnostic_count, &r3a_collected);
     if (status.native != 0) return status;
     if (r3a_collected.diagnostic_count != r3a_measured.diagnostic_count ||
         r3a_collected.deferred_flags != r3a_measured.deferred_flags) {
@@ -1098,7 +1190,7 @@ arbor_status arbor_view0_native_check(
     }
     arbor_view0_native_g03_r4a_evaluation r4a_collected = {0};
     status = arbor_view0_native_g03_r4a_collect_anchors(
-        input, g03_anchors + anchor_index, r4a_measured.diagnostic_count, &r4a_collected);
+        input, authoring_anchors + anchor_index, r4a_measured.diagnostic_count, &r4a_collected);
     if (status.native != 0) return status;
     if (r4a_collected.diagnostic_count != r4a_measured.diagnostic_count ||
         r4a_collected.deferred_flags != r4a_measured.deferred_flags) {
@@ -1111,7 +1203,7 @@ arbor_status arbor_view0_native_check(
     }
     arbor_view0_native_g03_r5a_evaluation r5a_collected = {0};
     status = arbor_view0_native_g03_r5a_collect_anchors(
-        input, g03_anchors + anchor_index, r5a_measured.diagnostic_count, &r5a_collected);
+        input, authoring_anchors + anchor_index, r5a_measured.diagnostic_count, &r5a_collected);
     if (status.native != 0) return status;
     if (r5a_collected.diagnostic_count != r5a_measured.diagnostic_count ||
         r5a_collected.prior_owner_suppression_count !=
@@ -1125,7 +1217,7 @@ arbor_status arbor_view0_native_check(
     }
     arbor_view0_native_g03_r7a_evaluation r7a_collected = {0};
     status = arbor_view0_native_g03_r7a_collect_anchors(
-        input, g03_anchors + anchor_index, r7a_measured.diagnostic_count, &r7a_collected);
+        input, authoring_anchors + anchor_index, r7a_measured.diagnostic_count, &r7a_collected);
     if (status.native != 0) return status;
     if (r7a_collected.diagnostic_count != r7a_measured.diagnostic_count ||
         r7a_collected.deferred_flags != r7a_measured.deferred_flags ||
@@ -1135,8 +1227,131 @@ arbor_status arbor_view0_native_check(
     }
     anchor_index += r7a_collected.diagnostic_count;
 
-    const uint64_t expected_g03_anchor_count = authoring_total.value - g02_total.value;
-    if (anchor_index != expected_g03_anchor_count) {
+    if (g04_r1a_measured.diagnostic_count > ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - anchor_index) {
+        return status_from_errno_value(EIO);
+    }
+    arbor_view0_native_g04_r1a_evaluation g04_r1a_collected = {0};
+    status = arbor_view0_native_g04_r1a_collect_anchors(
+        input, authoring_anchors + anchor_index, g04_r1a_measured.diagnostic_count,
+        &g04_r1a_collected);
+    if (status.native != 0) return status;
+    if (g04_r1a_collected.diagnostic_count != g04_r1a_measured.diagnostic_count ||
+        g04_r1a_collected.prior_owner_suppression_count !=
+            g04_r1a_measured.prior_owner_suppression_count ||
+        g04_r1a_collected.deferred_flags != g04_r1a_measured.deferred_flags ||
+        g04_r1a_collected.noscript_deferred_count !=
+            g04_r1a_measured.noscript_deferred_count ||
+        g04_r1a_collected.option_branch_deferred_count !=
+            g04_r1a_measured.option_branch_deferred_count ||
+        g04_r1a_collected.option_branch_resolved_count !=
+            g04_r1a_measured.option_branch_resolved_count ||
+        g04_r1a_collected.select_text_violation_count !=
+            g04_r1a_measured.select_text_violation_count ||
+        g04_r1a_collected.g13_custom_deferred_count !=
+            g04_r1a_measured.g13_custom_deferred_count) {
+        return status_from_errno_value(EIO);
+    }
+    anchor_index += g04_r1a_collected.diagnostic_count;
+
+    if (g05_r1a_measured.diagnostic_count > ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - anchor_index) {
+        return status_from_errno_value(EIO);
+    }
+    arbor_view0_native_g05_r1a_evaluation g05_r1a_collected = {0};
+    status = arbor_view0_native_g05_r1a_collect_anchors(
+        input, authoring_anchors + anchor_index, g05_r1a_measured.diagnostic_count,
+        &g05_r1a_collected);
+    if (status.native != 0) return status;
+    if (g05_r1a_collected.diagnostic_count != g05_r1a_measured.diagnostic_count ||
+        g05_r1a_collected.admitted_global_count != g05_r1a_measured.admitted_global_count ||
+        g05_r1a_collected.later_g05_owner_count != g05_r1a_measured.later_g05_owner_count ||
+        g05_r1a_collected.nonstandard_owner_ignored_count !=
+            g05_r1a_measured.nonstandard_owner_ignored_count) {
+        return status_from_errno_value(EIO);
+    }
+    anchor_index += g05_r1a_collected.diagnostic_count;
+
+    if (g05_r2a_measured.diagnostic_count > ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - anchor_index) {
+        return status_from_errno_value(EIO);
+    }
+    arbor_view0_native_g05_r2a_evaluation g05_r2a_collected = {0};
+    status = arbor_view0_native_g05_r2a_collect_anchors(
+        input, authoring_anchors + anchor_index, g05_r2a_measured.diagnostic_count,
+        &g05_r2a_collected);
+    if (status.native != 0) return status;
+    if (g05_r2a_collected.diagnostic_count != g05_r2a_measured.diagnostic_count ||
+        g05_r2a_collected.admitted_element_attribute_count !=
+            g05_r2a_measured.admitted_element_attribute_count ||
+        g05_r2a_collected.global_attribute_handoff_count !=
+            g05_r2a_measured.global_attribute_handoff_count ||
+        g05_r2a_collected.r1_owned_unknown_count != g05_r2a_measured.r1_owned_unknown_count ||
+        g05_r2a_collected.r4_body_event_handoff_count !=
+            g05_r2a_measured.r4_body_event_handoff_count ||
+        g05_r2a_collected.nonstandard_owner_ignored_count !=
+            g05_r2a_measured.nonstandard_owner_ignored_count) {
+        return status_from_errno_value(EIO);
+    }
+    anchor_index += g05_r2a_collected.diagnostic_count;
+
+    if (g05_r3a_measured.diagnostic_count > ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - anchor_index) {
+        return status_from_errno_value(EIO);
+    }
+    arbor_view0_native_g05_r3a_evaluation g05_r3a_collected = {0};
+    status = arbor_view0_native_g05_r3a_collect_anchors(
+        input, authoring_anchors + anchor_index, g05_r3a_measured.diagnostic_count,
+        &g05_r3a_collected);
+    if (status.native != 0) return status;
+    if (g05_r3a_collected.diagnostic_count != g05_r3a_measured.diagnostic_count ||
+        g05_r3a_collected.predicate_evaluation_count !=
+            g05_r3a_measured.predicate_evaluation_count ||
+        g05_r3a_collected.input_element_count != g05_r3a_measured.input_element_count ||
+        g05_r3a_collected.missing_required_count != g05_r3a_measured.missing_required_count ||
+        g05_r3a_collected.forbidden_present_count != g05_r3a_measured.forbidden_present_count ||
+        g05_r3a_collected.tracked_source_attribute_count !=
+            g05_r3a_measured.tracked_source_attribute_count ||
+        memcmp(g05_r3a_collected.clause_violation_count,
+               g05_r3a_measured.clause_violation_count,
+               sizeof(g05_r3a_measured.clause_violation_count)) != 0) {
+        return status_from_errno_value(EIO);
+    }
+    anchor_index += g05_r3a_collected.diagnostic_count;
+
+    if (g05_r4a_measured.diagnostic_count > ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - anchor_index) {
+        return status_from_errno_value(EIO);
+    }
+    arbor_view0_native_g05_r4a_evaluation g05_r4a_collected = {0};
+    status = arbor_view0_native_g05_r4a_collect_anchors(
+        input, authoring_anchors + anchor_index, g05_r4a_measured.diagnostic_count,
+        &g05_r4a_collected);
+    if (status.native != 0) return status;
+    if (g05_r4a_collected.diagnostic_count != g05_r4a_measured.diagnostic_count ||
+        g05_r4a_collected.matched_body_window_event_count !=
+            g05_r4a_measured.matched_body_window_event_count ||
+        g05_r4a_collected.admitted_body_count != g05_r4a_measured.admitted_body_count ||
+        g05_r4a_collected.misplaced_owner_count != g05_r4a_measured.misplaced_owner_count) {
+        return status_from_errno_value(EIO);
+    }
+    anchor_index += g05_r4a_collected.diagnostic_count;
+
+    arbor_view0_native_g06_evaluation g06_collected = {0};
+    status = arbor_view0_native_g06_collect_anchors(
+        input, g06_anchors, g06_measured.diagnostic_count, &g06_collected);
+    if (status.native != 0) return status;
+    if (g06_collected.diagnostic_count != g06_measured.diagnostic_count ||
+        g06_collected.matched_consumer_count != g06_measured.matched_consumer_count ||
+        g06_collected.prior_owner_suppression_count !=
+            g06_measured.prior_owner_suppression_count ||
+        g06_collected.time_union_year_admission_count !=
+            g06_measured.time_union_year_admission_count ||
+        g06_collected.time_union_fallback_count != g06_measured.time_union_fallback_count ||
+        memcmp(g06_collected.rule_violation_count,
+               g06_measured.rule_violation_count,
+               sizeof(g06_measured.rule_violation_count)) != 0) {
+        return status_from_errno_value(EIO);
+    }
+
+    const uint64_t expected_authoring_anchor_count =
+        authoring_total.value - g02_total.value - g06_measured.diagnostic_count;
+    if (anchor_index != expected_authoring_anchor_count) {
         return status_from_errno_value(EIO);
     }
 
@@ -1188,33 +1403,63 @@ arbor_status arbor_view0_native_check(
     uint64_t anchor_read = 0u;
     for (uint64_t i = 0u; i < r1a_measured.diagnostic_count; ++i) {
         arbor_view0_native_g03_r1a_materialize_anchor(
-            g03_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
+            authoring_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
         anchor_read += 1u; authoring_index += 1u;
     }
     for (uint64_t i = 0u; i < r2a_measured.diagnostic_count; ++i) {
         arbor_view0_native_g03_r2a_materialize_anchor(
-            g03_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
+            authoring_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
         anchor_read += 1u; authoring_index += 1u;
     }
     for (uint64_t i = 0u; i < r3a_measured.diagnostic_count; ++i) {
         arbor_view0_native_g03_r3a_materialize_anchor(
-            g03_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
+            authoring_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
         anchor_read += 1u; authoring_index += 1u;
     }
     for (uint64_t i = 0u; i < r4a_measured.diagnostic_count; ++i) {
         arbor_view0_native_g03_r4a_materialize_anchor(
-            g03_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
+            authoring_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
         anchor_read += 1u; authoring_index += 1u;
     }
     for (uint64_t i = 0u; i < r5a_measured.diagnostic_count; ++i) {
         arbor_view0_native_g03_r5a_materialize_anchor(
-            g03_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
+            authoring_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
         anchor_read += 1u; authoring_index += 1u;
     }
     for (uint64_t i = 0u; i < r7a_measured.diagnostic_count; ++i) {
         arbor_view0_native_g03_r7a_materialize_anchor(
-            g03_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
+            authoring_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
         anchor_read += 1u; authoring_index += 1u;
+    }
+    for (uint64_t i = 0u; i < g04_r1a_measured.diagnostic_count; ++i) {
+        arbor_view0_native_g04_r1a_materialize_anchor(
+            authoring_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
+        anchor_read += 1u; authoring_index += 1u;
+    }
+    for (uint64_t i = 0u; i < g05_r1a_measured.diagnostic_count; ++i) {
+        arbor_view0_native_g05_r1a_materialize_anchor(
+            authoring_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
+        anchor_read += 1u; authoring_index += 1u;
+    }
+    for (uint64_t i = 0u; i < g05_r2a_measured.diagnostic_count; ++i) {
+        arbor_view0_native_g05_r2a_materialize_anchor(
+            authoring_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
+        anchor_read += 1u; authoring_index += 1u;
+    }
+    for (uint64_t i = 0u; i < g05_r3a_measured.diagnostic_count; ++i) {
+        arbor_view0_native_g05_r3a_materialize_anchor(
+            authoring_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
+        anchor_read += 1u; authoring_index += 1u;
+    }
+    for (uint64_t i = 0u; i < g05_r4a_measured.diagnostic_count; ++i) {
+        arbor_view0_native_g05_r4a_materialize_anchor(
+            authoring_anchors + anchor_read, authoring_index, diagnostics + authoring_index);
+        anchor_read += 1u; authoring_index += 1u;
+    }
+    for (uint64_t i = 0u; i < g06_measured.diagnostic_count; ++i) {
+        arbor_view0_native_g06_materialize_anchor(
+            g06_anchors + i, authoring_index, diagnostics + authoring_index);
+        authoring_index += 1u;
     }
 
     if (required_total.value > 1u) {
@@ -1238,15 +1483,110 @@ arbor_status arbor_view0_native_check(
             ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R4_PARTIAL |
             ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R5_PARTIAL |
             ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R7_PARTIAL |
+            ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_PARTIAL |
             (r1a_measured.deferred_main_form_count != 0u
                 ? ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R1_DEFERRED_MAIN_FORM
                 : 0u) |
             r2a_measured.deferred_flags |
             r3a_measured.deferred_flags |
             r4a_measured.deferred_flags |
-            r7a_measured.deferred_flags
+            r7a_measured.deferred_flags |
+            g04_r1a_measured.deferred_flags
     };
     *result_out = result;
 
+    return ok_status();
+}
+
+arbor_status arbor_view0_native_check_fragment_model(
+    arbor_span input,
+    arbor_view0_native_diagnostic *diagnostics,
+    uint64_t diagnostic_capacity,
+    arbor_view0_native_result *result_out)
+{
+    uint64_t diagnostic_bytes = 0u;
+    arbor_status status = validate_output_regions(
+        input, diagnostics, diagnostic_capacity, result_out, &diagnostic_bytes);
+    if (status.native != 0) return status;
+    (void)diagnostic_bytes;
+
+    arbor_status utf8 = arbor_view_utf8_validate(input);
+    if (utf8.native != 0) {
+        if (utf8.native != -(int64_t)EILSEQ) return utf8;
+        if (diagnostic_capacity < 1u) return status_from_errno_value(ENOSPC);
+        uint64_t bad_offset = 0u;
+        if (!utf8_first_invalid_offset(input, &bad_offset) || bad_offset >= input.length)
+            return status_from_errno_value(EIO);
+        arbor_view0_native_diagnostic candidate = {0};
+        candidate.rule_id = ARBOR_VIEW0_NATIVE_RULE_UTF8_INVALID;
+        candidate.byte_offset = bad_offset;
+        candidate.source_length = 1u;
+        candidate.discovery_sequence = 0u;
+        candidate.severity = (uint32_t)ARBOR_VIEW0_NATIVE_SEVERITY_ERROR;
+        candidate.origin = (uint32_t)ARBOR_VIEW0_NATIVE_ORIGIN_UTF8;
+        if (!copy_literal(candidate.symbolic_name, ARBOR_VIEW0_NATIVE_RULE_SYMBOL_CAP,
+                          "html.utf8.invalid") ||
+            !copy_literal(candidate.message, ARBOR_VIEW0_NATIVE_MESSAGE_CAP,
+                          "HTML input is not well-formed UTF-8"))
+            return status_from_errno_value(EOVERFLOW);
+        assign_line_columns(input, &candidate, 1u);
+        diagnostics[0] = candidate;
+        *result_out = (arbor_view0_native_result){
+            .diagnostic_count = 1u,
+            .tokenizer_error_count = 0u,
+            .tree_error_count = 0u,
+            .flags = 0u
+        };
+        return ok_status();
+    }
+
+    arbor_view0_native_g04_r2a_evaluation measured = {0};
+    status = arbor_view0_native_g04_r2a_measure_fragment_model(input, &measured);
+    if (status.native != 0) return status;
+    arbor_asm_result_u64 parse_total = u64_add_checked(
+        measured.parse_counts.tokenizer_error_count,
+        measured.parse_counts.tree_error_count);
+    if (parse_total.status != 0) return arbor_status_from_native(parse_total.status);
+    arbor_asm_result_u64 required_total = u64_add_checked(
+        parse_total.value, measured.diagnostic_count);
+    if (required_total.status != 0) return arbor_status_from_native(required_total.status);
+    if (required_total.value > ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS ||
+        required_total.value > diagnostic_capacity)
+        return status_from_errno_value(ENOSPC);
+
+    arbor_view0_native_source_anchor anchors[ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS] = {{0}};
+    arbor_view0_native_g04_r2a_evaluation collected = {0};
+    status = arbor_view0_native_g04_r2a_collect_fragment_anchors(
+        input, anchors, measured.diagnostic_count, &collected);
+    if (status.native != 0) return status;
+    if (collected.diagnostic_count != measured.diagnostic_count ||
+        collected.g13_custom_deferred_count != measured.g13_custom_deferred_count ||
+        collected.deferred_flags != measured.deferred_flags ||
+        collected.parse_counts.tokenizer_error_count != measured.parse_counts.tokenizer_error_count ||
+        collected.parse_counts.tree_error_count != measured.parse_counts.tree_error_count)
+        return status_from_errno_value(EIO);
+
+    /* Last fallible operation: exact fragment parse publication. */
+    status = arbor_view0_native_lexbor_fragment_collect_exact(
+        input, diagnostics, parse_total.value, &measured.parse_counts);
+    if (status.native != 0) return status;
+
+    for (uint64_t i = 0u; i < measured.diagnostic_count; ++i) {
+        arbor_view0_native_g04_r2a_materialize_anchor(
+            &anchors[i], parse_total.value + i, &diagnostics[parse_total.value + i]);
+    }
+    if (required_total.value > 1u) {
+        qsort(diagnostics, (size_t)required_total.value, sizeof(*diagnostics), diagnostic_compare);
+    }
+    assign_line_columns(input, diagnostics, required_total.value);
+
+    uint64_t flags = measured.deferred_flags;
+    if (parse_total.value == 0u) flags |= ARBOR_VIEW0_NATIVE_RESULT_FLAG_PARSE_CLEAN;
+    *result_out = (arbor_view0_native_result){
+        .diagnostic_count = required_total.value,
+        .tokenizer_error_count = measured.parse_counts.tokenizer_error_count,
+        .tree_error_count = measured.parse_counts.tree_error_count,
+        .flags = flags
+    };
     return ok_status();
 }

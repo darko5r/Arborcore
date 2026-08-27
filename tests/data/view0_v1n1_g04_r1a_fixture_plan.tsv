@@ -1,0 +1,14 @@
+fixture_id	purpose	html	g04_r1_diagnostics	prior_owner_suppressions	expected_dynamic_deferral
+G04R1F001	matrix-positive	"<!doctype html><title>x</title><body><p><a href=""/""><em>x</em></a></p></body>"	0	0	0
+G04R1F002	matrix-negative	"<!doctype html><title>x</title><body><p><a href=""/""><div>x</div></a></p></body>"	1	0	0
+G04R1F003	whatwg-iterative-positive	"<!doctype html><title>x</title><body><p><object><ins><map><a href=""/"">Apples</a></map></ins></object></p></body>"	0	0	0
+G04R1F004	nested-prior-owner-suppressed	<!doctype html><title>x</title><body><p><object><ins><map><div>x</div></map></ins></object></p></body>	0	1	0
+G04R1F005	flow-context-transparent	<!doctype html><title>x</title><body><ins><p>x</p></ins></body>	0	0	0
+G04R1F006	phrasing-context-transparent	<!doctype html><title>x</title><body><p><ins><span>x</span></ins></p></body>	0	0	0
+G04R1F007	media-prefix-then-transparent-negative	<!doctype html><title>x</title><body><p><video><source><div>x</div></video></p></body>	1	0	0
+G04R1F008	dl-div-not-transparent	<!doctype html><title>x</title><body><dl><div><dt>x</dt><dd>y</dd></div></dl></body>	0	0	0
+G04R1F009	select-div-tail-valid	<!doctype html><title>x</title><body><select><div><option>x</option></div></select></body>	0	0	0
+G04R1F010	select-div-prior-owner-suppressed	<!doctype html><title>x</title><body><select><div><span>x</span></div></select></body>	0	1	0
+G04R1F011	option-branch-deferred	<!doctype html><title>x</title><body><select><option><div><span>x</span></div></option></select></body>	0	0	G04_R1_DEFERRED_OPTION_BRANCH
+G04R1F012	noscript-scripting-deferred	<!doctype html><title>x</title><body><noscript><div>x</div></noscript></body>	0	0	G04_R1_DEFERRED_NOSCRIPT_SCRIPTING
+G04R1F013	autonomous-custom-g13-deferred	<!doctype html><title>x</title><body><x-r1><div>x</div></x-r1></body>	0	0	G04_R1_DEFERRED_G13_CUSTOM

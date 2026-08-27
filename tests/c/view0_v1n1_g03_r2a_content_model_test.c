@@ -173,8 +173,6 @@ int main(void)
     const uint64_t deferred =
         ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R2_DEFERRED_STYLE |
         ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R2_DEFERRED_SCRIPT |
-        ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R2_DEFERRED_NOSCRIPT |
-        ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R2_DEFERRED_SELECT_SIZE |
         ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R2_DEFERRED_SELECT_PLATFORM |
         ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R2_DEFERRED_UNCLASSIFIED;
     if (expect_counts(
@@ -183,6 +181,6 @@ int main(void)
         "<option>x</option></select><p><x-widget></x-widget></p>",
         0u, 0u, deferred) != 0) return 33;
 
-    puts("PASS: VIEW0 V1N1 G03 R2A residual content models, R1 suppression, ruby/LX1 path and explicit deferrals");
+    puts("PASS: VIEW0 V1N1 G03 R2A residual content models, reconciled select/noscript ownership, R1 suppression and explicit retained deferrals");
     return 0;
 }

@@ -1,0 +1,20 @@
+fixture_id	purpose	html	expected_g04_r1_diagnostics	expected_option_resolved	expected_select_text_violations	expected_residual
+G04R1B-F001	frozen-matrix-positive	"<!doctype html><title>x</title><body><p><a href=""/""><em>x</em></a></p></body>"	0	0	0	NONE
+G04R1B-F002	frozen-matrix-negative	"<!doctype html><title>x</title><body><p><a href=""/""><div>x</div></a></p></body>"	1	0	0	NONE
+G04R1B-F003	iterative-transparent-chain	"<!doctype html><title>x</title><body><p><object><ins><map><a href=""/"">Apples</a></map></ins></object></p></body>"	0	0	0	NONE
+G04R1B-F004	flow-context	<!doctype html><title>x</title><body><ins><p>x</p></ins></body>	0	0	0	NONE
+G04R1B-F005	select-element-tail-valid	<!doctype html><title>x</title><body><select><div><option>x</option></div></select></body>	0	0	0	NONE
+G04R1B-F006	select-nonwhitespace-text	<!doctype html><title>x</title><body><select><div>bad</div></select></body>	1	0	1	NONE
+G04R1B-F007	select-inter-element-whitespace	"<!doctype html><title>x</title><body><select><div> \n\t\r\f </div></select></body>"	0	0	0	NONE
+G04R1B-F008	select-character-reference-space	<!doctype html><title>x</title><body><select><div>&#32;</div></select></body>	0	0	0	NONE
+G04R1B-F009	select-character-reference-ampersand	<!doctype html><title>x</title><body><select><div>&amp;</div></select></body>	1	0	1	NONE
+G04R1B-F010	optgroup-nonwhitespace-text	<!doctype html><title>x</title><body><select><optgroup label=x><div>bad</div></optgroup></select></body>	1	0	1	NONE
+G04R1B-F011	option-no-label-branch	<!doctype html><title>x</title><body><select><option><div><span>x</span></div></option></select></body>	0	1	0	NONE
+G04R1B-F012	option-value-no-label-branch	<!doctype html><title>x</title><body><select><option value=v><div>text</div></option></select></body>	0	1	0	NONE
+G04R1B-F013	nested-transparent-div-in-option	<!doctype html><title>x</title><body><select><option><div><div><em>x</em></div></div></option></select></body>	0	1	0	NONE
+G04R1B-F014	option-label-invalid-div-owned-by-g03	<!doctype html><title>x</title><body><select><option label=x><div><span>x</span></div></option></select></body>	0	0	0	G03_PRIOR_OWNER
+G04R1B-F015	datalist-option-invalid-div-owned-by-g03	<!doctype html><title>x</title><body><datalist><option><div><span>x</span></div></option></datalist></body>	0	0	0	G03_PRIOR_OWNER
+G04R1B-F016	noscript-explicit-residual	<!doctype html><title>x</title><body><noscript><div>x</div></noscript></body>	0	0	0	NOSCRIPT_SCRIPTING_MODE
+G04R1B-F017	custom-explicit-residual	<!doctype html><title>x</title><body><x-r1><div>x</div></x-r1></body>	0	0	0	G13_CUSTOM_IDENTITY
+G04R1B-F018	source-attribute-observer-failure	<!doctype html><title>x</title><body><select><option label=x><div>x</div></option></select></body>	MECHANISM_FAILURE	NA	NA	CALLER_OUTPUTS_UNCHANGED
+G04R1B-F019	source-text-observer-failure	<!doctype html><title>x</title><body><select><div>bad</div></select></body>	MECHANISM_FAILURE	NA	NA	CALLER_OUTPUTS_UNCHANGED

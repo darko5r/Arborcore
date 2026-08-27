@@ -1,0 +1,5 @@
+class	predicate	R4_action
+BODY_OWNER	owner_standard_element_id=8 and name in frozen 18	ADMIT_PLACEMENT_VALUE_DEFER_G16
+NON_BODY_OWNER	owner is not body and name in frozen 18	ERROR_R4
+OTHER_ATTRIBUTE_NAME	name not in frozen 18	IGNORE_R4
+VALUE_SEMANTICS	any frozen 18 value bytes	DEFER_G16_NO_R4_VALUE_VALIDATION

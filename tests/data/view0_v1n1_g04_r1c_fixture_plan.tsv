@@ -1,0 +1,13 @@
+fixture_id	kind	html_or_role	expected
+R1C-F01	positive	body noscript div under flow parent	NOSCRIPT_RESOLVED_1_NO_G04_ERROR
+R1C-F02	positive	p noscript em under phrasing parent	NOSCRIPT_RESOLVED_1_NO_G04_ERROR
+R1C-F03	prior-owner	span noscript section	G03_ERROR_OWNS_CHILD_G04_SUPPRESSES
+R1C-F04	positive	select noscript div option	SELECT_TAIL_CONTAINING_MODEL
+R1C-F05	positive	optgroup noscript div option	OPTGROUP_TAIL_CONTAINING_MODEL
+R1C-F06	positive	option no-label non-datalist noscript em	OPTION_PHRASING_PART
+R1C-F07	control	head noscript meta	NOT_G04_TRANSPARENT
+R1C-F08	external-dependency	autonomous custom candidate	G13_DEFERRED_ONLY
+R1C-F09	adversarial	repeat body noscript	DETERMINISTIC
+R1C-F10	adversarial	known G04 negative with short capacity	GLOBAL_CAPACITY_FAILURE_ATOMIC
+R1C-F11	adversarial	invalid UTF-8	UTF8_PRECEDENCE
+R1C-F12	contract	pinned Lexbor scripting setter/readback	EXPLICIT_DISABLED_MODE

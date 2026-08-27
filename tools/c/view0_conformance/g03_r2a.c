@@ -1,4 +1,5 @@
 #include "g03_r2a.h"
+#include "g06_c0.h"
 
 #include <errno.h>
 #include <stdbool.h>
@@ -99,6 +100,7 @@ typedef struct g03_r2a_frame {
     uint64_t img_count;
     uint64_t selectedcontent_descendant_count;
     uint64_t ruby_state;
+    uint64_t select_size_value;
     bool authored;
     bool violation;
     bool nonwhitespace_text;
@@ -110,6 +112,7 @@ typedef struct g03_r2a_frame {
     bool dl_dd_seen;
     bool select_first_meaningful_button;
     bool select_button_admitted;
+    bool select_size_valid;
     bool select_transparent_context;
     bool datalist_ancestor;
     bool ruby_r2_violation;
@@ -139,9 +142,9 @@ typedef struct g03_r2a_context {
     g03_r2a_frame frames[4098];
 } g03_r2a_context;
 
-_Static_assert(sizeof(g03_r2a_frame) == 160u,
+_Static_assert(sizeof(g03_r2a_frame) == 168u,
                "G03 R2A frame layout drift on x86-64");
-_Static_assert(sizeof(g03_r2a_context) == 655736u,
+_Static_assert(sizeof(g03_r2a_context) == 688520u,
                "G03 R2A bounded evaluator workspace layout drift on x86-64");
 _Static_assert(sizeof(g03_r2a_context) <= 1048576u,
                "G03 R2A evaluator workspace exceeds 1 MiB admission");
@@ -358,8 +361,6 @@ static arbor_status r2a_traversal_enter(
             set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R2_DEFERRED_STYLE);
         } else if (frame->standard_element_id == ARBOR_VIEW0_NATIVE_ELEMENT_SCRIPT) {
             set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R2_DEFERRED_SCRIPT);
-        } else if (frame->standard_element_id == ARBOR_VIEW0_NATIVE_ELEMENT_NOSCRIPT) {
-            set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R2_DEFERRED_NOSCRIPT);
         }
     }
     return ok_status();
@@ -385,7 +386,10 @@ static arbor_status r2a_attribute(
     } else if (span_ascii_ci_equals(observation->local_name, "size")) {
         frame->attribute_flags |= G03_R2_ATTR_SIZE;
         if (frame->authored && frame->standard_element_id == ARBOR_VIEW0_NATIVE_ELEMENT_SELECT) {
-            set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R2_DEFERRED_SELECT_SIZE);
+            frame->select_size_valid =
+                arbor_view0_native_g06_c0_nonnegative_integer(
+                    observation->value, &frame->select_size_value) ==
+                ARBOR_VIEW0_NATIVE_G06_C0_NUMBER_VALID;
         }
     } else if (span_ascii_ci_equals(observation->local_name, "multiple")) {
         frame->attribute_flags |= G03_R2_ATTR_MULTIPLE;
@@ -899,13 +903,17 @@ static void finalize_parent(g03_r2a_context *context, g03_r2a_frame *frame)
         if (frame->nonwhitespace_text) {
             frame->violation = true;
         }
-        if ((frame->attribute_flags & G03_R2_ATTR_SIZE) == 0u) {
-            if ((frame->attribute_flags & G03_R2_ATTR_MULTIPLE) != 0u &&
-                frame->select_first_meaningful_button) {
+        if (frame->select_first_meaningful_button) {
+            const bool multiple =
+                (frame->attribute_flags & G03_R2_ATTR_MULTIPLE) != 0u;
+            const uint64_t display_size = frame->select_size_valid
+                ? frame->select_size_value : (multiple ? UINT64_C(4) : UINT64_C(1));
+            if (display_size != 1u) {
                 frame->violation = true;
+            } else if (multiple) {
+                set_deferred(context,
+                    ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R2_DEFERRED_SELECT_PLATFORM);
             }
-        } else if ((frame->attribute_flags & G03_R2_ATTR_MULTIPLE) != 0u) {
-            set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R2_DEFERRED_SELECT_PLATFORM);
         }
         break;
     case ARBOR_VIEW0_NATIVE_ELEMENT_RUBY:

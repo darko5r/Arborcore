@@ -1224,3 +1224,277 @@ R7A is therefore intentionally partial while G04 transparent-model resolution an
 Independent post-construction source review found that the original global coordinator could publish Lexbor/G02 diagnostics before a later fallible G03 pass, violating the private checker contract that caller diagnostics and `result_out` remain unchanged on mechanism failure. SR2 repairs publication order without changing R1-R7 semantics. G03 R1-R5 and R7 collect only compact 8-byte source anchors during the fallible second phase, bounded to 4096 anchors (32768 bytes). After every G03 evaluation and consistency check succeeds, an exact Lexbor pass compares parse counts and C0 document facts against the first measurement before publishing parser diagnostics. That exact parse publication is the last fallible operation. G02/G03 materialization, ordering, line/column assignment, and final `result_out` commit then execute without an error-return path.
 
 SR2 retains the 1 MiB input, 4096-diagnostic, 400000-byte R7 evaluator, and 900000-byte phased compiled-stack bounds; it does not add heap allocation, a second parser, Lexbor source changes, runtime registries, or production VIEW functions. Qualification additionally injects late R7-anchor and final-Lexbor failures and requires byte-identical caller outputs, checks exact direct-diagnostic versus anchor-materialization equivalence for R1-R5/R7, strengthens G04/G13 deferred-mask controls to exact masks, proves true R7/non-R7 coexistence, and asserts the fixed R7 CLI source anchor at byte offset 38, length 1, line 1, column 39. R7 remains partial at the same G04/G13 boundaries; G03 remains unfrozen and complete HTML conformance is still not claimed.
+
+## V1N1 G04 R1A: partial transparent parent-model resolution
+
+G04 R1A begins the transparent-content group without reopening the frozen G02/G03 semantics.
+The authoritative rule is `ARBOR_VIEW_V1_G04_TRANSPARENT_PARENT_MODEL`: the transparent part of an
+element's content model inherits the containing part of its parent model, and nested transparent
+elements resolve that relationship iteratively. It is therefore incorrect to assign every
+transparent element one universal category such as `phrasing` or `flow`.
+
+The evaluator reuses the private C0-SR1 source-repair observation emitted by the same pinned Lexbor
+tree builder. This matters for invalid authored markup such as the frozen negative fixture
+`<p><a><div>...`: the final DOM is repaired and no longer preserves the authored parent relation,
+while the start-tag observation still records the current authored insertion context before repair.
+No second parser is introduced.
+
+The admitted R1A boundary resolves standard transparent elements whose containing branch can be
+determined from the already frozen element/category and source-context substrate. It supports
+iterative nesting, distinguishes flow and phrasing parent parts, handles the transparent tail of the
+select-family `div` branch where the branch is source-provable, and leaves `source`/`track` prefix
+validity for `video`/`audio` to the existing content-model owner. If a G03 R1-R5 ERROR already owns
+the same authored start-tag anchor, G04 suppresses the duplicate rather than producing a cascade.
+
+R1A deliberately remains partial. It publishes explicit no-warning deferrals for scripting-dependent
+`noscript`, the `option`/`datalist`-dependent transparent-`div` branch, and autonomous custom
+elements owned by G13. Non-whitespace source text in the select-family transparent branch also
+remains a static R1A residual because the existing source-repair record is start-tag based and does
+not yet bind authored text-token provenance. Parentless transparent fallback is not part of R1A; it
+is the separately frozen G04 R2 fragment-mode rule.
+
+The coordinator extends the existing SR2 two-pass mechanism: G04 is measured, then compact source
+anchors are collected before the exact Lexbor publication pass. The exact Lexbor publication remains
+the last fallible operation; final G02/G03/G04 diagnostic materialization, ordering, line/column
+assignment, and result publication remain no-fail. The production VIEW API remains 11 functions,
+and this development-time checker state still makes no complete HTML-conformance claim.
+
+Prior-owner suppression is also bounded and stack-phased: G04 reuses 8-byte G03 source anchors in a
+32768-byte workspace, and its transparent-resolution mirror uses 24-byte frames. The deepest
+conservative compiled-stack composition remains admitted by the existing 900000-byte phased bound;
+R1A does not widen the frozen threshold.
+
+## V1N1 G04 R1B: option branch and select-source text closure
+
+R1B extends the reviewed R1A `ARBOR_VIEW_V1_G04_TRANSPARENT_PARENT_MODEL` evaluator without
+starting G04 R2. It binds two R1A residuals to source evidence carried by the same pinned Lexbor
+parse. No second parser, Lexbor source modification, production VIEW function, heap registry, or
+stack-bound widening is introduced.
+
+For an authored `option` start tag, the private adapter now exposes callback-lifetime borrowed
+attribute observations. R1B uses the authored presence of `label` and `value`, together with the
+bounded authored open-element mirror for `datalist` ancestry, to select the exact frozen `option`
+content-model branch. A no-`label`, non-`datalist` option admits zero or more `div` elements or
+phrasing content; other option branches do not admit a `div` and remain owned by the existing G03
+parent/content-model diagnostics rather than producing a duplicate G04 error. The R1A option
+runtime deferral flag therefore remains numerically reserved but is no longer published on
+successful R1B paths.
+
+For transparent `div` elements in the `select`/`optgroup` tails, the adapter also exposes the
+pinned tokenizer's decoded text token plus the pre-repair current-element/source context. R1B
+admits inter-element whitespace and rejects non-whitespace authored text, including decoded
+character references such as `&amp;`, while admitting a decoded whitespace reference such as
+`&#32;`. The error remains anchored to the owning transparent element start tag, so source repair
+does not change diagnostic ownership.
+
+Both new private observer channels are failure-atomic: a callback mechanism failure aborts the
+single Lexbor observation pass without publishing parse counts, document facts, observation
+counts, diagnostics, or result metadata. Borrowed Lexbor attribute/text spans are used only during
+the callback and are never retained.
+
+Two R1 dependencies remain intentionally unresolved. `noscript` transparency genuinely depends on
+the parser's scripting mode, so the checker must gain an explicit reviewed scripting-mode input
+before that branch can be evaluated. Autonomous custom elements have a transparent frozen element
+definition, but source hyphen syntax alone does not prove that an authored element is an autonomous
+custom element; that identity remains with the G13 custom-element owner. R1B therefore remains a
+partial R1 construction, G04 R2 is still untouched, G04 is not group-frozen, and complete HTML
+conformance is not claimed.
+
+R1B qualification records compiler path/version/target and compile flags alongside stack-usage
+observations. Source path/manifest/tree identities remain deterministic; raw compiler-generated
+`-fstack-usage` values are treated as environment evidence and are qualified against the unchanged
+900000-byte phased bound rather than being used as a cross-toolchain archive identity.
+
+## V1N1 G04 R1C: explicit scripting-disabled `noscript` closure
+
+R1C closes the final standard-element residual of `ARBOR_VIEW_V1_G04_TRANSPARENT_PARENT_MODEL`
+without starting G04 R2. The pinned `noscript` definition makes its content model transparent outside
+`head` only when scripting is disabled. The existing VIEW0 development checker had already been
+parsing with Lexbor's disabled-scripting default, but R1A/R1B deliberately refused to treat an
+implicit library default as normative checker authority. R1C makes that mode explicit in the single
+pinned Lexbor parser and verifies the readback before parsing.
+
+The current V1N1 checker mode is therefore frozen to **scripting disabled**. R1C does not expose an
+enabled-scripting switch: changing parser mode would alter HTML parsing as well as several G03
+branches, so such an expansion requires a separate cross-evaluator review rather than a local G04
+flag. This is an explicit checker admission policy, not a claim that the HTML Standard has only one
+scripting state.
+
+Under the frozen mode, an authored `noscript` outside `head` is transparent. In ordinary flow and
+phrasing contexts it inherits the containing parent part exactly like the already-qualified
+transparent elements. In `select` and `optgroup` it inherits the respective special tail model. In a
+no-`label`, non-`datalist` `option`, `noscript` enters through the phrasing-content alternative and
+therefore inherits the phrasing part rather than the `div` alternative. A `noscript` in `head` is not
+a G04 R1 transparent subject; its separate link/style/meta model remains with the existing content-
+model owner. Prior G03 ERROR ownership at the same authored child anchor continues to suppress a
+duplicate G04 diagnostic.
+
+The historical G04 `noscript` deferred-result bit remains numerically reserved for evidence
+compatibility but is no longer published by successful R1C paths. The sole remaining R1 dependency
+is autonomous-custom-element identity. The pinned custom-element source establishes that an
+autonomous custom element is transparent, but it also establishes that autonomous identity depends
+on a custom element definition; a hyphenated source name alone is not sufficient. That dependency
+therefore remains explicitly G13-owned. R1C completes standard-element G04 R1 semantics for the
+frozen scripting-disabled checker mode, but it does not claim full R1 closure across G13, does not
+start R2, and does not claim complete HTML conformance.
+
+### V1N1 G04 R2 — explicit fragment-model parentless fallback
+
+The second frozen G04 rule is evaluated only when fragment-model checking is explicitly requested.
+The development CLI exposes this as `--fragment-model`; normal document checking remains unchanged.
+The same pinned Lexbor parser is used in HTML `body` fragment context with scripting disabled. The
+synthetic fragment wrapper is parser machinery and is **not** treated as an authored parent.
+
+For a top-level authored standard element whose applicable content model is transparent, the
+transparent part accepts **flow content**, exactly as required by the frozen WHATWG source. Nested
+transparent elements inherit that flow model iteratively. Source-repair provenance is retained, so
+an invalid child can be diagnosed even when the fragment tree builder refuses to insert it.
+
+The fragment-model checker is intentionally not a second whole-document conformance path: G02/G03
+whole-document rules are not run in this mode. Autonomous custom-element identity remains owned by
+G13; hyphenated unknown elements publish the G13 deferral without an R2 authoring warning. This
+keeps G04's standard-element surface complete while preserving the later custom-element owner and
+continues to make no complete-HTML-conformance claim.
+
+
+### V1N1 G05 C0 applicability foundation
+
+G05 C0 is a private development-checker foundation only. It implements **zero G05 rule IDs**. It freezes authority-generated catalogs for the four G05 rules (106 global applicability forms, 261 element-specific references, 43 conditional predicates, and 18 additional `body` Window-event names) and extends the existing single-Lexbor authored-attribute observer with exact source offsets/lengths for attribute names. Attribute value semantics remain with G06/later owners as frozen; ARIA family name/value conformance remains a later referenced-ARIA owner.
+
+
+### V1N1 G05 R1A — global attribute applicability
+
+G05 R1A admits the frozen global-attribute catalog on standard HTML elements. Exact global names, generic event-handler content attributes, nonempty `data-` and `aria-` placement families, and the HTML `xmlns` allowance are admitted for placement only; value/name semantics owned by later groups remain outside R1. Names known to the frozen element-specific or body Window-event catalogs are handed to G05 R2/R3/R4 rather than rejected by R1. An otherwise unknown attribute name on a frozen standard HTML element produces `ARBOR_VIEW_V1_G05_GLOBAL_ATTRIBUTE_APPLICABILITY` at the authored attribute-name source range. Nonstandard/custom-element ownership remains outside this standard-element R1 boundary.
+
+
+### V1N1 G05 R2A — element-specific attribute applicability
+
+G05 R2A implements the frozen static element/attribute pair rule from the 261-record C0 catalog. An authored attribute whose name is present in the frozen element-specific catalog is admitted by R2 only when that exact standard-element-id/name pair exists. The rule is independent of parser acceptance and anchors any error at the authored attribute-name source range.
+
+R2 deliberately preserves later ownership. Global names are already admitted by R1. Unknown names remain R1-owned and do not receive a duplicate R2 diagnostic. The 18 additional `body` Window-event names remain R4-owned. A pair that is statically listed is admitted by R2 even when one of the 43 frozen conditional clauses later restricts that attribute; those state, cross-attribute and presence predicates remain exclusively R3-owned. The five custom-element references excluded from the standard 261-record catalog remain G13-owned.
+
+R2 uses the same single pinned Lexbor authored-attribute observer introduced by C0, performs no raw-HTML rescan, adds no production VIEW function, and retains the existing two-pass failure-atomic publication and 900000-byte phased stack bound. R3/R4 remain unimplemented and complete HTML conformance is not claimed.
+
+### V1N1 G05 C0-SR1 input-state authority correction
+
+Before G05 R3 construction, independent review of the frozen 43-clause conditional table found four derived input-state ownership errors in the C0 nearest-heading map. C0-SR1 preserves all 43 normative clause identities and all R1/R2 semantics, but replaces the fragile single-state string with an exact private input-state bitmask. The shared Text/Search clause applies to both states; the Date, Local Date and Time (`datetime-local`), and Range clauses are bound to their exact pinned WHATWG state headings. The corrected surface contains 24 input-related clauses, 25 state-to-clause applicability rows, and all 22 input type states. R3 remains unimplemented at this boundary.
+
+### V1N1 G05 R3A — conditional attribute applicability
+
+G05 R3A implements exactly the 43 frozen conditional-applicability clauses over the corrected C0-SR1 authority. The rule evaluates applicability predicates only: same-element attribute presence/absence, ASCII-case-insensitive `rel` token predicates, the 22-state `input` type model (with missing/invalid `type` defaulting to Text), the `img[ismap]` ancestor-`a[href]` requirement, the `optgroup` direct-child `legend` alternative, and the remaining required/forbidden-attribute relationships from the accepted clause table. No additional conditional prose outside those 43 frozen rows is silently added.
+
+R3 reuses the existing single pinned Lexbor observation pass. Authored attribute-name anchors come from the C0 source-attribute channel; ancestor/child predicates use the DOM traversal observations only where the frozen clause requires them. Present offending attributes are anchored at their authored attribute-name range. A missing required attribute is anchored at the owning authored start tag because no attribute source span exists. R1-owned unknown names and R2-owned wrong-element pairs receive no R3 duplicate; the 18 additional `body` Window-event names remain R4-owned, and nonstandard/custom-element identity remains later-owned.
+
+Value-language conformance is deliberately not widened into R3. URL, CSS, JavaScript, media-query, numeric, preload-destination, and other value grammars remain with their frozen later owners; R3 examines a value only when that value is itself part of the accepted applicability predicate (for example `rel` keywords, `as=image`, `wrap=hard`, or input state selection). The production VIEW API remains 11 functions, no second HTML parser or direct Arborcore heap allocation is introduced, and the existing two-pass failure-atomic publication and 900000-byte phased stack bound remain in force. R4 is not implemented and complete HTML conformance is not claimed.
+
+### V1N1 G05 R4A — body Window-event attribute applicability
+
+G05 R4A implements the frozen 18-name `body` Window-reflecting event-handler applicability rule. The 18 names are admitted for placement on the authored `body` element only. An occurrence on any other authored owner is an R4 ERROR anchored at the authored attribute-name source range. R1/R2/R3 deliberately hand these names forward so R4 is the sole G05 placement owner.
+
+R4 validates placement only. Event-handler JavaScript FunctionBody/value semantics remain explicitly deferred to G16. The evaluator reuses the existing single pinned Lexbor authored-attribute observation pass, adds no production VIEW API, performs no direct Arborcore heap allocation, and retains the existing two-pass failure-atomic publication and 900000-byte phased stack admission. G05 group freeze remains pending independent group review.
+
+### V1N1 G06 C0 bounded microsyntax foundation
+
+G06 C0 is a private development-checker foundation and publishes **zero G06
+diagnostics**. It binds all 17 frozen G06 identities to bounded, locale-independent
+native validators and freezes the accepted WA0-R1 author-facing consumer surface as
+79 unique policies, including the two source-proven `time` supplements for yearless
+dates and time-zone offsets. R15 remains implemented as a pure validator with zero
+author-facing consumers; no diagnostic is invented for it.
+
+The `link[as]` policy is copied from the independently accepted G06-A2 cross-standard
+closure. G05 R3 retains presence and placement ownership. G06 R2 will validate only
+present applicable values: the six preload destinations, nine modulepreload
+destinations, the `style`/`script` intersection when both relationships occur, and
+no R2 diagnostic when neither relationship applies.
+
+All scanners operate directly on bounded spans without locale state, mutable global
+registries, a second parser, or Arborcore heap allocation. Integer syntax is checked
+before bounded conversion so syntax failure has stable precedence over overflow.
+Calendar validation retains the exact proleptic-Gregorian rules even for extended
+years by using the 400-year cycle. Unique token sets use a fixed 4096-entry local
+hash workspace and return capacity separately from an authored duplicate, avoiding
+quadratic scans and false diagnostics. This foundation does not expand the production
+VIEW API, does not yet connect consumers to authoring diagnostics, and makes no
+complete-HTML-conformance claim.
+
+### V1N1 G06 R1-R17 author-facing microsyntax consumers
+
+The G06 R17A wave connects the 17 frozen C0 validators to exactly the 79 accepted
+author-facing consumer policies derived from A0, A1, WA0-R1, F1-R0, and the
+accepted A2 cross-standard closure. It does not promote general microsyntax
+definitions, parsing-algorithm references, user-agent behavior, examples, or
+later-group semantics into diagnostics. R1-R14 and R16-R17 publish deterministic
+ERROR diagnostics at authored attribute-name ranges (or at the authored `time`
+element when its child text is the consumer). R15 retains its bounded validator
+but has zero accepted author-facing consumers and therefore publishes no R15
+diagnostic.
+
+G05 remains the sole owner of attribute presence and placement. A G06 validator
+runs only after its accepted element/state/relationship predicate is satisfied;
+otherwise the occurrence is handed back to the earlier applicability owner and
+no value-language duplicate is produced. The accepted A2 `link[as]` destination
+sets remain exact for `preload`, `modulepreload`, and their `style`/`script`
+intersection. Consumer-specific restrictions are not generalized: for example,
+file `accept` tokens reject ASCII-case-insensitive duplicates, while email and
+metadata comma-list consumers retain their own restrictions.
+
+The signed-integer authoring rule is lexical and unbounded, as required by the
+pinned definition. C0 continues to report conversion range separately for callers
+that need a machine integer, but R3 does not misclassify that conversion limit as
+an authoring-syntax error. Consumer-specific numerical bounds, such as `col@span`
+being at most 1000, remain explicit consuming restrictions.
+
+The `time` element consumes either its `datetime` value or, when that attribute is
+absent, its concatenated direct text. The pinned definition also admits a valid
+year-only string, which has no V1N1 G06 rule identity; R17A therefore admits that
+branch without inventing a diagnostic. An invalid union publishes exactly one
+deterministic diagnostic selected by lexical shape, with the first normative union
+branch (R6 month) as the ambiguous fallback. A `time` element with element
+descendants remains G03-owned and receives no G06 union diagnostic.
+
+The wave retains the single pinned Lexbor parser and the existing measure/collect/
+materialize publication transaction. Source attributes, unique token sets, and
+`time` text use fixed workspaces. Workspace exhaustion is a mechanism failure and
+leaves caller diagnostics and result metadata unchanged; it is never recast as an
+authoring violation. No production VIEW function, direct Arborcore heap allocation,
+mutable runtime registry, locale dependency, second parser, or stack-threshold
+widening is introduced. G06 group freeze remains pending independent review, and
+complete HTML conformance is not claimed.
+
+### V1N1 G06 R17A-SR1 verifier reproducibility correction
+
+Independent review of the live Arch R17A qualification found two GNU `grep`
+warnings caused by unnecessary backslashes before literal double quotes in the
+diagnostic-message-table regular expression. R17A-SR1 removes only those
+nonportable escapes. The clean-room review also proved that the native verifier
+must reset the shared `native.o` changed by R17A, in addition to the G06-specific
+objects and test programs, so ignored build timestamps can never select an older
+coordinator object. SR1 binds both corrections to the accepted R17A evidence
+archive. No G06 rule identity, consumer policy, diagnostic behavior, ownership
+boundary, production API, or HTML-conformance claim changes. G06 group freeze
+remains pending independent review of the corrected candidate.
+
+### V1N1 RC1 dependency reconciliation
+
+RC1 applies the independently frozen RC0 21-row disposition matrix without
+widening the V1N1 rule authority: seven dependencies are resolved using mechanisms
+already accepted in G04-G06, thirteen later/external boundaries remain explicit,
+and the `time` lexical branch remains already owned by G06. The shared G05 C0-SR1
+input-state classifier now supplies G03 interactive and canvas decisions; the G06
+R4 nonnegative-integer parser supplies `select` display-size derivation while G06
+retains sole ownership of invalid size-value diagnostics. The checker remains in
+its frozen scripting-disabled mode for `noscript`.
+
+The generic G03 `noscript`, input-state, canvas-state, select-size, and transparent
+G04 deferral publications are retired. The narrower rendering-dependent
+`select[multiple]` display-size-one boundary remains, as do style, script,
+accessibility, parser-repair, G13 custom-element, and G16 event-handler-value
+boundaries. G03 R7 asks the G04 containing-model mechanism whether a transparent
+`div` actually derives a flow-or-phrasing subject; tag proximity is not used.
+
+RC1 adds no production VIEW function, parser, heap allocation, locale dependency,
+or mutable runtime registry. Diagnostic ordering, UTF-8 precedence, prior-owner
+suppression, failure atomicity, and the 900000-byte phased stack admission remain
+required. RC1 is a V1N1 integration reconciliation, not a complete HTML-conformance
+claim.

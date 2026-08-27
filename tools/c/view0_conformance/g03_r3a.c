@@ -1,5 +1,7 @@
 #include "g03_r3a.h"
 #include "g03_r1a.h"
+#include "g05_c0.h"
+#include "g06_c0.h"
 
 #include <errno.h>
 #include <stdbool.h>
@@ -41,8 +43,7 @@
 
 typedef enum r3_interactive_class {
     R3_INTERACTIVE_NO = 0,
-    R3_INTERACTIVE_YES = 1,
-    R3_INTERACTIVE_INPUT_TYPE_DEFERRED = 2
+    R3_INTERACTIVE_YES = 1
 } r3_interactive_class;
 
 typedef struct g03_r3a_frame {
@@ -53,8 +54,11 @@ typedef struct g03_r3a_frame {
     uint64_t source_length;
     uint64_t attribute_flags;
     uint64_t activated_bits;
+    uint64_t input_state;
+    uint64_t select_size_value;
     bool authored;
     bool datalist_ancestor;
+    bool select_size_valid;
 } g03_r3a_frame;
 
 typedef struct g03_r3a_context {
@@ -87,9 +91,9 @@ _Static_assert(sizeof("ARBOR_VIEW_V1_G03_DESCENDANT_EXCLUSIONS") <=
 _Static_assert(sizeof("HTML element is forbidden as a descendant in this structural context") <=
                    ARBOR_VIEW0_NATIVE_MESSAGE_CAP,
                "G03 R3A message exceeds diagnostic capacity");
-_Static_assert(sizeof(g03_r3a_frame) == 64u,
+_Static_assert(sizeof(g03_r3a_frame) == 80u,
                "G03 R3A frame layout drift on x86-64");
-_Static_assert(sizeof(g03_r3a_context) == 262472u,
+_Static_assert(sizeof(g03_r3a_context) == 328040u,
                "G03 R3A bounded evaluator workspace layout drift on x86-64");
 _Static_assert(sizeof(g03_r3a_context) <= 1048576u,
                "G03 R3A evaluator workspace exceeds 1 MiB admission");
@@ -191,9 +195,8 @@ static r3_interactive_class interactive_class(const g03_r3a_frame *frame)
         return (frame->attribute_flags & (R3_ATTR_USEMAP | R3_ATTR_CONTROLS)) != 0u
             ? R3_INTERACTIVE_YES : R3_INTERACTIVE_NO;
     case ARBOR_VIEW0_NATIVE_ELEMENT_INPUT:
-        return (frame->attribute_flags & R3_ATTR_TYPE) != 0u
-            ? R3_INTERACTIVE_INPUT_TYPE_DEFERRED
-            : R3_INTERACTIVE_YES;
+        return frame->input_state == ARBOR_VIEW0_NATIVE_G05_C0_INPUT_STATE_HIDDEN
+            ? R3_INTERACTIVE_NO : R3_INTERACTIVE_YES;
     default:
         return R3_INTERACTIVE_NO;
     }
@@ -315,7 +318,6 @@ static bool static_forbidden(const g03_r3a_context *context, uint64_t id)
 }
 
 static bool canvas_definite_violation(
-    g03_r3a_context *context,
     const g03_r3a_frame *frame,
     r3_interactive_class interactive)
 {
@@ -329,20 +331,18 @@ static bool canvas_definite_violation(
     case ARBOR_VIEW0_NATIVE_ELEMENT_IMG:
         return (frame->attribute_flags & R3_ATTR_USEMAP) == 0u;
     case ARBOR_VIEW0_NATIVE_ELEMENT_INPUT:
-        if (interactive == R3_INTERACTIVE_INPUT_TYPE_DEFERRED) {
-            set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_CANVAS_INPUT_STATE);
-            return false;
-        }
-        return true;
+        return (frame->input_state &
+            (ARBOR_VIEW0_NATIVE_G05_C0_INPUT_STATE_CHECKBOX |
+             ARBOR_VIEW0_NATIVE_G05_C0_INPUT_STATE_RADIO |
+             ARBOR_VIEW0_NATIVE_G05_C0_INPUT_STATE_SUBMIT |
+             ARBOR_VIEW0_NATIVE_G05_C0_INPUT_STATE_IMAGE |
+             ARBOR_VIEW0_NATIVE_G05_C0_INPUT_STATE_RESET |
+             ARBOR_VIEW0_NATIVE_G05_C0_INPUT_STATE_BUTTON)) == 0u;
     case ARBOR_VIEW0_NATIVE_ELEMENT_SELECT:
         if ((frame->attribute_flags & R3_ATTR_MULTIPLE) != 0u) {
             return false;
         }
-        if ((frame->attribute_flags & R3_ATTR_SIZE) != 0u) {
-            set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_CANVAS_SELECT_SIZE);
-            return false;
-        }
-        return true;
+        return !frame->select_size_valid || frame->select_size_value <= 1u;
     default:
         return true;
     }
@@ -360,22 +360,16 @@ static bool current_forbidden(g03_r3a_context *context, const g03_r3a_frame *fra
             id == ARBOR_VIEW0_NATIVE_ELEMENT_OBJECT || tabindex ||
             interactive == R3_INTERACTIVE_YES) {
             invalid = true;
-        } else if (interactive == R3_INTERACTIVE_INPUT_TYPE_DEFERRED) {
-            set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_INPUT_TYPE);
         }
     }
     if (any_active(context, 7u) || any_active(context, 9u)) {
         if (tabindex || interactive == R3_INTERACTIVE_YES) {
             invalid = true;
-        } else if (interactive == R3_INTERACTIVE_INPUT_TYPE_DEFERRED) {
-            set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_INPUT_TYPE);
         }
     }
     if (any_active(context, 14u)) {
         if (id == ARBOR_VIEW0_NATIVE_ELEMENT_A || tabindex || interactive == R3_INTERACTIVE_YES) {
             invalid = true;
-        } else if (interactive == R3_INTERACTIVE_INPUT_TYPE_DEFERRED) {
-            set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_INPUT_TYPE);
         }
     }
     if (any_active(context, 12u)) {
@@ -386,7 +380,7 @@ static bool current_forbidden(g03_r3a_context *context, const g03_r3a_frame *fra
             set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_LABELED_CONTROL);
         }
     }
-    if (any_active(context, 15u) && canvas_definite_violation(context, frame, interactive)) {
+    if (any_active(context, 15u) && canvas_definite_violation(frame, interactive)) {
         invalid = true;
     }
     if (any_active(context, 13u) && id == ARBOR_VIEW0_NATIVE_ELEMENT_RUBY) {
@@ -418,6 +412,7 @@ static arbor_status r3a_traversal_enter(
     frame->source_offset = observation->source_offset;
     frame->source_length = observation->source_length;
     frame->authored = (observation->flags & ARBOR_VIEW0_NATIVE_ELEMENT_FLAG_SYNTHETIC) == 0u;
+    frame->input_state = ARBOR_VIEW0_NATIVE_G05_C0_INPUT_STATE_TEXT;
     frame->datalist_ancestor = observation_has_ancestor(
         observation, ARBOR_VIEW0_NATIVE_ELEMENT_DATALIST);
     return ok_status();
@@ -440,6 +435,10 @@ static arbor_status r3a_attribute(
         frame->attribute_flags |= R3_ATTR_USEMAP;
     } else if (span_ascii_ci_equals(observation->local_name, "type")) {
         frame->attribute_flags |= R3_ATTR_TYPE;
+        if (frame->standard_element_id == ARBOR_VIEW0_NATIVE_ELEMENT_INPUT) {
+            frame->input_state =
+                arbor_view0_native_g05_c0_input_state_from_type(observation->value);
+        }
     } else if (span_ascii_ci_equals(observation->local_name, "tabindex")) {
         frame->attribute_flags |= R3_ATTR_TABINDEX;
     } else if (span_ascii_ci_equals(observation->local_name, "label")) {
@@ -448,6 +447,12 @@ static arbor_status r3a_attribute(
         frame->attribute_flags |= R3_ATTR_MULTIPLE;
     } else if (span_ascii_ci_equals(observation->local_name, "size")) {
         frame->attribute_flags |= R3_ATTR_SIZE;
+        if (frame->standard_element_id == ARBOR_VIEW0_NATIVE_ELEMENT_SELECT) {
+            frame->select_size_valid =
+                arbor_view0_native_g06_c0_nonnegative_integer(
+                    observation->value, &frame->select_size_value) ==
+                ARBOR_VIEW0_NATIVE_G06_C0_NUMBER_VALID;
+        }
     }
     return ok_status();
 }
@@ -485,11 +490,6 @@ static arbor_status activate_parent_restriction(
     case ARBOR_VIEW0_NATIVE_ELEMENT_RUBY: return activate(context, frame, 13u);
     case ARBOR_VIEW0_NATIVE_ELEMENT_A: return activate(context, frame, 14u);
     case ARBOR_VIEW0_NATIVE_ELEMENT_CANVAS: return activate(context, frame, 15u);
-    case ARBOR_VIEW0_NATIVE_ELEMENT_NOSCRIPT:
-        if (frame->parent_standard_element_id != ARBOR_VIEW0_NATIVE_ELEMENT_HEAD) {
-            set_deferred(context, ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_NOSCRIPT);
-        }
-        return ok_status();
     default:
         return ok_status();
     }

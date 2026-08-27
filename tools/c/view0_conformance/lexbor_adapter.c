@@ -706,6 +706,79 @@ static bool source_pointer_range(
     return true;
 }
 
+
+static arbor_status source_attribute_observe(
+    arbor_view0_native_source_capture *capture,
+    const lxb_html_token_t *token,
+    uint64_t standard_element_id,
+    uint64_t owner_source_offset)
+{
+    if (capture == NULL || token == NULL ||
+        standard_element_id == ARBOR_VIEW0_NATIVE_ELEMENT_NONE ||
+        capture->observer == NULL || capture->observer->source_attribute == NULL)
+        return status_from_errno_value(EINVAL);
+
+    uint64_t ordinal = 0u;
+    for (lxb_html_token_attr_t *attr = token->attr_first; attr != NULL; attr = attr->next) {
+        size_t name_length = 0u;
+        const lxb_char_t *name = lxb_html_token_attr_name(attr, &name_length);
+        if (name == NULL || name_length == 0u) return status_from_errno_value(EIO);
+        if (ordinal == UINT64_MAX) return status_from_errno_value(EOVERFLOW);
+        uint64_t name_offset = 0u;
+        uint64_t name_source_length = 0u;
+        if (!source_pointer_range(capture, attr->name_begin, attr->name_end,
+                                  &name_offset, &name_source_length) ||
+            name_source_length == 0u) {
+            return status_from_errno_value(EIO);
+        }
+        arbor_view0_native_source_attribute_observation observation = {
+            .owner_standard_element_id = standard_element_id,
+            .owner_source_offset = owner_source_offset,
+            .source_offset = name_offset,
+            .source_length = name_source_length,
+            .ordinal = ordinal,
+            .local_name = {(const uint8_t *)name, (uint64_t)name_length},
+            .value = {(const uint8_t *)attr->value, (uint64_t)attr->value_size}
+        };
+        if (observation.value.length != 0u && observation.value.data == NULL)
+            return status_from_errno_value(EIO);
+        arbor_status status = capture->observer->source_attribute(
+            capture->observer->context, &observation);
+        if (status.native != 0) return status;
+        ordinal += 1u;
+    }
+    return ok_status();
+}
+
+static arbor_status source_text_observe(
+    arbor_view0_native_source_capture *capture,
+    const lxb_html_token_t *token)
+{
+    if (capture == NULL || token == NULL || capture->tree == NULL ||
+        capture->observer == NULL || capture->observer->source_text == NULL ||
+        token->tag_id != LXB_TAG__TEXT) return status_from_errno_value(EINVAL);
+
+    uint64_t source_offset = 0u, source_length = 0u;
+    if (!source_token_name_range(capture, token, &source_offset, &source_length))
+        return status_from_errno_value(EIO);
+    if (token->text_start == NULL || token->text_end == NULL ||
+        token->text_end < token->text_start) return status_from_errno_value(EIO);
+
+    arbor_view0_native_source_text_observation observation = {
+        .source_offset = source_offset,
+        .source_length = source_length,
+        .initial_current_source_offset = ARBOR_VIEW0_NATIVE_SOURCE_OFFSET_NONE,
+        .text = {(const uint8_t *)token->text_start,
+                 (uint64_t)(token->text_end - token->text_start)}
+    };
+    arbor_status status = source_repair_current_context(
+        capture, capture->tree, &observation.initial_current_standard_element_id,
+        &observation.initial_current_source_offset, &observation.initial_insertion_mode_id,
+        &observation.initial_open_elements_depth);
+    if (status.native != 0) return status;
+    return capture->observer->source_text(capture->observer->context, &observation);
+}
+
 static bool capture_first_doctype_source(
     arbor_view0_native_source_capture *capture,
     const lxb_html_token_t *token,
@@ -860,6 +933,43 @@ static lxb_html_token_t *capture_token_done(
                 }
             }
         }
+    }
+
+    if (!capture->failed && capture->observer != NULL &&
+        capture->observer->source_attribute != NULL && capture->tree != NULL &&
+        token != NULL && (token->type & LXB_HTML_TOKEN_TYPE_CLOSE) == 0 &&
+        token->tag_id > LXB_TAG__TEXT) {
+        const uint64_t standard_id =
+            arbor_view0_native_g03_standard_element_id_from_lexbor(
+                (uintptr_t)token->tag_id, (uintptr_t)LXB_NS_HTML);
+        if (standard_id != ARBOR_VIEW0_NATIVE_ELEMENT_NONE) {
+            uint64_t owner_offset = 0u, owner_length = 0u;
+            if (!source_token_name_range(capture, token, &owner_offset, &owner_length)) {
+                capture->failed = true;
+            } else {
+                arbor_status attr_status = source_attribute_observe(
+                    capture, token, standard_id, owner_offset);
+                if (attr_status.native != 0) {
+                    capture->failed = true;
+                    capture->source_repair_failure = attr_status;
+                }
+            }
+        }
+    }
+
+    if (!capture->failed && capture->observer != NULL &&
+        capture->observer->source_text != NULL && capture->tree != NULL &&
+        token != NULL && token->tag_id == LXB_TAG__TEXT) {
+        arbor_status text_status = source_text_observe(capture, token);
+        if (text_status.native != 0) {
+            capture->failed = true;
+            capture->source_repair_failure = text_status;
+        }
+    }
+
+    if (capture->failed) {
+        if (tokenizer != NULL) lxb_html_tokenizer_status_set(tokenizer, LXB_STATUS_ERROR);
+        return NULL;
     }
 
     if (token != NULL && (token->type & LXB_HTML_TOKEN_TYPE_CLOSE) == 0) {
@@ -1722,6 +1832,16 @@ static arbor_status lexbor_process(
         return status_from_errno_value(EIO);
     }
 
+    /* VIEW0 V1N1 G04 R1C freezes the current development checker to the
+     * scripting-disabled HTML parser semantics. Make the Lexbor mode explicit
+     * instead of relying on its initialization default. A future enabled-mode
+     * checker expansion must be reviewed across every semantic evaluator. */
+    lxb_html_parser_scripting_set(parser, false);
+    if (lxb_html_parser_scripting(parser)) {
+        (void)lxb_html_parser_destroy(parser);
+        return status_from_errno_value(EIO);
+    }
+
     lxb_html_tokenizer_t *tokenizer = lxb_html_parser_tokenizer(parser);
     if (tokenizer == NULL) {
         (void)lxb_html_parser_destroy(parser);
@@ -2014,4 +2134,238 @@ arbor_status arbor_view0_native_lexbor_observe(
         observation_counts_out,
         NULL,
         NULL);
+}
+
+static arbor_status validate_fragment_adapter_regions(
+    arbor_span input,
+    arbor_view0_native_diagnostic *diagnostics,
+    uint64_t diagnostic_capacity,
+    arbor_view0_native_parse_counts *counts_out,
+    arbor_view0_native_observation_counts *observation_counts_out)
+{
+    if (counts_out == NULL ||
+        diagnostic_capacity > ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS ||
+        (diagnostic_capacity != 0u && diagnostics == NULL) ||
+        !adapter_range_representable(input.data, input.length) ||
+        !adapter_range_representable(counts_out, sizeof(*counts_out)) ||
+        (observation_counts_out != NULL &&
+         !adapter_range_representable(observation_counts_out, sizeof(*observation_counts_out)))) {
+        return status_from_errno_value(EINVAL);
+    }
+    arbor_asm_result_u64 diagnostic_bytes = u64_mul_checked(
+        diagnostic_capacity, (uint64_t)sizeof(*diagnostics));
+    if (diagnostic_bytes.status != 0) return arbor_status_from_native(diagnostic_bytes.status);
+    if (!adapter_range_representable(diagnostics, diagnostic_bytes.value))
+        return status_from_errno_value(EINVAL);
+    if (adapter_ranges_overlap(input.data, input.length, counts_out, sizeof(*counts_out)) ||
+        adapter_ranges_overlap(input.data, input.length, diagnostics, diagnostic_bytes.value) ||
+        adapter_ranges_overlap(counts_out, sizeof(*counts_out), diagnostics, diagnostic_bytes.value) ||
+        (observation_counts_out != NULL &&
+         (adapter_ranges_overlap(input.data, input.length, observation_counts_out, sizeof(*observation_counts_out)) ||
+          adapter_ranges_overlap(counts_out, sizeof(*counts_out), observation_counts_out, sizeof(*observation_counts_out)) ||
+          adapter_ranges_overlap(diagnostics, diagnostic_bytes.value, observation_counts_out, sizeof(*observation_counts_out))))) {
+        return status_from_errno_value(EINVAL);
+    }
+    return ok_status();
+}
+
+static arbor_status lexbor_fragment_process(
+    arbor_span input,
+    arbor_view0_native_diagnostic *diagnostics,
+    uint64_t diagnostic_capacity,
+    arbor_view0_native_parse_counts *counts_out,
+    bool publish_diagnostics,
+    const arbor_view0_native_semantic_observer *observer,
+    arbor_view0_native_observation_counts *observation_counts_out,
+    const arbor_view0_native_parse_counts *expected_counts)
+{
+    arbor_status region_status = validate_fragment_adapter_regions(
+        input, diagnostics, diagnostic_capacity, counts_out, observation_counts_out);
+    if (region_status.native != 0) return region_status;
+    if ((observer == NULL) != (observation_counts_out == NULL))
+        return status_from_errno_value(EINVAL);
+
+    lxb_html_parser_t *parser = lxb_html_parser_create();
+    if (parser == NULL) return status_from_errno_value(ENOMEM);
+    if (lxb_html_parser_init(parser) != LXB_STATUS_OK) {
+        (void)lxb_html_parser_destroy(parser);
+        return status_from_errno_value(EIO);
+    }
+    lxb_html_parser_scripting_set(parser, false);
+    if (lxb_html_parser_scripting(parser)) {
+        (void)lxb_html_parser_destroy(parser);
+        return status_from_errno_value(EIO);
+    }
+
+    lxb_html_tokenizer_t *tokenizer = lxb_html_parser_tokenizer(parser);
+    if (tokenizer == NULL) {
+        (void)lxb_html_parser_destroy(parser);
+        return status_from_errno_value(EIO);
+    }
+    lxb_html_tokenizer_keep_duplicate_set(tokenizer, false);
+    lxb_html_tokenizer_input_validation_set(tokenizer, true);
+
+    arbor_view0_native_document_facts dummy_facts = document_facts_initial();
+    arbor_view0_native_source_capture capture = {
+        .input = input,
+        .downstream = NULL,
+        .downstream_context = NULL,
+        .facts = &dummy_facts,
+        .observer = observer,
+        .tree = NULL,
+        .source_repair_failure = {0},
+        .provenance = {
+            .input_data = input.data,
+            .input_length = input.length,
+            .current_begin = NULL,
+            .current_tag = LXB_TAG__UNDEF,
+            .current_start = false,
+            .current_assigned = false,
+            .wrapper_seen = false,
+            .insertion_wrapper_seen = false,
+            .failed = false,
+            .source_repair_tree = NULL,
+            .source_repair_token = NULL,
+            .source_repair_record = {0},
+            .source_repair_active = false
+        },
+        .failed = false
+    };
+
+    lxb_status_t parse_status = lxb_html_parse_fragment_chunk_begin(
+        parser, NULL, LXB_TAG_BODY, LXB_NS_HTML);
+    if (parse_status != LXB_STATUS_OK) {
+        (void)lxb_html_parser_destroy(parser);
+        return status_from_errno_value(EIO);
+    }
+
+    tokenizer = lxb_html_parser_tokenizer(parser);
+    capture.tree = lxb_html_parser_tree(parser);
+    if (tokenizer == NULL || capture.tree == NULL ||
+        tokenizer->callback_token_done == NULL || capture.tree->document == NULL) {
+        (void)lxb_html_parser_destroy(parser);
+        return status_from_errno_value(EIO);
+    }
+    capture.downstream = tokenizer->callback_token_done;
+    capture.downstream_context = lxb_html_tokenizer_callback_token_done_ctx(tokenizer);
+    if (capture.downstream_context != (void *)capture.tree) {
+        (void)lxb_html_parser_destroy(parser);
+        return status_from_errno_value(EIO);
+    }
+    capture.provenance.source_repair_tree = capture.tree;
+    capture.tree->document->dom_document.user = &capture.provenance;
+    lxb_html_tokenizer_callback_token_done_set(tokenizer, capture_token_done, &capture);
+
+    parse_status = lxb_html_parse_fragment_chunk_process(
+        parser, (const lxb_char_t *)input.data, (size_t)input.length);
+    lxb_dom_node_t *root = NULL;
+    if (parse_status == LXB_STATUS_OK)
+        root = lxb_html_parse_fragment_chunk_end(parser);
+    if (root == NULL || capture.failed || capture.provenance.failed) {
+        arbor_status failure = capture.source_repair_failure.native != 0
+            ? capture.source_repair_failure
+            : status_from_errno_value(EIO);
+        (void)lxb_html_parser_destroy(parser);
+        return failure;
+    }
+
+    lxb_html_tree_t *tree = lxb_html_parser_tree(parser);
+    if (tree == NULL) {
+        lxb_html_document_destroy(lxb_html_interface_document(root->owner_document));
+        (void)lxb_html_parser_destroy(parser);
+        return status_from_errno_value(EIO);
+    }
+
+    arbor_view0_native_observation_counts observation_counts = {0};
+    if (observer != NULL) {
+        lxb_html_document_t *document = lxb_html_interface_document(root->owner_document);
+        if (document == NULL) {
+            (void)lxb_html_parser_destroy(parser);
+            return status_from_errno_value(EIO);
+        }
+        arbor_status status = observe_document(input, document, observer, &observation_counts);
+        if (status.native != 0) {
+            document->dom_document.user = NULL;
+            lxb_html_document_destroy(document);
+            (void)lxb_html_parser_destroy(parser);
+            return status;
+        }
+    }
+
+    const uint64_t tokenizer_count = tokenizer->parse_errors == NULL
+        ? 0u : (uint64_t)tokenizer->parse_errors->length;
+    const uint64_t tree_count = tree->parse_errors == NULL
+        ? 0u : (uint64_t)tree->parse_errors->length;
+    const arbor_view0_native_parse_counts counts = {
+        .tokenizer_error_count = tokenizer_count,
+        .tree_error_count = tree_count
+    };
+    if (expected_counts != NULL &&
+        (counts.tokenizer_error_count != expected_counts->tokenizer_error_count ||
+         counts.tree_error_count != expected_counts->tree_error_count)) {
+        lxb_html_document_t *document = lxb_html_interface_document(root->owner_document);
+        if (document != NULL) document->dom_document.user = NULL;
+        lxb_html_document_destroy(document);
+        (void)lxb_html_parser_destroy(parser);
+        return status_from_errno_value(EIO);
+    }
+
+    arbor_asm_result_u64 total = u64_add_checked(tokenizer_count, tree_count);
+    if (total.status != 0 || (publish_diagnostics && total.value > diagnostic_capacity)) {
+        lxb_html_document_t *document = lxb_html_interface_document(root->owner_document);
+        if (document != NULL) document->dom_document.user = NULL;
+        lxb_html_document_destroy(document);
+        (void)lxb_html_parser_destroy(parser);
+        return total.status != 0 ? arbor_status_from_native(total.status)
+                                 : status_from_errno_value(ENOSPC);
+    }
+    if (publish_diagnostics) {
+        arbor_status status = preflight_tokenizer_errors(input, tokenizer->parse_errors);
+        if (status.native == 0) status = preflight_tree_errors(input, tree->parse_errors);
+        if (status.native != 0) {
+            lxb_html_document_t *document = lxb_html_interface_document(root->owner_document);
+            if (document != NULL) document->dom_document.user = NULL;
+            lxb_html_document_destroy(document);
+            (void)lxb_html_parser_destroy(parser);
+            return status;
+        }
+        uint64_t sequence = 0u;
+        uint64_t index = 0u;
+        fill_tokenizer_errors(input, tokenizer->parse_errors, diagnostics, &sequence, &index);
+        fill_tree_errors(input, tree->parse_errors, diagnostics, &sequence, &index);
+    }
+
+    *counts_out = counts;
+    if (observer != NULL) *observation_counts_out = observation_counts;
+    lxb_html_document_t *document = lxb_html_interface_document(root->owner_document);
+    if (document != NULL) document->dom_document.user = NULL;
+    lxb_html_document_destroy(document);
+    (void)lxb_html_parser_destroy(parser);
+    return ok_status();
+}
+
+arbor_status arbor_view0_native_lexbor_observe_fragment_model(
+    arbor_span input,
+    const arbor_view0_native_semantic_observer *observer,
+    arbor_view0_native_parse_counts *parse_counts_out,
+    arbor_view0_native_observation_counts *observation_counts_out)
+{
+    if (observer == NULL || input.length > ARBOR_VIEW0_NATIVE_MAX_INPUT_BYTES)
+        return status_from_errno_value(observer == NULL ? EINVAL : E2BIG);
+    return lexbor_fragment_process(
+        input, NULL, 0u, parse_counts_out, false, observer,
+        observation_counts_out, NULL);
+}
+
+arbor_status arbor_view0_native_lexbor_fragment_collect_exact(
+    arbor_span input,
+    arbor_view0_native_diagnostic *diagnostics,
+    uint64_t diagnostic_capacity,
+    const arbor_view0_native_parse_counts *expected_counts)
+{
+    if (expected_counts == NULL) return status_from_errno_value(EINVAL);
+    arbor_view0_native_parse_counts counts = {0};
+    return lexbor_fragment_process(
+        input, diagnostics, diagnostic_capacity, &counts, true, NULL, NULL,
+        expected_counts);
 }
