@@ -1,0 +1,13 @@
+case_id	rule_id	expectation	fixture_surface
+G08F001	0x0000000030080001	ERROR	picture source missing srcset
+G08F002	0x0000000030080002	ERROR	img missing both src and srcset
+G08F003	0x0000000030080003	ERROR	img missing admitted alt replacement
+G08F004	0x0000000030080004	ERROR	iframe sandbox redundant top-navigation tokens
+G08F005	0x0000000030080005	ERROR	embed itemprop without src
+G08F006	0x0000000030080006	ERROR	object missing data
+G08F007	0x0000000030080007	ERROR	media itemprop without src
+G08F008	0x0000000030080008	ERROR	track missing src
+G08F009	0x0000000030080009	ERROR	media source missing src
+G08F010	0x000000003008000A	ERROR	map missing name
+G08F011	0x000000003008000B	NO_ERROR_HTML_INTEGRATION_ONLY	SVG MathML complete language conformance deferred
+G08F012	0x000000003008000C	ERROR	paired dimensions exactly one zero

@@ -1,0 +1,13 @@
+dependency	consuming_groups	disposition	admitted_v1n2_boundary	implementation_effect
+WHATWG URL Standard	G07,G08,G10	FROZEN_AT_HTML_COMMIT_TIME	Static URL parsing and validity only; navigation origin and network behavior excluded.	MAY_SUPPORT_STATIC_PREDICATES_WITHIN_ADMITTED_BOUNDARY
+WHATWG Fetch Standard	G07,G08,G10	FROZEN_RETAINED_G06_A2_BYTE_IDENTITY	Static destination and declaration relationships only; fetching and response processing excluded.	MAY_SUPPORT_STATIC_PREDICATES_WITHIN_ADMITTED_BOUNDARY
+MIME Sniffing	G08,G10	FROZEN_AT_HTML_COMMIT_TIME	MIME type syntax essence and supported declaration relationships only; sniffing execution excluded.	MAY_SUPPORT_STATIC_PREDICATES_WITHIN_ADMITTED_BOUNDARY
+Referrer Policy	G07,G08	FROZEN_AT_HTML_COMMIT_TIME	Authored policy keywords and applicability only; request mutation excluded.	MAY_SUPPORT_STATIC_PREDICATES_WITHIN_ADMITTED_BOUNDARY
+Content Security Policy	G07,G08	FROZEN_AT_HTML_COMMIT_TIME	Static CSP attribute grammar only; enforcement and browsing-context algorithms excluded.	MAY_SUPPORT_STATIC_PREDICATES_WITHIN_ADMITTED_BOUNDARY
+Permissions Policy	G08	FROZEN_AT_HTML_COMMIT_TIME	Static iframe allow-policy grammar and declaration relationships only; enforcement excluded.	MAY_SUPPORT_STATIC_PREDICATES_WITHIN_ADMITTED_BOUNDARY
+Media Queries	G08	FROZEN_WITH_CSS_SYNTAX_SUPPORT	Static media-query parsing and declaration validity only; environment evaluation excluded.	MAY_SUPPORT_STATIC_PREDICATES_WITHIN_ADMITTED_BOUNDARY
+WebVTT	G08	EXPLICITLY_DEFERRED	Track element declarations remain in V1N2; external resource-body validation is a later owner.	NO_IMPLEMENTATION_OF_DEFERRED_EXTERNAL_SEMANTICS
+SVG and MathML	G08	HTML_INTEGRATION_ONLY	Pinned HTML integration constraints only; complete SVG and MathML language conformance is deferred.	HTML_INTEGRATION_PREDICATES_ONLY_NO_EXTERNAL_LANGUAGE_CONFORMANCE
+ECMAScript RegExp	G10	EXPLICITLY_DEFERRED_TO_G16	Pattern attribute presence and HTML-owned relationships may be checked; pattern-language semantics are not.	NO_IMPLEMENTATION_OF_DEFERRED_EXTERNAL_SEMANTICS
+Encoding Standard	G10	FROZEN_AT_HTML_COMMIT_TIME	Static accept-charset UTF-8 boundary only; encoder execution excluded.	MAY_SUPPORT_STATIC_PREDICATES_WITHIN_ADMITTED_BOUNDARY
+ARIA and HTML-AAM	G09,G10	EXPLICITLY_DEFERRED	Accessibility semantics remain a later separately frozen authority and are not absorbed into V1N2.	NO_IMPLEMENTATION_OF_DEFERRED_EXTERNAL_SEMANTICS

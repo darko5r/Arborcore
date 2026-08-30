@@ -1498,3 +1498,140 @@ or mutable runtime registry. Diagnostic ordering, UTF-8 precedence, prior-owner
 suppression, failure atomicity, and the 900000-byte phased stack admission remain
 required. RC1 is a V1N1 integration reconciliation, not a complete HTML-conformance
 claim.
+
+### V1N2 C0 authority and resource foundation
+
+V1N2 C0 binds the independently frozen G07-G11 matrix and its cross-standard
+authority closure into a zero-diagnostic implementation foundation. It records
+all 38 rule identities at the exact group boundary (G07 5, G08 12, G09 6,
+G10 13, G11 2), the 36/1/1 static-document, HTML-integration, and deterministic-
+subset admission partition, and all 12 external-authority dispositions. Eight
+authority rows carry exact selected commit and source-byte identities; deferred
+WebVTT, SVG/MathML language, ECMAScript RegExp, and accessibility semantics remain
+explicit and non-rejecting.
+
+The foundation defines one caller-bounded 4096-entry anchor arena shared by the
+later G07-G11 evaluators. C0 validates only immutable metadata and resource
+contracts. It adds no G07-G11 diagnostic rule to the public checker, allocates no
+heap storage, introduces no locale dependency or mutable runtime registry, and
+uses the existing single pinned Lexbor parser. The production VIEW API remains at
+11 functions and the retained phased stack admission remains 900000 bytes.
+
+Group evaluators are constructed in later checkpoints in the frozen order G07,
+G08, G09, G10, and G11. Consequently C0 makes no complete HTML-conformance claim.
+The C0 gate resets its metadata object, the shared native coordinator object, and
+their dependent C0/RC1 test programs before qualification, so ignored build
+timestamps cannot select a pre-C0 executable.
+
+### V1N2 G07 static link semantics
+
+G07 implements the five frozen link-rule identities over the C0 authority and
+resource foundation. The admitted surface is static-document authoring only:
+hyperlink `href` and `target` relationships; the relationship between `download`
+and a hyperlink-bearing `href`; nonempty HTTP(S) URL tokens in `ping`; the pinned
+HTML relation-to-element applicability matrix for `link`, `a`, `area`, and `form`;
+and the frozen per-relation companion, exclusion, and legacy-synonym constraints.
+
+G03 remains the content-model owner, G05 remains the attribute-placement owner,
+and G06 remains the token/value-microsyntax owner. G07 therefore does not repeat
+duplicate-token, wrong-element-attribute, or generic URL-list mechanics already
+owned by those groups. Relation names outside the pinned HTML table remain
+non-rejecting because the runtime extension registry was not frozen as V1N2
+authority. Likewise navigation, origin checks, fetching, ping transmission,
+download filename selection, CSP enforcement, and other user-agent algorithms are
+outside this static checker checkpoint.
+
+The evaluator uses the C0 shared anchor representation and the existing single
+pinned Lexbor observation path. Measurement precedes exact anchor collection; the
+last parser-dependent materialization occurs before any caller publication. A
+capacity or parser failure leaves result and diagnostic buffers unchanged. No
+production VIEW function, direct Arborcore heap allocation, mutable runtime
+registry, locale dependency, second parser, or stack-threshold widening is added.
+G08-G11 remain unimplemented, and complete HTML conformance is not claimed.
+
+### V1N2 G08 static embedded-content semantics
+
+G08 implements the twelve frozen embedded-content identities over the accepted
+G07 group boundary. Eleven identities publish bounded static-document diagnostics
+covering picture/source ordering, image resource and alternative-text conditions,
+iframe/embed/object declarations, media and track declarations, media-source
+cross-resource conditions, image-map references, and paired image dimensions.
+R11 records HTML foreign-content integration and keeps full SVG and MathML
+language conformance outside this checker boundary.
+
+G03 retains content-model ownership, G05 retains attribute applicability, and G06
+retains shared value-microsyntax ownership. WebVTT resource-body validation,
+runtime fetching and media algorithms, intrinsic-layout calculations, and human-
+language adequacy judgments remain explicit non-rejecting exclusions. The static
+map, track, figure, picture, and media relationships are evaluated only from the
+pinned HTML observation surface.
+
+G08 reuses the C0 bounded anchor representation and the existing Lexbor parse.
+Measurement precedes collection and exact materialization; any anchor, workspace,
+or final parser failure preserves caller output atomically. No production VIEW
+function, heap allocation, mutable global registry, locale dependency, second
+parser, or stack-bound widening is introduced. G09-G11 remain unimplemented and
+complete HTML conformance is not claimed.
+
+### V1N2 G09 static table semantics
+
+G09 implements the six frozen static-document table identities over the accepted
+G08 group boundary. The evaluator covers the bounded table slot model, caption
+cardinality, column and column-group spans, row-group intervals, applicable
+header scope, and explicit or implicit cell/header association. G03 and G05
+retain content-model and attribute-applicability ownership, while G06 retains
+integer-microsyntax diagnostics; G09 suppresses duplicates at those boundaries.
+
+The table model is a sparse rectangle/interval representation whose storage is
+linear in parsed table nodes and header tokens. It never allocates a width by
+height product grid. One invocation-local Lexbor mraw arena owns transient model
+records, checked arithmetic protects all coordinates, and arena or collection
+failure leaves caller diagnostics and results unchanged. No direct Arborcore
+heap call, build-surface change, public VIEW function, locale dependency, mutable
+runtime registry, second parser, or stack-threshold widening is introduced.
+
+ARIA and HTML-AAM accessibility naming, CSS table layout, and runtime table
+presentation remain explicit non-rejecting exclusions. G10-G11 remain
+unimplemented and complete HTML conformance is not claimed.
+
+### V1N2 G10 static form semantics
+
+G10 implements the thirteen frozen form identities over the accepted G09 group
+freeze: twelve static-document rules plus the deterministic constraint-validation
+subset. The checker binds form owners and ID references, the complete 22-state
+input partition, control-family author relationships, static validation predicates,
+and submission declarations without executing submission or runtime UI algorithms.
+
+The implementation retains G03/G04 content and placement, G05 applicability, and
+G06 microsyntax as prior owners. URL, Fetch, MIME, and Encoding are consumed only at
+their frozen static byte boundaries. ECMAScript RegExp semantics remain explicitly
+deferred to G16; ARIA/HTML-AAM, runtime form mutability and UI, and form-submission
+execution remain excluded. One invocation-local Lexbor mraw arena stores relations
+in O(forms + controls + labels + options + tokens); a 22-state product table and
+direct Arborcore heap allocation are forbidden. The 4096-diagnostic cap, 900000-byte
+phased stack bound, 11-function production View API, and global failure atomicity are
+retained. G11 remains unimplemented, and complete HTML conformance is not claimed.
+
+### V1N2 G11 static interactive-element semantics
+
+G11 closes the two frozen interactive-element identities over the independently
+frozen G10 boundary. R1 enforces the author-visible `details` name-group rules:
+nonempty group names, at most one authored `open` member per exact case-sensitive
+document group, and no same-group `details` descendant. The evaluator preserves
+source anchors for the responsible `name` or `open` attribute.
+
+R2 completes the static `dialog` census without inventing runtime state. G05 remains
+the sole owner of the `dialog[tabindex]` prohibition and G06 remains the sole owner
+of `open` and `closedby` microsyntax. The global `popover` attribute is allowed on
+`dialog`; authored `open` plus `popover` does not prove simultaneous runtime showing
+states and therefore is non-rejecting. Focus selection, toggle events, close watchers,
+inertness, activation, top-layer behavior, and light-dismiss execution remain explicit
+runtime exclusions.
+
+G11 reuses the single C0 4096-entry staging arena shared cumulatively by G07-G11 and
+uses one invocation-local Lexbor mraw arena for its relations and source anchors.
+Measurement precedes collection and materialization, and injected arena or collection
+failure preserves caller output. No production VIEW function, direct Arborcore heap
+allocation, locale dependency, mutable runtime registry, second parser, or stack-bound
+widening is introduced. This freezes V1N2 G07-G11; it is not a complete HTML-
+conformance claim.

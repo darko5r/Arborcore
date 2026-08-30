@@ -1,0 +1,13 @@
+surface	owner	disposition
+form-owner-and-idref	G10	implemented-static-document-only
+input-state-relations	G10	implemented-static-document-only
+constraint-validation	G10	implemented-deterministic-subset-only
+submission-authoring	G10	implemented-static-document-only
+content-model-and-placement	G03_G04	retained-no-duplicate
+attribute-applicability	G05	retained-no-duplicate
+microsyntax	G06	retained-no-duplicate
+url-fetch-mime-encoding	CROSS_STANDARD	frozen-static-no-execution
+ecmascript-regexp	G16	deferred
+accessibility-name	ARIA_HTML_AAM	deferred
+runtime-form-ui-and-mutability	RUNTIME	excluded
+form-submission-execution	RUNTIME	excluded

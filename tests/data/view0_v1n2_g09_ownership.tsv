@@ -1,0 +1,9 @@
+surface	owner	disposition
+table-model	G09	implemented-static-document-only
+caption-column-row-groups	G09	implemented-static-document-only
+cell-header-association	G09	implemented-static-document-only
+integer-microsyntax	G06	retained-no-duplicate
+content-model-and-placement	G03_G05	retained-no-duplicate
+accessibility-name	ARIA_HTML_AAM	deferred
+table-layout	CSS_TABLES	excluded
+runtime-presentation	RUNTIME	excluded

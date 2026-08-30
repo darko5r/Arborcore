@@ -13,12 +13,32 @@
 #include "g05_r3a.h"
 #include "g05_r4a.h"
 #include "g06.h"
+#include "g07.h"
+#include "g08.h"
+#include "g09.h"
+#include "g10.h"
+#include "g11.h"
+#include "v1n2_c0.h"
+
+#include <lexbor/core/mraw.h>
 
 #include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+void *arbor_view0_native_v1n2_g09_support_calloc(void *arena, size_t size) {
+    return arena == NULL ? NULL : lexbor_mraw_calloc((lexbor_mraw_t *)arena, size);
+}
+
+void *arbor_view0_native_v1n2_g10_support_calloc(void *arena, size_t size) {
+    return arena == NULL ? NULL : lexbor_mraw_calloc((lexbor_mraw_t *)arena, size);
+}
+
+void *arbor_view0_native_v1n2_g11_support_calloc(void *arena, size_t size) {
+    return arena == NULL ? NULL : lexbor_mraw_calloc((lexbor_mraw_t *)arena, size);
+}
 
 _Static_assert(sizeof(uintptr_t) == sizeof(uint64_t), "V1N0 requires 64-bit uintptr_t");
 _Static_assert(sizeof(size_t) <= sizeof(uint64_t), "V1N0 size_t must fit uint64_t");
@@ -788,6 +808,10 @@ arbor_status arbor_view0_native_check(
     }
     (void)diagnostic_bytes;
 
+    if (!arbor_view0_native_v1n2_c0_validate()) {
+        return status_from_errno_value(EIO);
+    }
+
     arbor_status utf8 = arbor_view_utf8_validate(input);
     if (utf8.native != 0) {
         if (utf8.native != -(int64_t)EILSEQ) {
@@ -1095,6 +1119,36 @@ arbor_status arbor_view0_native_check(
         return status;
     }
 
+    arbor_view0_native_v1n2_g07_evaluation g07_measured = {0};
+    status = arbor_view0_native_v1n2_g07_measure(input, &g07_measured);
+    if (status.native != 0) {
+        return status;
+    }
+
+    arbor_view0_native_v1n2_g08_evaluation g08_measured = {0};
+    status = arbor_view0_native_v1n2_g08_measure(input, &g08_measured);
+    if (status.native != 0) {
+        return status;
+    }
+
+    arbor_view0_native_v1n2_g09_evaluation g09_measured = {0};
+    status = arbor_view0_native_v1n2_g09_measure(input, &g09_measured);
+    if (status.native != 0) {
+        return status;
+    }
+
+    arbor_view0_native_v1n2_g10_evaluation g10_measured = {0};
+    status = arbor_view0_native_v1n2_g10_measure(input, &g10_measured);
+    if (status.native != 0) {
+        return status;
+    }
+
+    arbor_view0_native_v1n2_g11_evaluation g11_measured = {0};
+    status = arbor_view0_native_v1n2_g11_measure(input, &g11_measured);
+    if (status.native != 0) {
+        return status;
+    }
+
     arbor_asm_result_u64 through_g04_total = u64_add_checked(
         through_r7_total.value,
         g04_r1a_measured.diagnostic_count);
@@ -1125,9 +1179,39 @@ arbor_status arbor_view0_native_check(
     if (through_g05_total.status != 0) {
         return arbor_status_from_native(through_g05_total.status);
     }
-    arbor_asm_result_u64 authoring_total = u64_add_checked(
+    arbor_asm_result_u64 through_g06_total = u64_add_checked(
         through_g05_total.value,
         g06_measured.diagnostic_count);
+    if (through_g06_total.status != 0) {
+        return arbor_status_from_native(through_g06_total.status);
+    }
+    arbor_asm_result_u64 through_g07_total = u64_add_checked(
+        through_g06_total.value,
+        g07_measured.diagnostic_count);
+    if (through_g07_total.status != 0) {
+        return arbor_status_from_native(through_g07_total.status);
+    }
+    arbor_asm_result_u64 through_g08_total = u64_add_checked(
+        through_g07_total.value,
+        g08_measured.diagnostic_count);
+    if (through_g08_total.status != 0) {
+        return arbor_status_from_native(through_g08_total.status);
+    }
+    arbor_asm_result_u64 through_g09_total = u64_add_checked(
+        through_g08_total.value,
+        g09_measured.diagnostic_count);
+    if (through_g09_total.status != 0) {
+        return arbor_status_from_native(through_g09_total.status);
+    }
+    arbor_asm_result_u64 through_g10_total = u64_add_checked(
+        through_g09_total.value,
+        g10_measured.diagnostic_count);
+    if (through_g10_total.status != 0) {
+        return arbor_status_from_native(through_g10_total.status);
+    }
+    arbor_asm_result_u64 authoring_total = u64_add_checked(
+        through_g10_total.value,
+        g11_measured.diagnostic_count);
     if (authoring_total.status != 0) {
         return arbor_status_from_native(authoring_total.status);
     }
@@ -1144,6 +1228,7 @@ arbor_status arbor_view0_native_check(
 
     arbor_view0_native_source_anchor authoring_anchors[ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS] = {{0}};
     arbor_view0_native_g06_anchor g06_anchors[ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS] = {0};
+    arbor_view0_native_v1n2_anchor v1n2_anchors[ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS] = {0};
     uint64_t anchor_index = 0u;
 
     if (r1a_measured.diagnostic_count > ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - anchor_index) {
@@ -1349,8 +1434,163 @@ arbor_status arbor_view0_native_check(
         return status_from_errno_value(EIO);
     }
 
+    uint64_t v1n2_anchor_index = 0u;
+    const uint64_t g07_anchor_start = v1n2_anchor_index;
+    if (g07_measured.diagnostic_count >
+        ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - v1n2_anchor_index) {
+        return status_from_errno_value(EIO);
+    }
+    arbor_view0_native_v1n2_g07_evaluation g07_collected = {0};
+    status = arbor_view0_native_v1n2_g07_collect_anchors(
+        input,
+        (arbor_view0_native_v1n2_g07_anchor *)(void *)(v1n2_anchors + g07_anchor_start),
+        g07_measured.diagnostic_count,
+        &g07_collected);
+    if (status.native != 0) return status;
+    if (g07_collected.diagnostic_count != g07_measured.diagnostic_count ||
+        g07_collected.hyperlink_element_count != g07_measured.hyperlink_element_count ||
+        g07_collected.rel_consumer_count != g07_measured.rel_consumer_count ||
+        g07_collected.prior_owner_suppression_count !=
+            g07_measured.prior_owner_suppression_count ||
+        g07_collected.extension_relation_deferred_count !=
+            g07_measured.extension_relation_deferred_count ||
+        memcmp(g07_collected.rule_violation_count,
+               g07_measured.rule_violation_count,
+               sizeof(g07_measured.rule_violation_count)) != 0) {
+        return status_from_errno_value(EIO);
+    }
+    v1n2_anchor_index += g07_collected.diagnostic_count;
+
+    const uint64_t g08_anchor_start = v1n2_anchor_index;
+    if (g08_measured.diagnostic_count >
+        ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - v1n2_anchor_index) {
+        return status_from_errno_value(EIO);
+    }
+    arbor_view0_native_v1n2_g08_evaluation g08_collected = {0};
+    status = arbor_view0_native_v1n2_g08_collect_anchors(
+        input,
+        (arbor_view0_native_v1n2_g08_anchor *)(void *)(v1n2_anchors + g08_anchor_start),
+        g08_measured.diagnostic_count,
+        &g08_collected);
+    if (status.native != 0) return status;
+    if (g08_collected.diagnostic_count != g08_measured.diagnostic_count ||
+        g08_collected.embedded_element_count != g08_measured.embedded_element_count ||
+        g08_collected.responsive_source_count != g08_measured.responsive_source_count ||
+        g08_collected.media_source_count != g08_measured.media_source_count ||
+        g08_collected.text_track_count != g08_measured.text_track_count ||
+        g08_collected.image_map_reference_count != g08_measured.image_map_reference_count ||
+        g08_collected.foreign_integration_count != g08_measured.foreign_integration_count ||
+        g08_collected.prior_owner_suppression_count !=
+            g08_measured.prior_owner_suppression_count ||
+        g08_collected.deferred_external_semantics_count !=
+            g08_measured.deferred_external_semantics_count ||
+        memcmp(g08_collected.rule_violation_count,
+               g08_measured.rule_violation_count,
+               sizeof(g08_measured.rule_violation_count)) != 0) {
+        return status_from_errno_value(EIO);
+    }
+    v1n2_anchor_index += g08_collected.diagnostic_count;
+
+    const uint64_t g09_anchor_start = v1n2_anchor_index;
+    if (g09_measured.diagnostic_count >
+        ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - v1n2_anchor_index) {
+        return status_from_errno_value(EIO);
+    }
+    arbor_view0_native_v1n2_g09_evaluation g09_collected = {0};
+    status = arbor_view0_native_v1n2_g09_collect_anchors(
+        input,
+        (arbor_view0_native_v1n2_g09_anchor *)(void *)(v1n2_anchors + g09_anchor_start),
+        g09_measured.diagnostic_count,
+        &g09_collected);
+    if (status.native != 0) return status;
+    if (g09_collected.diagnostic_count != g09_measured.diagnostic_count ||
+        g09_collected.table_count != g09_measured.table_count ||
+        g09_collected.row_count != g09_measured.row_count ||
+        g09_collected.cell_count != g09_measured.cell_count ||
+        g09_collected.column_group_count != g09_measured.column_group_count ||
+        g09_collected.row_group_count != g09_measured.row_group_count ||
+        g09_collected.header_token_count != g09_measured.header_token_count ||
+        g09_collected.implicit_header_association_count !=
+            g09_measured.implicit_header_association_count ||
+        g09_collected.prior_owner_suppression_count !=
+            g09_measured.prior_owner_suppression_count ||
+        g09_collected.deferred_external_semantics_count !=
+            g09_measured.deferred_external_semantics_count ||
+        memcmp(g09_collected.rule_violation_count,
+               g09_measured.rule_violation_count,
+               sizeof(g09_measured.rule_violation_count)) != 0) {
+        return status_from_errno_value(EIO);
+    }
+    v1n2_anchor_index += g09_collected.diagnostic_count;
+
+    const uint64_t g10_anchor_start = v1n2_anchor_index;
+    if (g10_measured.diagnostic_count >
+        ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - v1n2_anchor_index) {
+        return status_from_errno_value(EIO);
+    }
+    arbor_view0_native_v1n2_g10_evaluation g10_collected = {0};
+    status = arbor_view0_native_v1n2_g10_collect_anchors(
+        input,
+        (arbor_view0_native_v1n2_g10_anchor *)(void *)(v1n2_anchors + g10_anchor_start),
+        g10_measured.diagnostic_count,
+        &g10_collected);
+    if (status.native != 0) return status;
+    if (g10_collected.diagnostic_count != g10_measured.diagnostic_count ||
+        g10_collected.form_count != g10_measured.form_count ||
+        g10_collected.control_count != g10_measured.control_count ||
+        g10_collected.input_count != g10_measured.input_count ||
+        g10_collected.label_count != g10_measured.label_count ||
+        g10_collected.option_count != g10_measured.option_count ||
+        g10_collected.idref_token_count != g10_measured.idref_token_count ||
+        g10_collected.prior_owner_suppression_count !=
+            g10_measured.prior_owner_suppression_count ||
+        g10_collected.deferred_external_semantics_count !=
+            g10_measured.deferred_external_semantics_count ||
+        memcmp(g10_collected.rule_violation_count,
+               g10_measured.rule_violation_count,
+               sizeof(g10_measured.rule_violation_count)) != 0) {
+        return status_from_errno_value(EIO);
+    }
+    v1n2_anchor_index += g10_collected.diagnostic_count;
+
+    const uint64_t g11_anchor_start = v1n2_anchor_index;
+    if (g11_measured.diagnostic_count >
+        ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - v1n2_anchor_index) {
+        return status_from_errno_value(EIO);
+    }
+    arbor_view0_native_v1n2_g11_evaluation g11_collected = {0};
+    status = arbor_view0_native_v1n2_g11_collect_anchors(
+        input,
+        (arbor_view0_native_v1n2_g11_anchor *)(void *)(v1n2_anchors + g11_anchor_start),
+        g11_measured.diagnostic_count,
+        &g11_collected);
+    if (status.native != 0) return status;
+    if (g11_collected.diagnostic_count != g11_measured.diagnostic_count ||
+        g11_collected.details_count != g11_measured.details_count ||
+        g11_collected.dialog_count != g11_measured.dialog_count ||
+        g11_collected.name_group_relation_count != g11_measured.name_group_relation_count ||
+        g11_collected.prior_owner_suppression_count !=
+            g11_measured.prior_owner_suppression_count ||
+        g11_collected.deferred_external_semantics_count !=
+            g11_measured.deferred_external_semantics_count ||
+        memcmp(g11_collected.rule_violation_count,
+               g11_measured.rule_violation_count,
+               sizeof(g11_measured.rule_violation_count)) != 0) {
+        return status_from_errno_value(EIO);
+    }
+    v1n2_anchor_index += g11_collected.diagnostic_count;
+
+    if (v1n2_anchor_index != g07_measured.diagnostic_count +
+            g08_measured.diagnostic_count + g09_measured.diagnostic_count +
+            g10_measured.diagnostic_count + g11_measured.diagnostic_count) {
+        return status_from_errno_value(EIO);
+    }
+
     const uint64_t expected_authoring_anchor_count =
-        authoring_total.value - g02_total.value - g06_measured.diagnostic_count;
+        authoring_total.value - g02_total.value - g06_measured.diagnostic_count -
+        g07_measured.diagnostic_count - g08_measured.diagnostic_count -
+        g09_measured.diagnostic_count - g10_measured.diagnostic_count -
+        g11_measured.diagnostic_count;
     if (anchor_index != expected_authoring_anchor_count) {
         return status_from_errno_value(EIO);
     }
@@ -1461,6 +1701,41 @@ arbor_status arbor_view0_native_check(
             g06_anchors + i, authoring_index, diagnostics + authoring_index);
         authoring_index += 1u;
     }
+    for (uint64_t i = 0u; i < g07_measured.diagnostic_count; ++i) {
+        arbor_view0_native_v1n2_g07_materialize_anchor(
+            (const arbor_view0_native_v1n2_g07_anchor *)(const void *)(
+                v1n2_anchors + g07_anchor_start + i),
+            authoring_index, diagnostics + authoring_index);
+        authoring_index += 1u;
+    }
+    for (uint64_t i = 0u; i < g08_measured.diagnostic_count; ++i) {
+        arbor_view0_native_v1n2_g08_materialize_anchor(
+            (const arbor_view0_native_v1n2_g08_anchor *)(const void *)(
+                v1n2_anchors + g08_anchor_start + i),
+            authoring_index, diagnostics + authoring_index);
+        authoring_index += 1u;
+    }
+    for (uint64_t i = 0u; i < g09_measured.diagnostic_count; ++i) {
+        arbor_view0_native_v1n2_g09_materialize_anchor(
+            (const arbor_view0_native_v1n2_g09_anchor *)(const void *)(
+                v1n2_anchors + g09_anchor_start + i),
+            authoring_index, diagnostics + authoring_index);
+        authoring_index += 1u;
+    }
+    for (uint64_t i = 0u; i < g10_measured.diagnostic_count; ++i) {
+        arbor_view0_native_v1n2_g10_materialize_anchor(
+            (const arbor_view0_native_v1n2_g10_anchor *)(const void *)(
+                v1n2_anchors + g10_anchor_start + i),
+            authoring_index, diagnostics + authoring_index);
+        authoring_index += 1u;
+    }
+    for (uint64_t i = 0u; i < g11_measured.diagnostic_count; ++i) {
+        arbor_view0_native_v1n2_g11_materialize_anchor(
+            (const arbor_view0_native_v1n2_g11_anchor *)(const void *)(
+                v1n2_anchors + g11_anchor_start + i),
+            authoring_index, diagnostics + authoring_index);
+        authoring_index += 1u;
+    }
 
     if (required_total.value > 1u) {
         qsort(diagnostics,
@@ -1488,8 +1763,10 @@ arbor_status arbor_view0_native_check(
                 ? ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R1_DEFERRED_MAIN_FORM
                 : 0u) |
             r2a_measured.deferred_flags |
-            r3a_measured.deferred_flags |
-            r4a_measured.deferred_flags |
+            (r3a_measured.deferred_flags &
+                ~ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R3_DEFERRED_LABELED_CONTROL) |
+            (r4a_measured.deferred_flags &
+                ~ARBOR_VIEW0_NATIVE_RESULT_FLAG_G03_R4_DEFERRED_SELECTEDCONTENT_PROVENANCE) |
             r7a_measured.deferred_flags |
             g04_r1a_measured.deferred_flags
     };

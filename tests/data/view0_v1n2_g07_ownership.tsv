@@ -1,0 +1,6 @@
+rule_ordinal	rule_id_hex	rule_symbol	owned_static_predicate	prior_owner_boundary	excluded_runtime_semantics
+1	0x0000000030070001	ARBOR_VIEW_V1_G07_HYPERLINK_ELEMENT_SEMANTICS	href URL string and target-name relationship	G03 content models; G05 applicability; G06 value syntax	navigation and origin algorithms
+2	0x0000000030070002	ARBOR_VIEW_V1_G07_DOWNLOAD_SEMANTICS	download requires hyperlink-bearing href	G05 attribute applicability; G06 syntax	fetching and filename selection
+3	0x0000000030070003	ARBOR_VIEW_V1_G07_HYPERLINK_AUDITING	ping requires href and nonempty HTTP(S) URL tokens	G05 applicability; G06 token mechanics	ping transmission
+4	0x0000000030070004	ARBOR_VIEW_V1_G07_LINK_TYPE_APPLICABILITY	pinned HTML relation-to-element matrix	G05 placement; G06 rel tokenization	runtime extension registry
+5	0x0000000030070005	ARBOR_VIEW_V1_G07_LINK_RELATION_SEMANTICS	alternate stylesheet title; synonym and opener exclusions	G03/G05/G06 prior diagnostics	resource fetching and UA processing

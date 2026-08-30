@@ -53,6 +53,23 @@ extern "C" {
 #define ARBOR_VIEW_V1_G06_DATE_OPTIONAL_TIME UINT64_C(0x000000003006000f)
 #define ARBOR_VIEW_V1_G06_SPACE_SEPARATED_TOKENS UINT64_C(0x0000000030060010)
 #define ARBOR_VIEW_V1_G06_COMMA_SEPARATED_TOKENS UINT64_C(0x0000000030060011)
+#define ARBOR_VIEW_V1_G07_HYPERLINK_ELEMENT_SEMANTICS UINT64_C(0x0000000030070001)
+#define ARBOR_VIEW_V1_G07_DOWNLOAD_SEMANTICS UINT64_C(0x0000000030070002)
+#define ARBOR_VIEW_V1_G07_HYPERLINK_AUDITING UINT64_C(0x0000000030070003)
+#define ARBOR_VIEW_V1_G07_LINK_TYPE_APPLICABILITY UINT64_C(0x0000000030070004)
+#define ARBOR_VIEW_V1_G07_LINK_RELATION_SEMANTICS UINT64_C(0x0000000030070005)
+#define ARBOR_VIEW_V1_G08_RESPONSIVE_IMAGE_SOURCE_SET UINT64_C(0x0000000030080001)
+#define ARBOR_VIEW_V1_G08_IMAGE_RESOURCE_DECLARATION UINT64_C(0x0000000030080002)
+#define ARBOR_VIEW_V1_G08_IMAGE_TEXT_ALTERNATIVES UINT64_C(0x0000000030080003)
+#define ARBOR_VIEW_V1_G08_IFRAME_AUTHORING UINT64_C(0x0000000030080004)
+#define ARBOR_VIEW_V1_G08_EMBED_AUTHORING UINT64_C(0x0000000030080005)
+#define ARBOR_VIEW_V1_G08_OBJECT_AUTHORING UINT64_C(0x0000000030080006)
+#define ARBOR_VIEW_V1_G08_MEDIA_ELEMENT_DECLARATION UINT64_C(0x0000000030080007)
+#define ARBOR_VIEW_V1_G08_TEXT_TRACK_AUTHORING UINT64_C(0x0000000030080008)
+#define ARBOR_VIEW_V1_G08_MEDIA_CROSS_RESOURCE_SEMANTICS UINT64_C(0x0000000030080009)
+#define ARBOR_VIEW_V1_G08_IMAGE_MAP_AUTHORING UINT64_C(0x000000003008000a)
+#define ARBOR_VIEW_V1_G08_FOREIGN_EMBEDDED_CONTENT UINT64_C(0x000000003008000b)
+#define ARBOR_VIEW_V1_G08_DIMENSION_ATTRIBUTE_SEMANTICS UINT64_C(0x000000003008000c)
 
 /* Zero tokenizer/tree parse errors; authoring diagnostics may still exist. */
 #define ARBOR_VIEW0_NATIVE_RESULT_FLAG_PARSE_CLEAN UINT64_C(0x1)
@@ -85,6 +102,29 @@ extern "C" {
 #define ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_DEFERRED_OPTION_BRANCH UINT64_C(0x1000000)
 #define ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R1_DEFERRED_G13_CUSTOM UINT64_C(0x2000000)
 #define ARBOR_VIEW0_NATIVE_RESULT_FLAG_G04_R2_DEFERRED_G13_CUSTOM UINT64_C(0x4000000)
+
+/* V1N2 G09 uses one invocation-local Lexbor mraw support arena. */
+#define ARBOR_VIEW0_NATIVE_V1N2_G09_TRANSIENT_SUPPORT_ARENAS UINT64_C(1)
+/* V1N2 G10 uses one invocation-local Lexbor mraw support arena. */
+#define ARBOR_VIEW0_NATIVE_V1N2_G10_TRANSIENT_SUPPORT_ARENAS UINT64_C(1)
+/* V1N2 G11 uses one invocation-local Lexbor mraw support arena. */
+#define ARBOR_VIEW0_NATIVE_V1N2_G11_TRANSIENT_SUPPORT_ARENAS UINT64_C(1)
+
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R1 UINT64_C(0x00000000300a0001)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R2 UINT64_C(0x00000000300a0002)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R3 UINT64_C(0x00000000300a0003)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R4 UINT64_C(0x00000000300a0004)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R5 UINT64_C(0x00000000300a0005)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R6 UINT64_C(0x00000000300a0006)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R7 UINT64_C(0x00000000300a0007)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R8 UINT64_C(0x00000000300a0008)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R9 UINT64_C(0x00000000300a0009)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R10 UINT64_C(0x00000000300a000a)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R11 UINT64_C(0x00000000300a000b)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R12 UINT64_C(0x00000000300a000c)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R13 UINT64_C(0x00000000300a000d)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G11_R1 UINT64_C(0x00000000300b0001)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G11_R2 UINT64_C(0x00000000300b0002)
 
 typedef enum arbor_view0_native_severity {
     ARBOR_VIEW0_NATIVE_SEVERITY_ERROR = 1,
@@ -151,7 +191,17 @@ _Static_assert(sizeof(arbor_view0_native_source_anchor) == 8u,
  * conformance is not claimed. G06 R15 has no accepted author-facing consumer and
  * therefore publishes no diagnostic; its bounded validator remains available to
  * later owning rules. The `time` union admits the normative year-only branch without
- * inventing a new V1N1 rule identity.
+ * inventing a new V1N1 rule identity. V1N2 C0 additionally validates the frozen
+ * G07-G11 rule/authority/resource metadata foundation before parsing. G07 additionally
+ * publishes the five frozen static link-semantics rules. G08 additionally publishes the
+ * twelve frozen static embedded-content rules. G09 publishes the six frozen static
+ * table-semantics rules, G10 publishes twelve static form rules plus the frozen
+ * deterministic constraint-validation subset, and G11 publishes the details name-group
+ * authoring rule while retaining G05/G06 ownership of dialog prohibitions and syntax.
+ * WebVTT resource bodies, full SVG/MathML
+ * language conformance, fetching, media selection/playback, intrinsic-resource dimensions,
+ * human-language adequacy, and interactive dialog/details algorithms remain outside
+ * this checkpoint.
  *
  * input is borrowed immutable and must remain live through the call. diagnostics
  * and result_out are caller-owned writable objects and must not overlap input or

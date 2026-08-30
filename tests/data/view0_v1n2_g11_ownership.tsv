@@ -1,0 +1,15 @@
+surface	owner	disposition
+details-name-nonempty	G11-R1	implemented-static-document-only
+details-name-group-open-cardinality	G11-R1	implemented-static-document-only
+details-name-group-descendant-exclusion	G11-R1	implemented-static-document-only
+summary-content-placement	G03	retained-no-duplicate
+dialog-tabindex-prohibition	G05	retained-no-duplicate
+dialog-open-and-closedby-microsyntax	G06	retained-no-duplicate
+dialog-popover-applicability	G05	retained-allowed-global-attribute
+dialog-popover-runtime-showing-state	RUNTIME	excluded-no-static-inference
+dialog-focus-and-autofocus-execution	RUNTIME	excluded
+dialog-toggle-and-close-events	RUNTIME	excluded
+dialog-close-watchers-and-light-dismiss	RUNTIME	excluded
+dialog-modal-inertness-and-top-layer	RUNTIME	excluded
+details-toggle-activation	RUNTIME	excluded
+accessibility-semantics	ARIA_HTML_AAM	deferred

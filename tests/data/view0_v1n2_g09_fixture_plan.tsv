@@ -1,0 +1,7 @@
+rule	negative_fixture	positive_fixture	owner
+G09-R1	empty-row	dense-valid-row	G09
+G09-R2	duplicate-caption	single-caption	G09
+G09-R3	colgroup-span-with-col	colgroup-children	G09
+G09-R4	rowspan-crosses-rowgroup	bounded-rowspan	G09
+G09-R5	inapplicable-rowgroup-scope	applicable-column-scope	G09
+G09-R6	missing-header-id	resolved-header-id	G09

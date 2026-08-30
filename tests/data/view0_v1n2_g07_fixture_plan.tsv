@@ -1,0 +1,7 @@
+fixture_id	rule_ordinal	expectation	fixture_summary	anchor
+G07-R1-N1	1	ONE_DIAGNOSTIC	invalid absolute HTTP URL	href attribute
+G07-R2-N1	2	ONE_DIAGNOSTIC	download without href	download attribute
+G07-R3-N1	3	ONE_DIAGNOSTIC	ping list with non-HTTP(S) token	ping attribute
+G07-R4-N1	4	ONE_DIAGNOSTIC	canonical on a element	rel attribute
+G07-R5-N1	5	ONE_DIAGNOSTIC	alternate stylesheet without title	rel attribute
+G07-P1	ALL	ZERO_G07_DIAGNOSTICS	valid static hyperlink and relation declarations	NONE
