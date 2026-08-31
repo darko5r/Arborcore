@@ -1,0 +1,7 @@
+file	version	purpose
+DerivedCoreProperties.txt	17.0.0	ID_START_ID_CONTINUE
+PropertyAliases.txt	17.0.0	PROPERTY_NAMES
+PropertyValueAliases.txt	17.0.0	PROPERTY_VALUES
+UnicodeData.txt	17.0.0	GENERAL_CATEGORY
+emoji/emoji-data.txt	17.0.0	BINARY_PROPERTIES
+ReadMe.txt	17.0.0	VERSION_IDENTITY

@@ -110,6 +110,16 @@ extern "C" {
 /* V1N2 G11 uses one invocation-local Lexbor mraw support arena. */
 #define ARBOR_VIEW0_NATIVE_V1N2_G11_TRANSIENT_SUPPORT_ARENAS UINT64_C(1)
 
+/* V1N3 uses one invocation-local Lexbor mraw support arena. */
+#define ARBOR_VIEW0_NATIVE_V1N3_TRANSIENT_SUPPORT_ARENAS UINT64_C(1)
+#define ARBOR_VIEW0_NATIVE_V1N3_OPTIONS_ABI_V1 UINT64_C(0x415256304e334f31)
+#define ARBOR_VIEW0_NATIVE_V1N3_MAX_DEFINITIONS UINT64_C(4096)
+#define ARBOR_VIEW0_NATIVE_V1N3_MAX_CONSTRUCTOR_BYTES UINT64_C(8388608)
+#define ARBOR_VIEW0_NATIVE_V1N3_MAX_ECMA_TOKENS UINT64_C(262144)
+#define ARBOR_VIEW0_NATIVE_V1N3_MAX_ECMA_NODES UINT64_C(262144)
+#define ARBOR_VIEW0_NATIVE_V1N3_MAX_ECMA_NESTING UINT64_C(4096)
+#define ARBOR_VIEW0_NATIVE_V1N3_MAX_ARENA_BYTES UINT64_C(134217728)
+
 #define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R1 UINT64_C(0x00000000300a0001)
 #define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R2 UINT64_C(0x00000000300a0002)
 #define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R3 UINT64_C(0x00000000300a0003)
@@ -125,6 +135,37 @@ extern "C" {
 #define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G10_R13 UINT64_C(0x00000000300a000d)
 #define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G11_R1 UINT64_C(0x00000000300b0001)
 #define ARBOR_VIEW0_NATIVE_RULE_ID_V1N2_G11_R2 UINT64_C(0x00000000300b0002)
+
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G12_R1 UINT64_C(0x00000000300c0001)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G12_R2 UINT64_C(0x00000000300c0002)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G12_R3 UINT64_C(0x00000000300c0003)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G12_R4 UINT64_C(0x00000000300c0004)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G12_R5 UINT64_C(0x00000000300c0005)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G12_R6 UINT64_C(0x00000000300c0006)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G12_R7 UINT64_C(0x00000000300c0007)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G12_R8 UINT64_C(0x00000000300c0008)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G13_R1 UINT64_C(0x00000000300d0001)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G13_R2 UINT64_C(0x00000000300d0002)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G13_R3 UINT64_C(0x00000000300d0003)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G13_R4 UINT64_C(0x00000000300d0004)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G13_R5 UINT64_C(0x00000000300d0005)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G13_R6 UINT64_C(0x00000000300d0006)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G14_R1 UINT64_C(0x00000000300e0001)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G14_R2 UINT64_C(0x00000000300e0002)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G14_R3 UINT64_C(0x00000000300e0003)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G14_R4 UINT64_C(0x00000000300e0004)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G14_R5 UINT64_C(0x00000000300e0005)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G14_R6 UINT64_C(0x00000000300e0006)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G15_R1 UINT64_C(0x00000000300f0001)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G15_R2 UINT64_C(0x00000000300f0002)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G15_R3 UINT64_C(0x00000000300f0003)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G15_R4 UINT64_C(0x00000000300f0004)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G15_R5 UINT64_C(0x00000000300f0005)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G15_R6 UINT64_C(0x00000000300f0006)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G15_R7 UINT64_C(0x00000000300f0007)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G15_R8 UINT64_C(0x00000000300f0008)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G16_R1 UINT64_C(0x0000000030100001)
+#define ARBOR_VIEW0_NATIVE_RULE_ID_V1N3_G16_R2 UINT64_C(0x0000000030100002)
 
 typedef enum arbor_view0_native_severity {
     ARBOR_VIEW0_NATIVE_SEVERITY_ERROR = 1,
@@ -159,6 +200,46 @@ typedef struct arbor_view0_native_result {
     uint64_t tree_error_count;
     uint64_t flags;
 } arbor_view0_native_result;
+
+typedef enum arbor_view0_native_v1n3_scripting_mode {
+    ARBOR_VIEW0_NATIVE_V1N3_SCRIPTING_DISABLED = 0,
+    ARBOR_VIEW0_NATIVE_V1N3_SCRIPTING_ENABLED = 1
+} arbor_view0_native_v1n3_scripting_mode;
+
+#define ARBOR_VIEW0_NATIVE_V1N3_DEFINITION_AUTONOMOUS UINT64_C(0x1)
+#define ARBOR_VIEW0_NATIVE_V1N3_DEFINITION_CUSTOMIZED_BUILTIN UINT64_C(0x2)
+#define ARBOR_VIEW0_NATIVE_V1N3_DEFINITION_FORM_ASSOCIATED UINT64_C(0x4)
+
+typedef struct arbor_view0_native_v1n3_definition {
+    arbor_span name;
+    arbor_span local_name;
+    arbor_span constructor_source;
+    uint64_t flags;
+} arbor_view0_native_v1n3_definition;
+
+typedef struct arbor_view0_native_v1n3_options {
+    uint64_t abi;
+    uint64_t scripting_mode;
+    const arbor_view0_native_v1n3_definition *definitions;
+    uint64_t definition_count;
+} arbor_view0_native_v1n3_options;
+
+typedef enum arbor_view0_native_v1n3_ecma_operation {
+    ARBOR_VIEW0_NATIVE_V1N3_ECMA_CONSTRUCTOR_SUBSET = 1,
+    ARBOR_VIEW0_NATIVE_V1N3_ECMA_FUNCTION_BODY = 2,
+    ARBOR_VIEW0_NATIVE_V1N3_ECMA_PATTERN_V = 3
+} arbor_view0_native_v1n3_ecma_operation;
+
+typedef struct arbor_view0_native_v1n3_ecma_result {
+    uint64_t accepted;
+    uint64_t error_offset;
+    uint64_t token_count;
+    uint64_t node_count;
+    uint64_t max_nesting;
+    uint64_t constructor_super_first;
+    uint64_t constructor_return_kind;
+    uint64_t reserved;
+} arbor_view0_native_v1n3_ecma_result;
 
 /* Private compact staging record used by the global checker before publication. */
 typedef struct arbor_view0_native_source_anchor {
@@ -214,6 +295,25 @@ arbor_status arbor_view0_native_check(
     arbor_view0_native_diagnostic *diagnostics,
     uint64_t diagnostic_capacity,
     arbor_view0_native_result *result_out);
+
+/*
+ * V1N3 configured development-tool checker. The definition set is immutable
+ * and invocation-local; no registry is created. ECMAScript inputs are parsed
+ * only. No evaluation, bytecode, module loading, host binding, event dispatch,
+ * regular-expression matching, or DOM mutation occurs.
+ */
+arbor_status arbor_view0_native_check_configured(
+    arbor_span input,
+    const arbor_view0_native_v1n3_options *options,
+    arbor_view0_native_diagnostic *diagnostics,
+    uint64_t diagnostic_capacity,
+    arbor_view0_native_result *result_out);
+
+arbor_status arbor_view0_native_v1n3_ecma_parse(
+    uint64_t operation,
+    arbor_span source,
+    void *support_arena,
+    arbor_view0_native_v1n3_ecma_result *result_out);
 
 /*
  * Development-tool-only explicit fragment-model checker. This mode does not

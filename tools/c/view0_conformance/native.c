@@ -19,6 +19,12 @@
 #include "g10.h"
 #include "g11.h"
 #include "v1n2_c0.h"
+#include "g12.h"
+#include "g13.h"
+#include "g14.h"
+#include "g15.h"
+#include "g16.h"
+#include "v1n3_c0.h"
 
 #include <lexbor/core/mraw.h>
 
@@ -37,6 +43,10 @@ void *arbor_view0_native_v1n2_g10_support_calloc(void *arena, size_t size) {
 }
 
 void *arbor_view0_native_v1n2_g11_support_calloc(void *arena, size_t size) {
+    return arena == NULL ? NULL : lexbor_mraw_calloc((lexbor_mraw_t *)arena, size);
+}
+
+void *arbor_view0_native_v1n3_support_calloc(void *arena, size_t size) {
     return arena == NULL ? NULL : lexbor_mraw_calloc((lexbor_mraw_t *)arena, size);
 }
 
@@ -790,7 +800,7 @@ static arbor_status validate_output_regions(
     return ok_status();
 }
 
-arbor_status arbor_view0_native_check(
+static arbor_status arbor_view0_native_check_v1n2(
     arbor_span input,
     arbor_view0_native_diagnostic *diagnostics,
     uint64_t diagnostic_capacity,
@@ -1866,4 +1876,220 @@ arbor_status arbor_view0_native_check_fragment_model(
         .flags = flags
     };
     return ok_status();
+}
+
+static arbor_status validate_v1n3_options(
+    const arbor_view0_native_v1n3_options *options)
+{
+    if (options == NULL || options->abi != ARBOR_VIEW0_NATIVE_V1N3_OPTIONS_ABI_V1 ||
+        options->scripting_mode > (uint64_t)ARBOR_VIEW0_NATIVE_V1N3_SCRIPTING_ENABLED ||
+        options->definition_count > ARBOR_VIEW0_NATIVE_V1N3_MAX_DEFINITIONS ||
+        (options->definition_count != 0u && options->definitions == NULL)) {
+        return status_from_errno_value(EINVAL);
+    }
+    uint64_t constructor_total = 0u;
+    for (uint64_t i = 0u; i < options->definition_count; ++i) {
+        const arbor_view0_native_v1n3_definition *definition = options->definitions + i;
+        if (!range_representable(definition->name.data, definition->name.length) ||
+            !range_representable(definition->local_name.data, definition->local_name.length) ||
+            !range_representable(definition->constructor_source.data,
+                                 definition->constructor_source.length)) {
+            return status_from_errno_value(EINVAL);
+        }
+        arbor_asm_result_u64 added = u64_add_checked(
+            constructor_total, definition->constructor_source.length);
+        if (added.status != 0) return arbor_status_from_native(added.status);
+        constructor_total = added.value;
+        if (constructor_total > ARBOR_VIEW0_NATIVE_V1N3_MAX_CONSTRUCTOR_BYTES)
+            return status_from_errno_value(E2BIG);
+        for (uint64_t j = 0u; j < i; ++j) {
+            const arbor_view0_native_v1n3_definition *prior = options->definitions + j;
+            if (prior->name.length == definition->name.length &&
+                (definition->name.length == 0u ||
+                 memcmp(prior->name.data, definition->name.data,
+                        (size_t)definition->name.length) == 0)) {
+                return status_from_errno_value(EINVAL);
+            }
+        }
+    }
+    return ok_status();
+}
+
+static arbor_status run_v1n3_group(
+    uint16_t group,
+    arbor_span input,
+    const arbor_view0_native_v1n3_options *options,
+    void *arena,
+    arbor_view0_native_v1n3_anchor *anchors,
+    uint64_t capacity,
+    arbor_view0_native_v1n3_evaluation *evaluation)
+{
+    switch (group) {
+        case 12u:
+            return arbor_view0_native_v1n3_g12_collect_anchors(
+                input, options, arena, anchors, capacity, evaluation);
+        case 13u:
+            return arbor_view0_native_v1n3_g13_collect_anchors(
+                input, options, arena, anchors, capacity, evaluation);
+        case 14u:
+            return arbor_view0_native_v1n3_g14_collect_anchors(
+                input, options, arena, anchors, capacity, evaluation);
+        case 15u:
+            return arbor_view0_native_v1n3_g15_collect_anchors(
+                input, options, arena, anchors, capacity, evaluation);
+        case 16u:
+            return arbor_view0_native_v1n3_g16_collect_anchors(
+                input, options, arena, anchors, capacity, evaluation);
+        default:
+            return status_from_errno_value(EINVAL);
+    }
+}
+
+static arbor_status measure_v1n3_group(
+    uint16_t group,
+    arbor_span input,
+    const arbor_view0_native_v1n3_options *options,
+    void *arena,
+    arbor_view0_native_v1n3_evaluation *evaluation)
+{
+    switch (group) {
+        case 12u:
+            return arbor_view0_native_v1n3_g12_measure(
+                input, options, arena, evaluation);
+        case 13u:
+            return arbor_view0_native_v1n3_g13_measure(
+                input, options, arena, evaluation);
+        case 14u:
+            return arbor_view0_native_v1n3_g14_measure(
+                input, options, arena, evaluation);
+        case 15u:
+            return arbor_view0_native_v1n3_g15_measure(
+                input, options, arena, evaluation);
+        case 16u:
+            return arbor_view0_native_v1n3_g16_measure(
+                input, options, arena, evaluation);
+        default:
+            return status_from_errno_value(EINVAL);
+    }
+}
+
+arbor_status arbor_view0_native_check_configured(
+    arbor_span input,
+    const arbor_view0_native_v1n3_options *options,
+    arbor_view0_native_diagnostic *diagnostics,
+    uint64_t diagnostic_capacity,
+    arbor_view0_native_result *result_out)
+{
+    uint64_t diagnostic_bytes = 0u;
+    arbor_status status = validate_output_regions(
+        input, diagnostics, diagnostic_capacity, result_out, &diagnostic_bytes);
+    if (status.native != 0) return status;
+    (void)diagnostic_bytes;
+    status = validate_v1n3_options(options);
+    if (status.native != 0) return status;
+    if (!arbor_view0_native_v1n3_c0_validate()) return status_from_errno_value(EIO);
+
+    lexbor_mraw_t *arena = lexbor_mraw_create();
+    if (arena == NULL) return status_from_errno_value(ENOMEM);
+    if (lexbor_mraw_init(arena, 4096u) != LXB_STATUS_OK) {
+        (void)lexbor_mraw_destroy(arena, true);
+        return status_from_errno_value(ENOMEM);
+    }
+    arbor_view0_native_v1n3_evaluation measured[5] = {{0}};
+    for (uint16_t group = 12u; group <= 16u; ++group) {
+        status = measure_v1n3_group(
+            group, input, options, arena, &measured[group - 12u]);
+        if (status.native != 0) {
+            (void)lexbor_mraw_destroy(arena, true);
+            return status;
+        }
+    }
+    lexbor_mraw_clean(arena);
+
+    arbor_view0_native_diagnostic *local_diagnostics = lexbor_mraw_calloc(
+        arena, (size_t)ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS * sizeof(*local_diagnostics));
+    arbor_view0_native_v1n3_anchor *anchors = lexbor_mraw_calloc(
+        arena, (size_t)ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS * sizeof(*anchors));
+    if (local_diagnostics == NULL || anchors == NULL) {
+        (void)lexbor_mraw_destroy(arena, true);
+        return status_from_errno_value(ENOMEM);
+    }
+
+    arbor_view0_native_result legacy = {0};
+    status = arbor_view0_native_check_v1n2(
+        input, local_diagnostics, ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS, &legacy);
+    if (status.native != 0) {
+        (void)lexbor_mraw_destroy(arena, true);
+        return status;
+    }
+
+    uint64_t anchor_count = 0u;
+    arbor_view0_native_v1n3_evaluation group_evaluations[5] = {{0}};
+    for (uint16_t group = 12u; group <= 16u; ++group) {
+        arbor_view0_native_v1n3_evaluation evaluation = {0};
+        status = run_v1n3_group(
+            group, input, options, arena, anchors + anchor_count,
+            ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS - anchor_count, &evaluation);
+        if (status.native != 0) {
+            (void)lexbor_mraw_destroy(arena, true);
+            return status;
+        }
+        if (memcmp(&measured[group - 12u], &evaluation,
+                   sizeof(evaluation)) != 0) {
+            (void)lexbor_mraw_destroy(arena, true);
+            return status_from_errno_value(EIO);
+        }
+        group_evaluations[group - 12u] = evaluation;
+        arbor_asm_result_u64 added = u64_add_checked(anchor_count, evaluation.diagnostic_count);
+        if (added.status != 0 || added.value > ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS) {
+            (void)lexbor_mraw_destroy(arena, true);
+            return added.status != 0 ? arbor_status_from_native(added.status)
+                                     : status_from_errno_value(ENOSPC);
+        }
+        anchor_count = added.value;
+    }
+
+    arbor_asm_result_u64 total = u64_add_checked(legacy.diagnostic_count, anchor_count);
+    if (total.status != 0 || total.value > ARBOR_VIEW0_NATIVE_MAX_DIAGNOSTICS ||
+        total.value > diagnostic_capacity) {
+        (void)lexbor_mraw_destroy(arena, true);
+        return total.status != 0 ? arbor_status_from_native(total.status)
+                                 : status_from_errno_value(ENOSPC);
+    }
+
+    for (uint64_t i = 0u; i < anchor_count; ++i) {
+        arbor_view0_native_v1n3_materialize(
+            anchors + i, legacy.diagnostic_count + i,
+            local_diagnostics + legacy.diagnostic_count + i);
+    }
+    if (total.value > 1u) {
+        qsort(local_diagnostics, (size_t)total.value,
+              sizeof(*local_diagnostics), diagnostic_compare);
+    }
+    assign_line_columns(input, local_diagnostics, total.value);
+    if (total.value != 0u) {
+        (void)memcpy(diagnostics, local_diagnostics,
+                     (size_t)total.value * sizeof(*diagnostics));
+    }
+    legacy.diagnostic_count = total.value;
+    *result_out = legacy;
+    (void)group_evaluations;
+    (void)lexbor_mraw_destroy(arena, true);
+    return ok_status();
+}
+
+arbor_status arbor_view0_native_check(
+    arbor_span input,
+    arbor_view0_native_diagnostic *diagnostics,
+    uint64_t diagnostic_capacity,
+    arbor_view0_native_result *result_out)
+{
+    static const arbor_view0_native_v1n3_options options = {
+        ARBOR_VIEW0_NATIVE_V1N3_OPTIONS_ABI_V1,
+        (uint64_t)ARBOR_VIEW0_NATIVE_V1N3_SCRIPTING_DISABLED,
+        NULL,
+        0u
+    };
+    return arbor_view0_native_check_configured(
+        input, &options, diagnostics, diagnostic_capacity, result_out);
 }

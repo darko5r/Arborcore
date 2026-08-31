@@ -1635,3 +1635,30 @@ failure preserves caller output. No production VIEW function, direct Arborcore h
 allocation, locale dependency, mutable runtime registry, second parser, or stack-bound
 widening is introduced. This freezes V1N2 G07-G11; it is not a complete HTML-
 conformance claim.
+
+### V1N3 C1 static scripting, custom-element, microdata, interaction, and handler semantics
+
+V1N3 C1 adds the thirty frozen G12-G16 identities over the published V1N2
+boundary: eight scripting-element rules, six custom-element rules, six microdata
+rules, eight user-interaction rules, and two static web-application integration
+rules. The implementation is tooling-private; the eleven production View API
+functions remain unchanged. Callers that need V1N3 configuration use the native-C
+configured-checker ABI with an explicit scripting mode and an immutable bounded
+custom-element definition table.
+
+The three admitted ECMAScript consumers use an Arborcore-owned, purpose-built,
+parse-only native-C frontend. It recognizes the frozen constructor subset,
+FunctionBody early-error boundary, and Pattern UnicodeSets-mode boundary. It does
+not execute script, generate bytecode, instantiate modules, call host bindings, or
+perform regular-expression matching. Unicode identifier and property handling is
+pinned to Unicode 17.0.0. The frozen Test262 selection is qualification authority
+for these parse-only operations; it is not a claim of complete ECMAScript support.
+
+G12-G16 share one invocation-local Lexbor mraw arena and bounded source anchors.
+Each group is measured and then collected, and the two evaluations must match
+before materialization. The 4096-diagnostic cap, 1048576-byte HTML and constructor
+source bounds, deterministic ordering, locale independence, and caller-output
+failure atomicity are retained. Direct Arborcore heap allocation and mutable
+runtime registries remain absent. User-agent execution, fetching, navigation,
+custom-element reactions, event dispatch, accessibility-tree computation, and
+complete HTML conformance remain explicitly outside this checkpoint.

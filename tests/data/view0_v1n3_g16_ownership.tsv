@@ -1,0 +1,3 @@
+rule	owner	prior_owner_boundary	runtime_boundary
+G16_R1	G16	RETAINED_EXACT	NO_EXECUTION
+G16_R2	RETAINED_G10	RETAINED_EXACT	NO_EXECUTION
