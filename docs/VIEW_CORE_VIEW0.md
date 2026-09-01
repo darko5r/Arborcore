@@ -2,21 +2,26 @@
 
 ## Status
 
-VIEW0 is under incremental construction above frozen HTTP1. C1 establishes its
-generic bounded output transaction and is source-review closed at C1 R1. C2
-adds ordinary HTML Data/text-context measurement/escaping and is source-review
-closed at C2 R1. C3 qualifies the typed native C compiled-view pattern and is
-source-review closed at C3 R1. C4 qualifies a real hand-written NASM consumer
-of the same VIEW C boundary. T1 adds minimal prepared templates. M1 now admits
-user-facing UTF-8 HTML through the existing MVC0 presenter and HTTP1 metadata
-path; full document conformance remains a separate V1 development-time layer.
+VIEW0's planned pre-HELLO0 boundary above frozen HTTP1 is now frozen through D1.
+C1 establishes its generic bounded output transaction and is source-review closed
+at C1 R1. C2 adds ordinary HTML Data/text-context measurement/escaping and is
+source-review closed at C2 R1. C3 qualifies the typed native C compiled-view
+pattern and is source-review closed at C3 R1. C4 qualifies a real hand-written
+NASM consumer of the same VIEW C boundary. T1 adds minimal prepared templates.
+M1 admits user-facing UTF-8 HTML through the existing MVC0 presenter and HTTP1
+metadata path; full document conformance remains a separate V1 development-time
+layer.
 
-V1 is now review-complete through V1N4 for its frozen 104-rule development-time
+V1 is review-complete through V1N4 for its frozen 104-rule development-time
 admission matrix. The NC1 native corpus freezes 832 case IDs and reproduces 1,759
 records per pass across two exact historical-version replays. This is a bounded
 native qualification, not a claim of complete HTML or ECMAScript conformance.
-D1 remains blocked on the post-V1N4 manuals, runnable-examples, and documentation-
-consistency gate.
+D1 is admitted and frozen at `af924e2b3bd58379d4815896d694251addbe0831` after
+independent review of its canonical manuals, file-based T1/C3/C4 examples, native
+V1N4 document qualification, M1 content-type singleton regression, and C4 real-NASM
+ABI regression. HTTP1 freezes HELLO0 as the next cross-layer milestone after VIEW0;
+database and R integration remain deferred until HELLO0 works and the framework is
+reviewed as a real application-development experience.
 
 ## Architectural role
 
