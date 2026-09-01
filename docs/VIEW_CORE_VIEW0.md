@@ -11,6 +11,13 @@ of the same VIEW C boundary. T1 adds minimal prepared templates. M1 now admits
 user-facing UTF-8 HTML through the existing MVC0 presenter and HTTP1 metadata
 path; full document conformance remains a separate V1 development-time layer.
 
+V1 is now review-complete through V1N4 for its frozen 104-rule development-time
+admission matrix. The NC1 native corpus freezes 832 case IDs and reproduces 1,759
+records per pass across two exact historical-version replays. This is a bounded
+native qualification, not a claim of complete HTML or ECMAScript conformance.
+D1 remains blocked on the post-V1N4 manuals, runnable-examples, and documentation-
+consistency gate.
+
 ## Architectural role
 
 VIEW is the presentation boundary; it is not synonymous with a template engine.
@@ -1662,3 +1669,43 @@ failure atomicity are retained. Direct Arborcore heap allocation and mutable
 runtime registries remain absent. User-agent execution, fetching, navigation,
 custom-element reactions, event dispatch, accessibility-tree computation, and
 complete HTML conformance remain explicitly outside this checkpoint.
+
+### V1N4 full-matrix and NC1 review completion
+
+V1N4 closes review of the frozen V1 authoring matrix without adding new production
+VIEW functions or new runtime request-path behavior. The admitted matrix contains
+104 identities: 36 from V1N1, 38 from V1N2, and 30 from V1N3. One hundred identities
+publish ordinary rule diagnostics. Four retain specialized non-generic ownership:
+G03 R6 stays owned by M1/tokenizer evidence, G06 R15 remains a direct bounded
+date-or-global-date-time validator with no accepted author-facing consumer, G08 R11
+is HTML foreign-content integration only, and G11 R2 suppresses prior-owner/runtime
+dialog duplicates.
+
+NC1 preserves eight obligation case IDs for every frozen identity, for 832 cases in
+total. All 832 case/source bindings are present with zero gaps. The native corpus
+contains 1,759 result records per pass and was replayed twice against the exact
+historical V1N1, V1N2, and V1N3 implementation boundaries. All 3,518 comparisons
+matched the expected bytes and the two passes were byte-deterministic. Diagnostic
+ownership is therefore qualified for the bounded 100 generic plus four specialized
+matrix, and the NC1 native corpus is frozen.
+
+V1 conformance remains development/build tooling. There is no tracked VIEW0 V1
+browser or WASM conformance target, so native/WASM equivalence is not applicable to
+this tooling surface; the global native/WASM equivalence requirement remains in force
+for browser surfaces where such a boundary exists. The frozen browser authority is
+not reopened, and historical Nu/v.Nu evidence remains nonauthoritative.
+
+V1N4 deliberately does not promote this bounded matrix into a complete standards
+claim. Complete ECMAScript conformance remains unclaimed because the V1N3 frontend
+is parse-only and limited to its frozen constructor, FunctionBody, and Pattern
+UnicodeSets-mode operations. Complete HTML conformance also remains unclaimed:
+retained deferred/excluded boundaries include full SVG/MathML language conformance,
+WebVTT resource bodies, fetching/navigation/media execution, custom-element
+reactions, event dispatch, accessibility computation, runtime form/dialog behavior,
+and other explicitly recorded residuals.
+
+With those limits preserved, the V1N4 review-completion decision is **yes** for the
+bounded 104-rule native qualification. D1 is not admitted by this publication.
+The next required gate is the already-frozen post-V1N4 manuals, runnable-examples,
+and documentation-consistency review, including the carried content-type singleton
+and C4 Assembly-consumer stability obligations.
