@@ -5339,3 +5339,48 @@ view0-v1n3-c1-sanitize: $(VIEW0_V1N3_SANITIZE_TEST)
 	@echo "VIEW0_V1N3_C1_SANITIZE=PASS"
 view0-v1n3-c1-gate:
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash tools/view0_v1n3_c0_gate.sh
+
+# ============================================================
+# VIEW0 D1 — post-V1N4 manuals, runnable examples, documentation consistency
+# ============================================================
+VIEW0_D1_EXAMPLE_DIR := examples/view0
+VIEW0_D1_BUILD_DIR := $(BUILD_DIR)/view0-d1
+VIEW0_D1_DOCUMENT_DIR := $(VIEW0_D1_BUILD_DIR)/documents
+VIEW0_D1_RENDER_SOURCE := $(VIEW0_D1_EXAMPLE_DIR)/render.c
+VIEW0_D1_ASM_SOURCE := $(VIEW0_D1_EXAMPLE_DIR)/nasm_view.asm
+VIEW0_D1_TEMPLATE_SOURCE := $(VIEW0_D1_EXAMPLE_DIR)/page.html
+VIEW0_D1_RENDER_OBJ := $(VIEW0_D1_BUILD_DIR)/render.o
+VIEW0_D1_ASM_OBJ := $(VIEW0_D1_BUILD_DIR)/nasm_view.o
+VIEW0_D1_EXAMPLE := $(VIEW0_D1_BUILD_DIR)/render-example
+VIEW0_D1_TEMPLATE_DOCUMENT := $(VIEW0_D1_DOCUMENT_DIR)/template.html
+VIEW0_D1_NATIVE_C_DOCUMENT := $(VIEW0_D1_DOCUMENT_DIR)/native-c.html
+VIEW0_D1_NASM_DOCUMENT := $(VIEW0_D1_DOCUMENT_DIR)/nasm.html
+
+.PHONY: view0-d1-example view0-d1-example-documents view0-d1-gate
+
+$(VIEW0_D1_BUILD_DIR):
+	mkdir -p $@
+
+$(VIEW0_D1_DOCUMENT_DIR):
+	mkdir -p $@
+
+$(VIEW0_D1_RENDER_OBJ): $(VIEW0_D1_RENDER_SOURCE) $(VIEW0_C1_HEADER) | $(VIEW0_D1_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(VIEW0_D1_ASM_OBJ): $(VIEW0_D1_ASM_SOURCE) | $(VIEW0_D1_BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(VIEW0_D1_EXAMPLE): $(VIEW0_D1_RENDER_OBJ) $(VIEW0_D1_ASM_OBJ) $(VIEW0_C1_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(VIEW0_D1_RENDER_OBJ) $(VIEW0_D1_ASM_OBJ) $(VIEW0_C1_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+
+view0-d1-example: $(VIEW0_D1_EXAMPLE)
+
+view0-d1-example-documents: $(VIEW0_D1_EXAMPLE) | $(VIEW0_D1_DOCUMENT_DIR)
+	@$(VIEW0_D1_EXAMPLE) \
+		$(VIEW0_D1_TEMPLATE_SOURCE) \
+		$(VIEW0_D1_TEMPLATE_DOCUMENT) \
+		$(VIEW0_D1_NATIVE_C_DOCUMENT) \
+		$(VIEW0_D1_NASM_DOCUMENT)
+
+view0-d1-gate:
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash tools/view0_d1_gate.sh

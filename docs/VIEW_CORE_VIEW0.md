@@ -1709,3 +1709,84 @@ bounded 104-rule native qualification. D1 is not admitted by this publication.
 The next required gate is the already-frozen post-V1N4 manuals, runnable-examples,
 and documentation-consistency review, including the carried content-type singleton
 and C4 Assembly-consumer stability obligations.
+
+### D1: canonical manuals, file-based runnable examples, and consistency gate
+
+D1 is the post-V1N4 documentation and runnable-example admission gate. It does not
+add a production VIEW abstraction. The production API remains the eleven functions
+already frozen through M1/T1, and the Assembly ABI v1, AF1-AF4, MVC0, HTTP0, HTTP1,
+and browser authority boundaries remain closed.
+
+The canonical runnable example is `examples/view0/`. It demonstrates three already-
+qualified producer mechanisms over the same typed text model and requires their
+complete HTML document bytes to be identical:
+
+1. T1 loads `examples/view0/page.html` from a file during application-style startup,
+   measures and prepares it into caller-owned persistent storage, and then renders
+   request values through the prepared numeric-slot representation. The original file
+   bytes and field-name bytes are not retained after successful preparation.
+2. C3 renders the same document through an application-defined typed native-C view
+   that composes C1 output transactions with C2 HTML Data/text escaping.
+3. C4 renders the dynamic paragraph through a hand-written NASM application-style
+   consumer of the existing VIEW C API and frozen range helpers; the C example wraps
+   that fragment in the same trusted full-document literals.
+
+Run the example from the repository root with:
+
+```sh
+make view0-d1-example-documents
+```
+
+It writes:
+
+```text
+build/view0-d1/documents/template.html
+build/view0-d1/documents/native-c.html
+build/view0-d1/documents/nasm.html
+```
+
+D1 requires those three files to be byte-identical, valid UTF-8, and accepted with
+zero diagnostics, zero tokenizer errors, zero tree errors, and `parse_clean=yes` by
+the current native V1N4 bounded 104-rule conformance tool. This remains a bounded
+Arborcore qualification. Complete HTML and complete ECMAScript conformance are not
+claimed.
+
+#### D1 HTTP publication rule
+
+The runnable renderer produces body bytes only. The canonical M1 publication order
+remains:
+
+1. render through T1, C3, or C4;
+2. validate the completed body with `arbor_view_utf8_validate()`;
+3. construct the AF1 response plan;
+4. append exactly one `Content-Type: text/html; charset=utf-8` response field through
+   the HTTP1 response-field sidecar;
+5. publish the already-valid response plan.
+
+The presenter owns that single field in this qualified composition. A controller or
+middleware that has already inserted `Content-Type` violates the composition
+precondition; D1 does not change HTTP1's general ordered response-field semantics and
+does not introduce silent duplicate-field removal. The D1 gate reruns the existing M1
+real-socket integration regression to keep this rule executable rather than merely
+documentary.
+
+#### D1 Assembly-consumer stability
+
+`examples/view0/nasm_view.asm` is an application-style NASM consumer, not a new
+production Assembly service. It consumes the existing VIEW C boundary and the same
+frozen `range_end_checked` / `range_overlaps` helpers used by the qualified C4 path.
+D1 introduces no production Assembly symbol and does not reopen Assembly ABI v1. The
+D1 gate reruns the C4 real-NASM ABI verifier and additionally checks the example
+object's imported symbol set, SysV stack/callee-saved behavior inheritance, and
+non-executable-stack note.
+
+Run the complete post-V1N4 admission gate with:
+
+```sh
+make view0-d1-gate
+```
+
+The gate verifies repository scope, the D1 contract, documentation consistency,
+file-based example execution, native V1N4 qualification of every generated document,
+the M1 content-type publication regression, and C4 Assembly-consumer stability. D1
+admission is not a new complete-conformance claim and does not reopen V1N4.
