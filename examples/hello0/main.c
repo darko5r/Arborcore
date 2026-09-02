@@ -7,22 +7,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/epoll.h>
-#include <unistd.h>
+#include <sys/socket.h>
 
 #include "hello0.h"
+#include "linux_http_mvc_host.h"
 
 #define HELLO0_EVENT_CAPACITY 16u
 #define HELLO0_EVENT_WAIT_MS 250
-
-typedef struct hello0_connection_slot {
-    arbor_runtime_storage storage;
-    uint8_t input[HELLO0_CONNECTION_BUFFER_CAPACITY];
-    uint8_t output[HELLO0_CONNECTION_BUFFER_CAPACITY];
-    uint8_t arena[HELLO0_CONNECTION_BUFFER_CAPACITY];
-    bool active;
-    bool more_work;
-} hello0_connection_slot;
 
 static volatile sig_atomic_t hello0_stop_requested = 0;
 
@@ -103,222 +94,40 @@ static int hello0_load_template(
     return 0;
 }
 
-static int hello0_prepare_slots(hello0_connection_slot *slots, size_t count)
+static void hello0_host_diagnostic(
+    void *context,
+    arbor_example_linux_http_mvc_host_diagnostic diagnostic,
+    int64_t native_status)
 {
-    if (slots == NULL || count == 0u) {
-        return 1;
-    }
-    for (size_t i = 0u; i < count; ++i) {
-        arbor_status status = arbor_runtime_storage_prepare(
-            &slots[i].storage,
-            (arbor_mut_span){slots[i].input, sizeof(slots[i].input)},
-            (arbor_mut_span){slots[i].output, sizeof(slots[i].output)},
-            (arbor_mut_span){slots[i].arena, sizeof(slots[i].arena)});
-        if (status.native != 0) {
-            return 1;
-        }
-        slots[i].active = false;
-        slots[i].more_work = false;
-    }
-    return 0;
-}
-
-static hello0_connection_slot *hello0_find_free_slot(
-    hello0_connection_slot *slots,
-    size_t count)
-{
-    for (size_t i = 0u; i < count; ++i) {
-        if (!slots[i].active) {
-            return &slots[i];
-        }
-    }
-    return NULL;
-}
-
-static hello0_connection_slot *hello0_find_connection_slot(
-    hello0_connection_slot *slots,
-    size_t count,
-    uint64_t event_data)
-{
-    for (size_t i = 0u; i < count; ++i) {
-        if (slots[i].active &&
-            (uint64_t)(uintptr_t)&slots[i].storage.connection == event_data) {
-            return &slots[i];
-        }
-    }
-    return NULL;
-}
-
-static void hello0_close_slot(int64_t epoll_fd, hello0_connection_slot *slot)
-{
-    if (slot == NULL || !slot->active) {
-        return;
-    }
-    if (slot->storage.connection.state != ARBOR_ASM_CONNECTION_CLOSED) {
-        (void)arbor_server_close(epoll_fd, &slot->storage);
-    }
-    slot->active = false;
-    slot->more_work = false;
-}
-
-static void hello0_advance_slot(
-    int64_t epoll_fd,
-    const hello0_web_application *application,
-    hello0_connection_slot *slot)
-{
-    if (slot == NULL || !slot->active) {
-        return;
-    }
-    uint64_t completed = 0u;
-    arbor_status status = arbor_http_mvc_server_step(
-        &slot->storage,
-        &application->http_application,
-        epoll_fd,
-        &completed);
-    (void)completed;
-
-    if (status.native == (int64_t)ARBORCORE_SERVER_MORE_WORK) {
-        slot->more_work = true;
-        return;
-    }
-    slot->more_work = false;
-    if (status.native == -EAGAIN) {
-        return;
-    }
-    if (status.native != 0) {
-        fprintf(stderr, "HELLO0_CONNECTION_ERROR=%" PRId64 "\n", status.native);
-        hello0_close_slot(epoll_fd, slot);
-        return;
-    }
-    if (slot->storage.connection.state == ARBOR_ASM_CONNECTION_CLOSED) {
-        slot->active = false;
+    (void)context;
+    switch (diagnostic) {
+    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_LISTEN:
+        fprintf(stderr, "HELLO0_LISTEN_ERROR=%" PRId64 "\n", native_status);
+        break;
+    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP_CREATE:
+        fprintf(
+            stderr,
+            "HELLO0_EVENT_LOOP_ERROR=%" PRId64 "\n",
+            native_status);
+        break;
+    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP:
+        fprintf(stderr, "HELLO0_EPOLL_ERROR=%" PRId64 "\n", native_status);
+        break;
+    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_ACCEPT:
+        fprintf(stderr, "HELLO0_ACCEPT_ERROR=%" PRId64 "\n", native_status);
+        break;
+    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CONNECTION:
+        fprintf(stderr, "HELLO0_CONNECTION_ERROR=%" PRId64 "\n", native_status);
+        break;
+    default:
+        break;
     }
 }
 
-static bool hello0_any_more_work(
-    const hello0_connection_slot *slots,
-    size_t count)
+static bool hello0_should_stop(void *context)
 {
-    for (size_t i = 0u; i < count; ++i) {
-        if (slots[i].active && slots[i].more_work) {
-            return true;
-        }
-    }
-    return false;
-}
-
-static int hello0_set_listener_readable(
-    int64_t epoll_fd,
-    int64_t listener_fd,
-    bool readable)
-{
-    uint64_t events = (uint64_t)(EPOLLERR | EPOLLHUP);
-    if (readable) {
-        events |= (uint64_t)EPOLLIN;
-    }
-    void *data = (void *)(uintptr_t)(uint64_t)listener_fd;
-    return event_epoll_modify(epoll_fd, listener_fd, events, data) == 0 ? 0 : 1;
-}
-
-static int hello0_accept_ready(
-    int64_t listener_fd,
-    int64_t epoll_fd,
-    hello0_connection_slot *slots,
-    size_t count,
-    bool *listener_readable)
-{
-    for (;;) {
-        hello0_connection_slot *slot = hello0_find_free_slot(slots, count);
-        if (slot == NULL) {
-            if (*listener_readable &&
-                hello0_set_listener_readable(epoll_fd, listener_fd, false) != 0) {
-                return 1;
-            }
-            *listener_readable = false;
-            return 0;
-        }
-
-        int64_t accepted_fd = -1;
-        arbor_status status = arbor_server_accept(
-            listener_fd,
-            epoll_fd,
-            &slot->storage,
-            &accepted_fd);
-        if (status.native == -EAGAIN) {
-            return 0;
-        }
-        if (status.native != 0 || accepted_fd < 0) {
-            fprintf(stderr, "HELLO0_ACCEPT_ERROR=%" PRId64 "\n", status.native);
-            return 1;
-        }
-        slot->active = true;
-        slot->more_work = false;
-    }
-}
-
-static int hello0_run(
-    int64_t listener_fd,
-    int64_t epoll_fd,
-    const hello0_web_application *application,
-    hello0_connection_slot *slots,
-    size_t slot_count)
-{
-    arbor_asm_epoll_event events[HELLO0_EVENT_CAPACITY] = {0};
-    bool listener_readable = true;
-
-    while (hello0_stop_requested == 0) {
-        for (size_t i = 0u; i < slot_count; ++i) {
-            if (slots[i].active && slots[i].more_work) {
-                hello0_advance_slot(epoll_fd, application, &slots[i]);
-            }
-        }
-
-        if (!listener_readable &&
-            hello0_find_free_slot(slots, slot_count) != NULL) {
-            if (hello0_set_listener_readable(epoll_fd, listener_fd, true) != 0) {
-                return 1;
-            }
-            listener_readable = true;
-        }
-
-        int64_t timeout = hello0_any_more_work(slots, slot_count) ?
-            0 : HELLO0_EVENT_WAIT_MS;
-        int64_t event_count = event_epoll_wait(
-            epoll_fd,
-            events,
-            HELLO0_EVENT_CAPACITY,
-            timeout);
-        if (event_count < 0) {
-            fprintf(stderr, "HELLO0_EPOLL_ERROR=%" PRId64 "\n", event_count);
-            return 1;
-        }
-
-        bool listener_event = false;
-        for (int64_t i = 0; i < event_count; ++i) {
-            uint64_t event_data = events[i].data;
-            if (event_data == (uint64_t)listener_fd) {
-                listener_event = true;
-                continue;
-            }
-            hello0_connection_slot *slot = hello0_find_connection_slot(
-                slots,
-                slot_count,
-                event_data);
-            if (slot != NULL) {
-                hello0_advance_slot(epoll_fd, application, slot);
-            }
-        }
-        if (listener_event && listener_readable &&
-            hello0_accept_ready(
-                listener_fd,
-                epoll_fd,
-                slots,
-                slot_count,
-                &listener_readable) != 0) {
-            return 1;
-        }
-    }
-    return 0;
+    (void)context;
+    return hello0_stop_requested != 0;
 }
 
 int main(int argc, char **argv)
@@ -364,61 +173,72 @@ int main(int argc, char **argv)
     address.sin_port = htons(port);
     address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-    int64_t listener_fd = -1;
-    int64_t epoll_fd = -1;
-    status = arbor_server_open(
-        &address,
-        (uint64_t)sizeof(address),
-        HELLO0_LISTEN_BACKLOG,
-        &listener_fd);
+    static arbor_example_linux_http_mvc_host_slot
+        slots[HELLO0_CONNECTION_SLOT_COUNT];
+    static uint8_t slot_inputs
+        [HELLO0_CONNECTION_SLOT_COUNT][HELLO0_CONNECTION_BUFFER_CAPACITY];
+    static uint8_t slot_outputs
+        [HELLO0_CONNECTION_SLOT_COUNT][HELLO0_CONNECTION_BUFFER_CAPACITY];
+    static uint8_t slot_arenas
+        [HELLO0_CONNECTION_SLOT_COUNT][HELLO0_CONNECTION_BUFFER_CAPACITY];
+    for (size_t i = 0u; i < HELLO0_CONNECTION_SLOT_COUNT; ++i) {
+        status = arbor_example_linux_http_mvc_host_slot_prepare(
+            &slots[i],
+            (arbor_mut_span){slot_inputs[i], sizeof(slot_inputs[i])},
+            (arbor_mut_span){slot_outputs[i], sizeof(slot_outputs[i])},
+            (arbor_mut_span){slot_arenas[i], sizeof(slot_arenas[i])});
+        if (status.native != 0) {
+            fputs("HELLO0_STORAGE_PREPARE_ERROR\n", stderr);
+            return 1;
+        }
+    }
+
+    static arbor_asm_epoll_event events[HELLO0_EVENT_CAPACITY];
+    arbor_example_linux_http_mvc_host host = {0};
+    status = arbor_example_linux_http_mvc_host_prepare(
+        &host,
+        &application.http_application,
+        slots,
+        HELLO0_CONNECTION_SLOT_COUNT,
+        events,
+        HELLO0_EVENT_CAPACITY,
+        HELLO0_EVENT_WAIT_MS,
+        hello0_host_diagnostic,
+        NULL);
     if (status.native != 0) {
-        fprintf(stderr, "HELLO0_LISTEN_ERROR=%" PRId64 "\n", status.native);
+        fprintf(stderr, "HELLO0_HOST_PREPARE_ERROR=%" PRId64 "\n", status.native);
         return 1;
     }
-    status = arbor_event_loop_create(listener_fd, &epoll_fd);
+    status = arbor_example_linux_http_mvc_host_open(
+        &host,
+        &address,
+        (uint64_t)sizeof(address),
+        HELLO0_LISTEN_BACKLOG);
     if (status.native != 0) {
-        fprintf(stderr, "HELLO0_EVENT_LOOP_ERROR=%" PRId64 "\n", status.native);
-        (void)close((int)listener_fd);
         return 1;
     }
 
     socklen_t address_length = (socklen_t)sizeof(address);
     if (getsockname(
-            (int)listener_fd,
+            (int)host.listener_fd,
             (struct sockaddr *)(void *)&address,
             &address_length) != 0 ||
         address_length != (socklen_t)sizeof(address)) {
         fputs("HELLO0_LISTENER_ADDRESS_ERROR\n", stderr);
-        (void)close((int)epoll_fd);
-        (void)close((int)listener_fd);
+        (void)arbor_example_linux_http_mvc_host_close(&host);
         return 1;
     }
     port = ntohs(address.sin_port);
-
-    static hello0_connection_slot slots[HELLO0_CONNECTION_SLOT_COUNT];
-    if (hello0_prepare_slots(slots, HELLO0_CONNECTION_SLOT_COUNT) != 0) {
-        fputs("HELLO0_STORAGE_PREPARE_ERROR\n", stderr);
-        (void)close((int)epoll_fd);
-        (void)close((int)listener_fd);
-        return 1;
-    }
 
     printf(
         "HELLO0_READY=http://127.0.0.1:%" PRIu16 "/hello\n",
         port);
     (void)fflush(stdout);
-    int result = hello0_run(
-        listener_fd,
-        epoll_fd,
-        &application,
-        slots,
-        HELLO0_CONNECTION_SLOT_COUNT);
-
-    for (size_t i = 0u; i < HELLO0_CONNECTION_SLOT_COUNT; ++i) {
-        hello0_close_slot(epoll_fd, &slots[i]);
-    }
-    (void)close((int)epoll_fd);
-    (void)close((int)listener_fd);
+    arbor_status run_status = arbor_example_linux_http_mvc_host_run(
+        &host,
+        hello0_should_stop,
+        NULL);
+    (void)arbor_example_linux_http_mvc_host_close(&host);
     printf(
         "HELLO0_STOPPED middleware=%" PRIu64 " controller=%" PRIu64
         " service=%" PRIu64 " presenter=%" PRIu64 "\n",
@@ -426,5 +246,5 @@ int main(int argc, char **argv)
         application.metrics.controller_calls,
         application.metrics.service_calls,
         application.metrics.presenter_calls);
-    return result;
+    return run_status.native == 0 ? 0 : 1;
 }

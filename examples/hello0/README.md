@@ -31,18 +31,21 @@ Arborcore safely renders &lt;dynamic data&gt; &amp; UTF-8: Olá 😀
 
 ## Composition
 
-1. main.c reads at most 4096 template bytes, prepares the application, opens
-   a loopback-only listener, accepts into eight fixed connection slots, and
-   advances every ready connection with arbor_http_mvc_server_step().
-2. web.c prepares the persistent template backing, middleware, two routes,
+1. main.c reads at most 4096 template bytes, prepares the application and
+   supplies caller-owned fixed connection, event and buffer storage.
+2. examples/common/linux_http_mvc_host.c is the private HOST0-R0 candidate. It
+   opens the loopback listener and epoll instance, applies eight-slot accept
+   backpressure, and advances every ready connection with
+   arbor_http_mvc_server_step().
+3. web.c prepares the persistent template backing, middleware, two routes,
    MVC application, and HTTP/MVC adapter in their final address.
-3. The controller asks the typed service in application.c for a domain
+4. The controller asks the typed service in application.c for a domain
    outcome. A page model is allocated in the request arena; a redirect has no
    model.
-4. The presenter maps the typed outcome to 200 or 302. For a page it renders
+5. The presenter maps the typed outcome to 200 or 302. For a page it renders
    the prepared template transactionally, validates UTF-8, and publishes the
    borrowed body in an arbor_response_plan.
-5. HTTP1 combines the response plan with the response-field sidecar. HTTP0
+6. HTTP1 combines the response plan with the response-field sidecar. HTTP0
    performs final protocol validation, framing, and keep-alive/close handling.
 
 The template source and field-name bytes are preparation-only borrows. VIEW0
@@ -50,8 +53,9 @@ copies trusted literals and resolves the field slot into the arrays owned by
 hello0_web_application, so main.c clears the original source buffer
 immediately after successful preparation.
 
-There is no database, heap-owned application state, new Arborcore public API,
-or new Assembly symbol in HELLO0.
+HOST0-R0 remains private to the examples while a second application and LIFE0
+establish the reusable lifecycle boundary. There is no database, heap-owned
+application or host state, new Arborcore public API, or new Assembly symbol.
 
 ## Build and run
 
@@ -68,9 +72,11 @@ Open:
 http://127.0.0.1:8080/hello
 ~~~
 
-The process binds only 127.0.0.1. Ctrl-C and SIGTERM perform a graceful
-shutdown. Port 0 asks Linux for an unused ephemeral port and is used by the
-automated live check.
+The process binds only 127.0.0.1. Ctrl-C and SIGTERM request controlled
+shutdown; R0 closes remaining active slots after the event loop stops. A
+deadline-governed connection drain belongs to the later LIFE0 milestone. Port
+0 asks Linux for an unused ephemeral port and is used by the automated live
+check.
 
 ## Evidence
 
@@ -85,6 +91,7 @@ Or run each level separately:
 ~~~sh
 make hello0-core-test
 make hello0-integration-test
+make hello0-host-test
 make hello0-sanitize
 make hello0-live-verify
 make hello0-route-scale-benchmark
