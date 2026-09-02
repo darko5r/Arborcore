@@ -5525,7 +5525,7 @@ hello0-sanitize: $(HELLO0_CORE_SANITIZE_TEST) $(HELLO0_INTEGRATION_SANITIZE_TEST
 	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(HELLO0_CORE_SANITIZE_TEST)
 	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(HELLO0_INTEGRATION_SANITIZE_TEST)
 	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(HELLO0_HOST_SANITIZE_TEST)
-	@echo "PASS: HELLO0 ASan/UBSan core, MVC/VIEW/HTTP integration and HOST0-R0"
+	@echo "PASS: HELLO0 ASan/UBSan core, MVC/VIEW/HTTP integration and LIFE0-R0"
 
 hello0-live-verify: $(HELLO0_APPLICATION) $(HELLO0_TEMPLATE) $(HELLO0_LIVE_VERIFY)
 	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(HELLO0_LIVE_VERIFY)
@@ -5539,10 +5539,10 @@ hello0-route-scale-benchmark: $(HELLO0_ROUTE_SCALE_BENCH)
 	@$(HELLO0_ROUTE_SCALE_BENCH)
 
 hello0-gate: hello0-core-test hello0-integration-test hello0-host-test hello0-sanitize hello0-live-verify hello0-route-scale-benchmark
-	@echo "PASS: complete HELLO0 and HOST0-R0 native, adversarial, sanitizer, live and diagnostic evidence"
+	@echo "PASS: complete HELLO0 over LIFE0-R0 native, adversarial, sanitizer, live and diagnostic evidence"
 
 # ============================================================
-# ECHO0 — parameterized MVC + VIEW0 application over HOST0-R0
+# ECHO0 — parameterized MVC + VIEW0 application over LIFE0-R0
 # ============================================================
 
 ECHO0_DIR := examples/echo0
@@ -5650,7 +5650,7 @@ echo0-analyzer:
 	$(CC) $(ECHO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(ECHO0_INTEGRATION_TEST_SOURCE)
 	$(CC) $(ECHO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(ECHO0_HOST_TEST_SOURCE)
 	$(CC) $(ARBORCORE_C_CPPFLAGS) -I$(EXAMPLE_COMMON_DIR) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(EXAMPLE_LINUX_HTTP_MVC_HOST_SOURCE)
-	@echo "PASS: ECHO0 and unchanged HOST0-R0 GCC analyzer review"
+	@echo "PASS: ECHO0 and LIFE0-R0 common-host GCC analyzer review"
 
 $(ECHO0_CORE_SANITIZE_TEST): $(ECHO0_CORE_TEST_SOURCE) $(ECHO0_SANITIZE_SOURCES) $(ECHO0_SANITIZE_ASSEMBLY) $(ECHO0_HEADER) | $(ECHO0_BUILD_DIR)
 	$(CC) $(ECHO0_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
@@ -5691,4 +5691,113 @@ echo0-route-scale-benchmark: $(ECHO0_ROUTE_SCALE_BENCH)
 	@$(ECHO0_ROUTE_SCALE_BENCH)
 
 echo0-gate: echo0-analyzer echo0-core-test echo0-integration-test echo0-host-test echo0-sanitize echo0-live-verify hello0-gate echo0-route-scale-benchmark
-	@echo "PASS: complete ECHO0-R0 cumulative application, HOST0 reuse and regression evidence"
+	@echo "PASS: complete ECHO0-R0 cumulative application, LIFE0 reuse and regression evidence"
+
+# ============================================================
+# LIFE0-R0 — private Linux host lifecycle and deadline drain
+# ============================================================
+
+LIFE0_BUILD_DIR := $(BUILD_DIR)/life0
+LIFE0_LIFECYCLE_TEST_SOURCE := tests/c/life0_host_lifecycle_test.c
+LIFE0_ADVERSARIAL_TEST_SOURCE := tests/c/life0_host_adversarial_test.c
+LIFE0_SHUTDOWN_BENCH_SOURCE := bench/life0_shutdown_bench.c
+LIFE0_LIVE_VERIFY := tools/life0_live_verify.sh
+
+LIFE0_LIFECYCLE_TEST_OBJ := $(LIFE0_BUILD_DIR)/host_lifecycle_test.o
+LIFE0_ADVERSARIAL_TEST_OBJ := $(LIFE0_BUILD_DIR)/host_adversarial_test.o
+LIFE0_SHUTDOWN_BENCH_OBJ := $(LIFE0_BUILD_DIR)/shutdown_bench.o
+
+LIFE0_LIFECYCLE_TEST := $(LIFE0_BUILD_DIR)/host-lifecycle-test
+LIFE0_ADVERSARIAL_TEST := $(LIFE0_BUILD_DIR)/host-adversarial-test
+LIFE0_LIFECYCLE_SANITIZE_TEST := $(LIFE0_BUILD_DIR)/host-lifecycle-sanitize-test
+LIFE0_ADVERSARIAL_SANITIZE_TEST := $(LIFE0_BUILD_DIR)/host-adversarial-sanitize-test
+LIFE0_SHUTDOWN_BENCH := $(LIFE0_BUILD_DIR)/shutdown-bench
+
+LIFE0_CPPFLAGS := \
+	$(ARBORCORE_C_CPPFLAGS) -I$(HELLO0_DIR) -I$(ECHO0_DIR) -I$(EXAMPLE_COMMON_DIR)
+
+.PHONY: life0-native-test life0-adversarial-test life0-analyzer life0-sanitize
+.PHONY: life0-live-verify life0-repetition life0-shutdown-benchmark life0-gate
+
+$(LIFE0_BUILD_DIR):
+	mkdir -p $@
+
+$(LIFE0_LIFECYCLE_TEST_OBJ): $(LIFE0_LIFECYCLE_TEST_SOURCE) $(HELLO0_HEADER) $(EXAMPLE_LINUX_HTTP_MVC_HOST_HEADER) | $(LIFE0_BUILD_DIR)
+	$(CC) $(LIFE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(LIFE0_ADVERSARIAL_TEST_OBJ): $(LIFE0_ADVERSARIAL_TEST_SOURCE) $(ECHO0_HEADER) $(EXAMPLE_LINUX_HTTP_MVC_HOST_HEADER) | $(LIFE0_BUILD_DIR)
+	$(CC) $(LIFE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(LIFE0_SHUTDOWN_BENCH_OBJ): $(LIFE0_SHUTDOWN_BENCH_SOURCE) $(HELLO0_HEADER) $(EXAMPLE_LINUX_HTTP_MVC_HOST_HEADER) | $(LIFE0_BUILD_DIR)
+	$(CC) $(LIFE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(LIFE0_LIFECYCLE_TEST): $(LIFE0_LIFECYCLE_TEST_OBJ) $(EXAMPLE_LINUX_HTTP_MVC_HOST_OBJ) $(HELLO0_COMMON_OBJS) $(HELLO0_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(LIFE0_LIFECYCLE_TEST_OBJ) $(EXAMPLE_LINUX_HTTP_MVC_HOST_OBJ) \
+		$(HELLO0_COMMON_OBJS) $(HELLO0_LIBRARIES)
+
+life0-native-test: $(LIFE0_LIFECYCLE_TEST)
+	@$(LIFE0_LIFECYCLE_TEST)
+
+$(LIFE0_ADVERSARIAL_TEST): $(LIFE0_ADVERSARIAL_TEST_OBJ) $(EXAMPLE_LINUX_HTTP_MVC_HOST_OBJ) $(ECHO0_COMMON_OBJS) $(ECHO0_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(LIFE0_ADVERSARIAL_TEST_OBJ) $(EXAMPLE_LINUX_HTTP_MVC_HOST_OBJ) \
+		$(ECHO0_COMMON_OBJS) $(ECHO0_LIBRARIES)
+
+life0-adversarial-test: $(LIFE0_ADVERSARIAL_TEST)
+	@$(LIFE0_ADVERSARIAL_TEST)
+
+life0-analyzer:
+	$(CC) $(ARBORCORE_C_CPPFLAGS) -I$(EXAMPLE_COMMON_DIR) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(EXAMPLE_LINUX_HTTP_MVC_HOST_SOURCE)
+	$(CC) $(HELLO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(HELLO0_MAIN_SOURCE)
+	$(CC) $(ECHO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(ECHO0_MAIN_SOURCE)
+	$(CC) $(HELLO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(HELLO0_HOST_TEST_SOURCE)
+	$(CC) $(ECHO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(ECHO0_HOST_TEST_SOURCE)
+	$(CC) $(LIFE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(LIFE0_LIFECYCLE_TEST_SOURCE)
+	$(CC) $(LIFE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(LIFE0_ADVERSARIAL_TEST_SOURCE)
+	$(CC) $(LIFE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(LIFE0_SHUTDOWN_BENCH_SOURCE)
+	@echo "PASS: LIFE0-R0 strict compiler and GCC analyzer review"
+
+$(LIFE0_LIFECYCLE_SANITIZE_TEST): $(LIFE0_LIFECYCLE_TEST_SOURCE) $(EXAMPLE_LINUX_HTTP_MVC_HOST_SOURCE) $(EXAMPLE_LINUX_HTTP_MVC_HOST_HEADER) $(HELLO0_SANITIZE_SOURCES) $(HELLO0_SANITIZE_ASSEMBLY) $(HELLO0_HEADER) | $(LIFE0_BUILD_DIR)
+	$(CC) $(LIFE0_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(LIFE0_LIFECYCLE_TEST_SOURCE) $(EXAMPLE_LINUX_HTTP_MVC_HOST_SOURCE) \
+		$(HELLO0_SANITIZE_SOURCES) $(HELLO0_SANITIZE_ASSEMBLY) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@
+
+$(LIFE0_ADVERSARIAL_SANITIZE_TEST): $(LIFE0_ADVERSARIAL_TEST_SOURCE) $(EXAMPLE_LINUX_HTTP_MVC_HOST_SOURCE) $(EXAMPLE_LINUX_HTTP_MVC_HOST_HEADER) $(ECHO0_SANITIZE_SOURCES) $(ECHO0_SANITIZE_ASSEMBLY) $(ECHO0_HEADER) | $(LIFE0_BUILD_DIR)
+	$(CC) $(LIFE0_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(LIFE0_ADVERSARIAL_TEST_SOURCE) $(EXAMPLE_LINUX_HTTP_MVC_HOST_SOURCE) \
+		$(ECHO0_SANITIZE_SOURCES) $(ECHO0_SANITIZE_ASSEMBLY) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@
+
+life0-sanitize: $(LIFE0_LIFECYCLE_SANITIZE_TEST) $(LIFE0_ADVERSARIAL_SANITIZE_TEST)
+	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(LIFE0_LIFECYCLE_SANITIZE_TEST)
+	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(LIFE0_ADVERSARIAL_SANITIZE_TEST)
+	@echo "PASS: LIFE0-R0 ASan/UBSan lifecycle and adversarial evidence"
+
+life0-live-verify: $(HELLO0_APPLICATION) $(ECHO0_APPLICATION) $(HELLO0_TEMPLATE) $(ECHO0_TEMPLATE) $(LIFE0_LIVE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(LIFE0_LIVE_VERIFY)
+
+life0-repetition: $(LIFE0_LIFECYCLE_TEST) $(LIFE0_ADVERSARIAL_TEST)
+	@set -e; \
+	for iteration in $$(seq 1 100); do \
+		$(LIFE0_LIFECYCLE_TEST) >/dev/null; \
+	done; \
+	for iteration in $$(seq 1 100); do \
+		$(LIFE0_ADVERSARIAL_TEST) >/dev/null; \
+	done; \
+	echo "LIFE0_LIFECYCLE_REPEAT=PASS_100_OF_100"; \
+	echo "LIFE0_ADVERSARIAL_REPEAT=PASS_100_OF_100"
+
+$(LIFE0_SHUTDOWN_BENCH): $(LIFE0_SHUTDOWN_BENCH_OBJ) $(EXAMPLE_LINUX_HTTP_MVC_HOST_OBJ) $(HELLO0_COMMON_OBJS) $(HELLO0_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(LIFE0_SHUTDOWN_BENCH_OBJ) $(EXAMPLE_LINUX_HTTP_MVC_HOST_OBJ) \
+		$(HELLO0_COMMON_OBJS) $(HELLO0_LIBRARIES)
+
+life0-shutdown-benchmark: $(LIFE0_SHUTDOWN_BENCH)
+	@$(LIFE0_SHUTDOWN_BENCH)
+
+life0-gate: life0-analyzer life0-native-test life0-adversarial-test life0-sanitize life0-live-verify life0-repetition life0-shutdown-benchmark
+	@echo "PASS: complete LIFE0-R0 deterministic, adversarial, sanitizer, live, repetition and diagnostic evidence"

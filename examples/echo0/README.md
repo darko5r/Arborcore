@@ -41,10 +41,10 @@ are escaped.
 
 1. main.c reads at most 4096 template bytes, prepares the application and
    supplies caller-owned fixed connection, event and buffer storage.
-2. examples/common/linux_http_mvc_host.c is the frozen private HOST0-R0 source. It
-   opens the loopback listener and epoll instance, applies eight-slot accept
-   backpressure, and advances every ready connection with
-   arbor_http_mvc_server_step().
+2. examples/common/linux_http_mvc_host.c is the private LIFE0-R0 host. It opens
+   the loopback listener and epoll instance, applies eight-slot accept
+   backpressure, advances every ready connection with
+   arbor_http_mvc_server_step(), and performs a monotonic deadline drain.
 3. web.c prepares the persistent template backing, middleware, two routes,
    MVC application, and HTTP/MVC adapter in their final address.
 4. The page controller requires exactly one route parameter named `value`.
@@ -64,9 +64,32 @@ echo0_web_application, so main.c clears the original source buffer
 immediately after successful preparation.
 
 ECHO0 performs no URL decoding or normalization: `:value` is pointer-length
-metadata, not a C string. HOST0-R0 remains private to the examples while LIFE0
-establishes the reusable lifecycle boundary. There is no database, heap-owned
-application or host state, new Arborcore public API, or new Assembly symbol.
+metadata, not a C string. LIFE0-R0 remains private to the examples and is
+shared byte-for-byte with HELLO0. There is no database, heap-owned application
+or host state, new Arborcore public API, or new Assembly symbol.
+
+## LIFE0 lifecycle
+
+The common host has one authoritative, nonzero phase value:
+
+~~~text
+PREPARED -> ACCEPTING -> DRAINING -> CLOSED
+~~~
+
+An all-zero host is unprepared, `open` cannot reopen `CLOSED`, and repeated
+`close` is idempotent. SIGINT and SIGTERM remain owned by ECHO0. When its stop
+predicate is observed, the host closes the listener before counting existing
+participants. Those accepted connections retain the frozen keep-alive,
+pipelining, route-parameter, VIEW, MVC, HTTP, and backpressure behavior until
+they naturally become inactive or the fixed 2000 ms monotonic deadline is
+enforced. No new connection is accepted after `DRAINING` begins.
+
+The host performs no allocation. Its application, slots, buffers, arenas,
+event array, clock context, and diagnostic context remain caller-owned and
+address-stable through `CLOSED`. The final caller-visible result records the
+active-at-start, natural and forced counts, expiry flag, start and finish
+times, and first negative mechanism status. Deadline expiry is policy data,
+not itself a mechanism failure.
 
 ## Build and run
 
@@ -83,11 +106,11 @@ Open:
 http://127.0.0.1:8080/echo/Arborcore
 ~~~
 
-The process binds only 127.0.0.1. Ctrl-C and SIGTERM request controlled
-shutdown; R0 closes remaining active slots after the event loop stops. A
-deadline-governed connection drain belongs to the later LIFE0 milestone. Port
-0 asks Linux for an unused ephemeral port and is used by the automated live
-check.
+The process binds only 127.0.0.1. Ctrl-C and SIGTERM request the LIFE0-R0
+deadline drain described above. The existing `ECHO0_STOPPED` metric line is
+preserved and a separate `ECHO0_LIFE0` result line is emitted after `CLOSED`.
+Port 0 asks Linux for an unused ephemeral port and is used by the automated
+live check.
 
 ## Evidence
 
@@ -95,6 +118,12 @@ Run all ECHO0 evidence:
 
 ~~~sh
 make echo0-gate
+~~~
+
+Run the shared private-host lifecycle evidence used by both applications:
+
+~~~sh
+make life0-gate
 ~~~
 
 Or run each level separately:
@@ -107,6 +136,11 @@ make echo0-sanitize
 make echo0-live-verify
 make echo0-route-scale-benchmark
 ~~~
+
+The LIFE0 gate separately runs deterministic phase and drain tests,
+adversarial failure and backpressure tests, ASan/UBSan, live SIGINT and
+SIGTERM drains for both applications, 100 repetitions of each host suite,
+and a threshold-free shutdown diagnostic.
 
 The route-scale program reports the median of nine rounds for first match,
 last match, miss, and quiescent server-step cases at 2, 16, 64, and 256

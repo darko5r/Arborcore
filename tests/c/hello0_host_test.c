@@ -241,6 +241,9 @@ int main(void)
             events,
             HELLO0_HOST_TEST_EVENT_CAPACITY,
             20,
+            UINT64_C(2000),
+            NULL,
+            NULL,
             record_diagnostic,
             &diagnostics).native != -EINVAL ||
         memcmp(&alias_host, &alias_sentinel, sizeof(alias_host)) != 0) {
@@ -256,6 +259,9 @@ int main(void)
             events,
             HELLO0_HOST_TEST_EVENT_CAPACITY,
             20,
+            UINT64_C(2000),
+            NULL,
+            NULL,
             record_diagnostic,
             &diagnostics).native != 0 ||
         arbor_example_linux_http_mvc_host_validate(&host).native != 0) {
@@ -273,6 +279,9 @@ int main(void)
             events,
             HELLO0_HOST_TEST_EVENT_CAPACITY,
             20,
+            UINT64_C(2000),
+            NULL,
+            NULL,
             record_diagnostic,
             &diagnostics).native != -EINVAL ||
         memcmp(&unchanged, &sentinel, sizeof(unchanged)) != 0) {
@@ -313,15 +322,6 @@ int main(void)
         return fail("read private-host ephemeral listener address");
     }
     const uint16_t port = ntohs(address.sin_port);
-
-    bool stop = true;
-    if (arbor_example_linux_http_mvc_host_run(
-            &host,
-            stop_immediately,
-            &stop).native != 0) {
-        (void)arbor_example_linux_http_mvc_host_close(&host);
-        return fail("private host accepts externally owned stop predicate");
-    }
 
     int clients[3] = {-1, -1, -1};
     static const uint8_t requests[3][80] = {
@@ -398,9 +398,27 @@ int main(void)
         return fail("private host preserves HELLO0 page, redirect and fallback responses");
     }
 
-    if (arbor_example_linux_http_mvc_host_close(&host).native != 0 ||
-        host.opened || !host.closed || host.listener_fd != -1 ||
+    bool stop = true;
+    if (arbor_example_linux_http_mvc_host_run(
+            &host,
+            stop_immediately,
+            &stop).native != 0) {
+        (void)arbor_example_linux_http_mvc_host_close(&host);
+        return fail("private host drains through externally owned stop predicate");
+    }
+    arbor_example_linux_http_mvc_host_shutdown_result shutdown_result = {0};
+    if (arbor_example_linux_http_mvc_host_shutdown_result_get(
+            &host,
+            &shutdown_result).native != 0 ||
+        host.phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED ||
+        host.listener_fd != -1 ||
         host.epoll_fd != -1 ||
+        shutdown_result.active_at_drain_start != 0u ||
+        shutdown_result.inactive_before_deadline != 0u ||
+        shutdown_result.forced_at_deadline != 0u ||
+        shutdown_result.deadline_expired ||
+        shutdown_result.first_failure != 0 ||
+        shutdown_result.drain_finish_ms < shutdown_result.drain_start_ms ||
         arbor_example_linux_http_mvc_host_validate(&host).native != 0 ||
         arbor_example_linux_http_mvc_host_close(&host).native != 0 ||
         arbor_example_linux_http_mvc_host_open(
@@ -411,6 +429,6 @@ int main(void)
         return fail("private host cleanup is complete and idempotent");
     }
 
-    puts("PASS: HOST0-R0 private Linux host slots, backpressure, rearm and HELLO0 responses");
+    puts("PASS: LIFE0-R0 private Linux host slots, deadline drain, rearm and HELLO0 responses");
     return 0;
 }

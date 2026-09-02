@@ -14,6 +14,7 @@
 
 #define ECHO0_EVENT_CAPACITY 16u
 #define ECHO0_EVENT_WAIT_MS 250
+#define ECHO0_DRAIN_TIMEOUT_MS UINT64_C(2000)
 
 static volatile sig_atomic_t echo0_stop_requested = 0;
 
@@ -119,6 +120,12 @@ static void echo0_host_diagnostic(
     case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CONNECTION:
         fprintf(stderr, "ECHO0_CONNECTION_ERROR=%" PRId64 "\n", native_status);
         break;
+    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOCK:
+        fprintf(stderr, "ECHO0_CLOCK_ERROR=%" PRId64 "\n", native_status);
+        break;
+    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE:
+        fprintf(stderr, "ECHO0_CLOSE_ERROR=%" PRId64 "\n", native_status);
+        break;
     default:
         break;
     }
@@ -203,6 +210,9 @@ int main(int argc, char **argv)
         events,
         ECHO0_EVENT_CAPACITY,
         ECHO0_EVENT_WAIT_MS,
+        ECHO0_DRAIN_TIMEOUT_MS,
+        NULL,
+        NULL,
         echo0_host_diagnostic,
         NULL);
     if (status.native != 0) {
@@ -238,7 +248,12 @@ int main(int argc, char **argv)
         &host,
         echo0_should_stop,
         NULL);
-    (void)arbor_example_linux_http_mvc_host_close(&host);
+    arbor_status close_status = arbor_example_linux_http_mvc_host_close(&host);
+    arbor_example_linux_http_mvc_host_shutdown_result shutdown_result = {0};
+    arbor_status result_status =
+        arbor_example_linux_http_mvc_host_shutdown_result_get(
+            &host,
+            &shutdown_result);
     printf(
         "ECHO0_STOPPED middleware=%" PRIu64 " controller=%" PRIu64
         " service=%" PRIu64 " presenter=%" PRIu64 "\n",
@@ -246,5 +261,21 @@ int main(int argc, char **argv)
         application.metrics.controller_calls,
         application.metrics.service_calls,
         application.metrics.presenter_calls);
-    return run_status.native == 0 ? 0 : 1;
+    if (result_status.native == 0) {
+        printf(
+            "ECHO0_LIFE0 phase=CLOSED active_at_drain_start=%" PRIu64
+            " inactive_before_deadline=%" PRIu64
+            " forced_at_deadline=%" PRIu64
+            " deadline_expired=%u drain_start_ms=%" PRIu64
+            " drain_finish_ms=%" PRIu64 " first_failure=%" PRId64 "\n",
+            shutdown_result.active_at_drain_start,
+            shutdown_result.inactive_before_deadline,
+            shutdown_result.forced_at_deadline,
+            shutdown_result.deadline_expired ? 1u : 0u,
+            shutdown_result.drain_start_ms,
+            shutdown_result.drain_finish_ms,
+            shutdown_result.first_failure);
+    }
+    return run_status.native == 0 && close_status.native == 0 &&
+        result_status.native == 0 && shutdown_result.first_failure == 0 ? 0 : 1;
 }

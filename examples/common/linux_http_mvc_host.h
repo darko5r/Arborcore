@@ -15,7 +15,9 @@ typedef enum arbor_example_linux_http_mvc_host_diagnostic {
     ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP_CREATE = 2,
     ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP = 3,
     ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_ACCEPT = 4,
-    ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CONNECTION = 5
+    ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CONNECTION = 5,
+    ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOCK = 6,
+    ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE = 7
 } arbor_example_linux_http_mvc_host_diagnostic;
 
 typedef void (*arbor_example_linux_http_mvc_host_diagnostic_fn)(
@@ -24,6 +26,25 @@ typedef void (*arbor_example_linux_http_mvc_host_diagnostic_fn)(
     int64_t native_status);
 
 typedef bool (*arbor_example_linux_http_mvc_host_stop_fn)(void *context);
+
+typedef int64_t (*arbor_example_linux_http_mvc_host_clock_fn)(void *context);
+
+typedef enum arbor_example_linux_http_mvc_host_phase {
+    ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_PREPARED = 1,
+    ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING = 2,
+    ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING = 3,
+    ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED = 4
+} arbor_example_linux_http_mvc_host_phase;
+
+typedef struct arbor_example_linux_http_mvc_host_shutdown_result {
+    uint64_t active_at_drain_start;
+    uint64_t inactive_before_deadline;
+    uint64_t forced_at_deadline;
+    uint64_t drain_start_ms;
+    uint64_t drain_finish_ms;
+    int64_t first_failure;
+    bool deadline_expired;
+} arbor_example_linux_http_mvc_host_shutdown_result;
 
 /*
  * Private example-host connection metadata. Input, output and arena bytes remain
@@ -46,14 +67,18 @@ typedef struct arbor_example_linux_http_mvc_host {
     arbor_asm_epoll_event *events;
     uint64_t event_capacity;
     int64_t event_wait_ms;
+    uint64_t drain_timeout_ms;
     int64_t listener_fd;
     int64_t epoll_fd;
+    uint64_t drain_deadline_ms;
+    arbor_example_linux_http_mvc_host_clock_fn clock;
+    void *clock_context;
     arbor_example_linux_http_mvc_host_diagnostic_fn diagnostic;
     void *diagnostic_context;
+    arbor_example_linux_http_mvc_host_shutdown_result shutdown_result;
     uint64_t prepared_guard;
+    arbor_example_linux_http_mvc_host_phase phase;
     bool listener_readable;
-    bool opened;
-    bool closed;
 } arbor_example_linux_http_mvc_host;
 
 arbor_status arbor_example_linux_http_mvc_host_slot_prepare(
@@ -70,6 +95,9 @@ arbor_status arbor_example_linux_http_mvc_host_prepare(
     arbor_asm_epoll_event *events,
     uint64_t event_capacity,
     int64_t event_wait_ms,
+    uint64_t drain_timeout_ms,
+    arbor_example_linux_http_mvc_host_clock_fn clock,
+    void *clock_context,
     arbor_example_linux_http_mvc_host_diagnostic_fn diagnostic,
     void *diagnostic_context);
 
@@ -85,6 +113,9 @@ arbor_status arbor_example_linux_http_mvc_host_open(
 arbor_status arbor_example_linux_http_mvc_host_step(
     arbor_example_linux_http_mvc_host *host);
 
+arbor_status arbor_example_linux_http_mvc_host_begin_drain(
+    arbor_example_linux_http_mvc_host *host);
+
 arbor_status arbor_example_linux_http_mvc_host_run(
     arbor_example_linux_http_mvc_host *host,
     arbor_example_linux_http_mvc_host_stop_fn stop_requested,
@@ -92,6 +123,10 @@ arbor_status arbor_example_linux_http_mvc_host_run(
 
 arbor_status arbor_example_linux_http_mvc_host_close(
     arbor_example_linux_http_mvc_host *host);
+
+arbor_status arbor_example_linux_http_mvc_host_shutdown_result_get(
+    const arbor_example_linux_http_mvc_host *host,
+    arbor_example_linux_http_mvc_host_shutdown_result *result_out);
 
 #ifdef __cplusplus
 }
