@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 #include "echo0.h"
-#include "linux_http_mvc_host.h"
+#include <arborcore/linux_http_mvc_host.h>
 
 #define LIFE0_ADV_SLOT_COUNT 2u
 #define LIFE0_ADV_EVENT_CAPACITY 16u
@@ -29,15 +29,15 @@ typedef struct adversarial_clock {
 
 typedef struct adversarial_fixture {
     echo0_web_application application;
-    arbor_example_linux_http_mvc_host_slot slots[LIFE0_ADV_SLOT_COUNT];
+    arbor_linux_http_mvc_host_slot slots[LIFE0_ADV_SLOT_COUNT];
     uint8_t inputs[LIFE0_ADV_SLOT_COUNT][LIFE0_ADV_BUFFER_CAPACITY];
     uint8_t outputs[LIFE0_ADV_SLOT_COUNT][LIFE0_ADV_BUFFER_CAPACITY];
     uint8_t arenas[LIFE0_ADV_SLOT_COUNT][LIFE0_ADV_BUFFER_CAPACITY];
     arbor_asm_epoll_event events[LIFE0_ADV_EVENT_CAPACITY];
-    arbor_example_linux_http_mvc_host host;
+    arbor_linux_http_mvc_host host;
     adversarial_clock clock;
     uint64_t diagnostics;
-    arbor_example_linux_http_mvc_host_diagnostic first_diagnostic;
+    arbor_linux_http_mvc_host_diagnostic first_diagnostic;
     int64_t first_diagnostic_status;
     struct sockaddr_in address;
     uint16_t port;
@@ -69,7 +69,7 @@ static int64_t adversarial_clock_read(void *context)
 
 static void record_diagnostic(
     void *context,
-    arbor_example_linux_http_mvc_host_diagnostic diagnostic,
+    arbor_linux_http_mvc_host_diagnostic diagnostic,
     int64_t native_status)
 {
     adversarial_fixture *state = (adversarial_fixture *)context;
@@ -93,7 +93,7 @@ static uint64_t active_count(void)
     return count;
 }
 
-static arbor_example_linux_http_mvc_host_slot *first_active_slot(void)
+static arbor_linux_http_mvc_host_slot *first_active_slot(void)
 {
     for (uint64_t i = 0u; i < fixture.host.slot_count; ++i) {
         if (fixture.host.slots[i].active) {
@@ -120,7 +120,7 @@ static int prepare_fixture(uint64_t timeout_ms, int64_t now)
         return 1;
     }
     for (uint64_t i = 0u; i < LIFE0_ADV_SLOT_COUNT; ++i) {
-        if (arbor_example_linux_http_mvc_host_slot_prepare(
+        if (arbor_linux_http_mvc_host_slot_prepare(
                 &fixture.slots[i],
                 (arbor_mut_span){fixture.inputs[i], sizeof(fixture.inputs[i])},
                 (arbor_mut_span){fixture.outputs[i], sizeof(fixture.outputs[i])},
@@ -130,19 +130,25 @@ static int prepare_fixture(uint64_t timeout_ms, int64_t now)
         }
     }
     fixture.clock.now = now;
-    if (arbor_example_linux_http_mvc_host_prepare(
-            &fixture.host,
-            &fixture.application.http_application,
-            fixture.slots,
-            LIFE0_ADV_SLOT_COUNT,
-            fixture.events,
-            LIFE0_ADV_EVENT_CAPACITY,
+    arbor_linux_http_mvc_host_options host_options;
+    if (arbor_linux_http_mvc_host_options_make(
+            &host_options,
             2,
             timeout_ms,
             adversarial_clock_read,
             &fixture.clock,
             record_diagnostic,
             &fixture).native != 0) {
+        return 1;
+    }
+    if (arbor_linux_http_mvc_host_prepare(
+            &fixture.host,
+            &fixture.application.http_application,
+            fixture.slots,
+            LIFE0_ADV_SLOT_COUNT,
+            fixture.events,
+            LIFE0_ADV_EVENT_CAPACITY,
+            &host_options).native != 0) {
         return 1;
     }
     return 0;
@@ -154,7 +160,7 @@ static int open_fixture(void)
     fixture.address.sin_family = AF_INET;
     fixture.address.sin_port = htons(0u);
     fixture.address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    if (arbor_example_linux_http_mvc_host_open(
+    if (arbor_linux_http_mvc_host_open(
             &fixture.host,
             &fixture.address,
             (uint64_t)sizeof(fixture.address),
@@ -226,7 +232,7 @@ static int write_all(int fd, const uint8_t *bytes, size_t length)
 static int accept_until(uint64_t expected)
 {
     for (uint64_t attempt = 0u; attempt < 32u; ++attempt) {
-        if (arbor_example_linux_http_mvc_host_step(&fixture.host).native != 0) {
+        if (arbor_linux_http_mvc_host_step(&fixture.host).native != 0) {
             return 1;
         }
         if (active_count() == expected) {
@@ -243,9 +249,9 @@ static int verify_closed_result(
     bool expired,
     int64_t first_failure)
 {
-    arbor_example_linux_http_mvc_host_shutdown_result result = {0};
-    if (fixture.host.phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED ||
-        arbor_example_linux_http_mvc_host_shutdown_result_get(
+    arbor_linux_http_mvc_host_shutdown_result result = {0};
+    if (fixture.host.phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED ||
+        arbor_linux_http_mvc_host_shutdown_result_get(
             &fixture.host,
             &result).native != 0 ||
         result.active_at_drain_start != active ||
@@ -273,11 +279,11 @@ static int test_clock_failure_and_overflow(void)
     }
     fixture.clock.fail_on_call = 1u;
     fixture.clock.failure = -EIO;
-    if (arbor_example_linux_http_mvc_host_begin_drain(&fixture.host).native != -EIO ||
+    if (arbor_linux_http_mvc_host_begin_drain(&fixture.host).native != -EIO ||
         verify_closed_result(1u, 0u, 1u, false, -EIO) != 0 ||
         fixture.diagnostics == 0u ||
         fixture.first_diagnostic !=
-            ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOCK ||
+            ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOCK ||
         fixture.first_diagnostic_status != -EIO) {
         (void)close(client);
         return fail("clock failure stops accepts, forces participants and closes");
@@ -285,7 +291,7 @@ static int test_clock_failure_and_overflow(void)
     (void)close(client);
 
     if (prepare_fixture(UINT64_MAX, INT64_MAX) != 0 || open_fixture() != 0 ||
-        arbor_example_linux_http_mvc_host_begin_drain(&fixture.host).native !=
+        arbor_linux_http_mvc_host_begin_drain(&fixture.host).native !=
             -EOVERFLOW ||
         verify_closed_result(0u, 0u, 0u, false, -EOVERFLOW) != 0 ||
         fixture.host.shutdown_result.drain_start_ms != (uint64_t)INT64_MAX ||
@@ -298,7 +304,7 @@ static int test_clock_failure_and_overflow(void)
         return fail("prepare representational-overflow fixture");
     }
     if (open_fixture() != 0 ||
-        arbor_example_linux_http_mvc_host_begin_drain(&fixture.host).native !=
+        arbor_linux_http_mvc_host_begin_drain(&fixture.host).native !=
             -EOVERFLOW ||
         verify_closed_result(0u, 0u, 0u, false, -EOVERFLOW) != 0) {
         return fail("deadline outside monotonic result range converges closed");
@@ -316,12 +322,12 @@ static int test_close_failures_preserve_first(void)
     if (close(listener_fd) != 0 || close(epoll_fd) != 0) {
         return fail("pre-close descriptors for deterministic failure injection");
     }
-    if (arbor_example_linux_http_mvc_host_begin_drain(&fixture.host).native !=
+    if (arbor_linux_http_mvc_host_begin_drain(&fixture.host).native !=
             -EBADF ||
         verify_closed_result(0u, 0u, 0u, false, -EBADF) != 0 ||
         fixture.diagnostics < 2u ||
         fixture.first_diagnostic !=
-            ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE ||
+            ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE ||
         fixture.first_diagnostic_status != -EBADF) {
         return fail("completion teardown retains first close failure and attempts all");
     }
@@ -342,8 +348,8 @@ static int test_saturated_deadline_and_refusal(void)
     }
     if (accept_until(LIFE0_ADV_SLOT_COUNT) != 0 ||
         fixture.host.listener_readable ||
-        arbor_example_linux_http_mvc_host_begin_drain(&fixture.host).native != 0 ||
-        fixture.host.phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING ||
+        arbor_linux_http_mvc_host_begin_drain(&fixture.host).native != 0 ||
+        fixture.host.phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_DRAINING ||
         fixture.host.listener_fd != -1 || fixture.host.listener_readable) {
         return fail("saturated drain closes listener and disables accept rearm");
     }
@@ -353,7 +359,7 @@ static int test_saturated_deadline_and_refusal(void)
         return fail("connection opened after drain entry");
     }
     fixture.clock.now = 1210;
-    if (arbor_example_linux_http_mvc_host_step(&fixture.host).native != 0 ||
+    if (arbor_linux_http_mvc_host_step(&fixture.host).native != 0 ||
         verify_closed_result(LIFE0_ADV_SLOT_COUNT, 0u, LIFE0_ADV_SLOT_COUNT, true, 0) !=
             0) {
         return fail("saturated deadline force-closes exact participant count");
@@ -498,7 +504,7 @@ static int test_write_backpressure_resume(void)
         }
         return fail("accept large keep-alive pipeline");
     }
-    arbor_example_linux_http_mvc_host_slot *slot = first_active_slot();
+    arbor_linux_http_mvc_host_slot *slot = first_active_slot();
     int send_buffer = 1024;
     int receive_buffer = 1024;
     if (slot == NULL ||
@@ -514,9 +520,9 @@ static int test_write_backpressure_resume(void)
             SO_RCVBUF,
             &receive_buffer,
             (socklen_t)sizeof(receive_buffer)) != 0 ||
-        arbor_example_linux_http_mvc_host_begin_drain(&fixture.host).native != 0) {
+        arbor_linux_http_mvc_host_begin_drain(&fixture.host).native != 0) {
         (void)close(client);
-        (void)arbor_example_linux_http_mvc_host_close(&fixture.host);
+        (void)arbor_linux_http_mvc_host_close(&fixture.host);
         return fail("enter backpressured drain with constrained socket buffers");
     }
 
@@ -531,7 +537,7 @@ static int test_write_backpressure_resume(void)
         prior_write = slot->storage.connection.write_bytes;
         have_prior_write =
             slot->storage.connection.state == ARBOR_ASM_CONNECTION_WRITING;
-        if (arbor_example_linux_http_mvc_host_step(&fixture.host).native != 0) {
+        if (arbor_linux_http_mvc_host_step(&fixture.host).native != 0) {
             (void)close(client);
             return fail("advance pipeline toward deterministic backpressure");
         }
@@ -545,23 +551,23 @@ static int test_write_backpressure_resume(void)
     }
     if (!stalled) {
         (void)close(client);
-        (void)arbor_example_linux_http_mvc_host_close(&fixture.host);
+        (void)arbor_linux_http_mvc_host_close(&fixture.host);
         return fail("large drain did not expose a no-progress WRITING/EAGAIN state");
     }
 
     size_t response_length = 0u;
     for (uint64_t attempt = 0u; attempt < 10000u &&
-         fixture.host.phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED;
+         fixture.host.phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED;
          ++attempt) {
         if (drain_client_nonblocking(client, &response_length) != 0 ||
-            arbor_example_linux_http_mvc_host_step(&fixture.host).native != 0) {
+            arbor_linux_http_mvc_host_step(&fixture.host).native != 0) {
             (void)close(client);
             return fail("resume backpressured response while client drains");
         }
     }
-    if (fixture.host.phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
+    if (fixture.host.phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
         (void)close(client);
-        (void)arbor_example_linux_http_mvc_host_close(&fixture.host);
+        (void)arbor_linux_http_mvc_host_close(&fixture.host);
         return fail("backpressured drain did not reach CLOSED");
     }
     if (drain_client_until_eof(client, &response_length) != 0) {
@@ -584,14 +590,14 @@ static int test_explicit_close_and_result_atomicity(void)
     if (prepare_fixture(UINT64_C(100), 1400) != 0) {
         return fail("prepare explicit-close fixture");
     }
-    arbor_example_linux_http_mvc_host_shutdown_result result;
+    arbor_linux_http_mvc_host_shutdown_result result;
     (void)memset(&result, 0xa5, sizeof(result));
-    arbor_example_linux_http_mvc_host_shutdown_result sentinel = result;
-    if (arbor_example_linux_http_mvc_host_shutdown_result_get(
+    arbor_linux_http_mvc_host_shutdown_result sentinel = result;
+    if (arbor_linux_http_mvc_host_shutdown_result_get(
             &fixture.host,
             &result).native != -EINVAL ||
         memcmp(&result, &sentinel, sizeof(result)) != 0 ||
-        arbor_example_linux_http_mvc_host_close(&fixture.host).native != 0 ||
+        arbor_linux_http_mvc_host_close(&fixture.host).native != 0 ||
         verify_closed_result(0u, 0u, 0u, false, 0) != 0) {
         return fail("result publication is failure-atomic and PREPARED closes cleanly");
     }

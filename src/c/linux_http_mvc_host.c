@@ -6,9 +6,9 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
-#include "linux_http_mvc_host.h"
+#include <arborcore/linux_http_mvc_host.h>
 
-#define ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_GUARD \
+#define ARBOR_LINUX_HTTP_MVC_HOST_GUARD \
     UINT64_C(0x484f535430523031)
 
 static arbor_status host_invalid_argument(void)
@@ -19,6 +19,34 @@ static arbor_status host_invalid_argument(void)
 static arbor_status host_ok(void)
 {
     return arbor_status_from_native(0);
+}
+
+arbor_status arbor_linux_http_mvc_host_options_make(
+    arbor_linux_http_mvc_host_options *options_out,
+    int64_t event_wait_ms,
+    uint64_t drain_timeout_ms,
+    arbor_linux_http_mvc_host_clock_fn clock,
+    void *clock_context,
+    arbor_linux_http_mvc_host_diagnostic_fn diagnostic,
+    void *diagnostic_context)
+{
+    if (options_out == NULL || event_wait_ms < 0 ||
+        event_wait_ms > (int64_t)INT_MAX) {
+        return host_invalid_argument();
+    }
+    arbor_linux_http_mvc_host_options candidate = {
+        .abi_version = ARBOR_LINUX_HTTP_MVC_HOST_ABI_VERSION,
+        .struct_size = (uint32_t)sizeof(candidate),
+        .flags = ARBOR_LINUX_HTTP_MVC_HOST_OPTIONS_KNOWN_FLAGS,
+        .event_wait_ms = event_wait_ms,
+        .drain_timeout_ms = drain_timeout_ms,
+        .clock = clock,
+        .clock_context = clock_context,
+        .diagnostic = diagnostic,
+        .diagnostic_context = diagnostic_context
+    };
+    *options_out = candidate;
+    return host_ok();
 }
 
 static bool host_spans_overlap(
@@ -42,7 +70,7 @@ static bool host_spans_overlap(
 }
 
 static bool host_slot_backing_overlaps_region(
-    const arbor_example_linux_http_mvc_host_slot *slot,
+    const arbor_linux_http_mvc_host_slot *slot,
     const void *region,
     uint64_t region_length)
 {
@@ -64,8 +92,8 @@ static bool host_slot_backing_overlaps_region(
 }
 
 static bool host_slot_backings_overlap(
-    const arbor_example_linux_http_mvc_host_slot *left,
-    const arbor_example_linux_http_mvc_host_slot *right)
+    const arbor_linux_http_mvc_host_slot *left,
+    const arbor_linux_http_mvc_host_slot *right)
 {
     return host_slot_backing_overlaps_region(
                left,
@@ -146,8 +174,8 @@ static bool host_region_overlaps_application(
 }
 
 static void host_diagnostic(
-    const arbor_example_linux_http_mvc_host *host,
-    arbor_example_linux_http_mvc_host_diagnostic diagnostic,
+    const arbor_linux_http_mvc_host *host,
+    arbor_linux_http_mvc_host_diagnostic diagnostic,
     int64_t native_status)
 {
     if (host->diagnostic != NULL) {
@@ -156,7 +184,7 @@ static void host_diagnostic(
 }
 
 static bool host_slot_storage_valid(
-    const arbor_example_linux_http_mvc_host_slot *slot)
+    const arbor_linux_http_mvc_host_slot *slot)
 {
     if (slot == NULL || slot->active || slot->more_work ||
         slot->storage.input.length != 0u ||
@@ -206,10 +234,10 @@ static bool host_slot_storage_valid(
 }
 
 static arbor_status host_runtime_validate(
-    const arbor_example_linux_http_mvc_host *host)
+    const arbor_linux_http_mvc_host *host)
 {
     if (host == NULL ||
-        host->prepared_guard != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_GUARD ||
+        host->prepared_guard != ARBOR_LINUX_HTTP_MVC_HOST_GUARD ||
         host->application == NULL || host->slots == NULL ||
         host->slot_count == 0u || host->events == NULL ||
         host->event_capacity == 0u ||
@@ -230,8 +258,8 @@ static arbor_status host_runtime_validate(
     }
 
     switch (host->phase) {
-    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_PREPARED:
-    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING:
+    case ARBOR_LINUX_HTTP_MVC_HOST_PHASE_PREPARED:
+    case ARBOR_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING:
         if (host->shutdown_result.active_at_drain_start != 0u ||
             host->shutdown_result.inactive_before_deadline != 0u ||
             host->shutdown_result.forced_at_deadline != 0u ||
@@ -242,7 +270,7 @@ static arbor_status host_runtime_validate(
             host->drain_deadline_ms != 0u) {
             return host_invalid_argument();
         }
-        if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_PREPARED) {
+        if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_PREPARED) {
             if (host->listener_fd != -1 || host->epoll_fd != -1 ||
                 host->listener_readable) {
                 return host_invalid_argument();
@@ -251,7 +279,7 @@ static arbor_status host_runtime_validate(
             return host_invalid_argument();
         }
         break;
-    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING:
+    case ARBOR_LINUX_HTTP_MVC_HOST_PHASE_DRAINING:
         if (host->listener_fd != -1 || host->epoll_fd < 0 ||
             host->listener_readable ||
             host->shutdown_result.forced_at_deadline != 0u ||
@@ -260,7 +288,7 @@ static arbor_status host_runtime_validate(
             return host_invalid_argument();
         }
         break;
-    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED:
+    case ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED:
         if (host->listener_fd != -1 || host->epoll_fd != -1 ||
             host->listener_readable ||
             completed.value != host->shutdown_result.active_at_drain_start) {
@@ -273,8 +301,8 @@ static arbor_status host_runtime_validate(
     return host_ok();
 }
 
-arbor_status arbor_example_linux_http_mvc_host_slot_prepare(
-    arbor_example_linux_http_mvc_host_slot *slot,
+arbor_status arbor_linux_http_mvc_host_slot_prepare(
+    arbor_linux_http_mvc_host_slot *slot,
     arbor_mut_span input_storage,
     arbor_mut_span output_storage,
     arbor_mut_span arena_storage)
@@ -298,24 +326,23 @@ arbor_status arbor_example_linux_http_mvc_host_slot_prepare(
     return host_ok();
 }
 
-arbor_status arbor_example_linux_http_mvc_host_prepare(
-    arbor_example_linux_http_mvc_host *host,
+arbor_status arbor_linux_http_mvc_host_prepare(
+    arbor_linux_http_mvc_host *host,
     const arbor_http_mvc_application *application,
-    arbor_example_linux_http_mvc_host_slot *slots,
+    arbor_linux_http_mvc_host_slot *slots,
     uint64_t slot_count,
     arbor_asm_epoll_event *events,
     uint64_t event_capacity,
-    int64_t event_wait_ms,
-    uint64_t drain_timeout_ms,
-    arbor_example_linux_http_mvc_host_clock_fn clock,
-    void *clock_context,
-    arbor_example_linux_http_mvc_host_diagnostic_fn diagnostic,
-    void *diagnostic_context)
+    const arbor_linux_http_mvc_host_options *options)
 {
     if (host == NULL || application == NULL || slots == NULL ||
         slot_count == 0u || events == NULL || event_capacity == 0u ||
-        event_capacity > (uint64_t)INT_MAX || event_wait_ms < 0 ||
-        event_wait_ms > (int64_t)INT_MAX ||
+        event_capacity > (uint64_t)INT_MAX || options == NULL ||
+        options->abi_version != ARBOR_LINUX_HTTP_MVC_HOST_ABI_VERSION ||
+        options->struct_size != (uint32_t)sizeof(*options) ||
+        (options->flags & ~ARBOR_LINUX_HTTP_MVC_HOST_OPTIONS_KNOWN_FLAGS) != 0u ||
+        options->event_wait_ms < 0 ||
+        options->event_wait_ms > (int64_t)INT_MAX ||
         arbor_http_mvc_application_validate(application).native != 0) {
         return host_invalid_argument();
     }
@@ -368,32 +395,32 @@ arbor_status arbor_example_linux_http_mvc_host_prepare(
         }
     }
 
-    arbor_example_linux_http_mvc_host candidate = {
+    arbor_linux_http_mvc_host candidate = {
         .application = application,
         .slots = slots,
         .slot_count = slot_count,
         .events = events,
         .event_capacity = event_capacity,
-        .event_wait_ms = event_wait_ms,
-        .drain_timeout_ms = drain_timeout_ms,
+        .event_wait_ms = options->event_wait_ms,
+        .drain_timeout_ms = options->drain_timeout_ms,
         .listener_fd = -1,
         .epoll_fd = -1,
         .drain_deadline_ms = 0u,
-        .clock = clock,
-        .clock_context = clock_context,
-        .diagnostic = diagnostic,
-        .diagnostic_context = diagnostic_context,
+        .clock = options->clock,
+        .clock_context = options->clock_context,
+        .diagnostic = options->diagnostic,
+        .diagnostic_context = options->diagnostic_context,
         .shutdown_result = {0},
-        .prepared_guard = ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_GUARD,
-        .phase = ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_PREPARED,
+        .prepared_guard = ARBOR_LINUX_HTTP_MVC_HOST_GUARD,
+        .phase = ARBOR_LINUX_HTTP_MVC_HOST_PHASE_PREPARED,
         .listener_readable = false
     };
     *host = candidate;
     return host_ok();
 }
 
-arbor_status arbor_example_linux_http_mvc_host_validate(
-    const arbor_example_linux_http_mvc_host *host)
+arbor_status arbor_linux_http_mvc_host_validate(
+    const arbor_linux_http_mvc_host *host)
 {
     arbor_status status = host_runtime_validate(host);
     if (status.native != 0) {
@@ -404,18 +431,18 @@ arbor_status arbor_example_linux_http_mvc_host_validate(
         return status;
     }
     for (uint64_t i = 0u; i < host->slot_count; ++i) {
-        const arbor_example_linux_http_mvc_host_slot *slot = &host->slots[i];
-        if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED &&
+        const arbor_linux_http_mvc_host_slot *slot = &host->slots[i];
+        if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED &&
             slot->active) {
             return host_invalid_argument();
         }
         if (slot->active &&
-            host->phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING &&
-            host->phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING) {
+            host->phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING &&
+            host->phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_DRAINING) {
             return host_invalid_argument();
         }
         if (!slot->active &&
-            host->phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED &&
+            host->phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED &&
             !host_slot_storage_valid(slot)) {
             return host_invalid_argument();
         }
@@ -426,15 +453,15 @@ arbor_status arbor_example_linux_http_mvc_host_validate(
     return host_ok();
 }
 
-arbor_status arbor_example_linux_http_mvc_host_open(
-    arbor_example_linux_http_mvc_host *host,
+arbor_status arbor_linux_http_mvc_host_open(
+    arbor_linux_http_mvc_host *host,
     const void *sockaddr,
     uint64_t sockaddr_length,
     int64_t backlog)
 {
-    arbor_status status = arbor_example_linux_http_mvc_host_validate(host);
+    arbor_status status = arbor_linux_http_mvc_host_validate(host);
     if (status.native != 0 ||
-        host->phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_PREPARED ||
+        host->phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_PREPARED ||
         sockaddr == NULL || sockaddr_length == 0u) {
         return host_invalid_argument();
     }
@@ -444,7 +471,7 @@ arbor_status arbor_example_linux_http_mvc_host_open(
     if (status.native != 0) {
         host_diagnostic(
             host,
-            ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_LISTEN,
+            ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_LISTEN,
             status.native);
         return status;
     }
@@ -454,7 +481,7 @@ arbor_status arbor_example_linux_http_mvc_host_open(
     if (status.native != 0) {
         host_diagnostic(
             host,
-            ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP_CREATE,
+            ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP_CREATE,
             status.native);
         (void)close((int)listener_fd);
         return status;
@@ -463,26 +490,26 @@ arbor_status arbor_example_linux_http_mvc_host_open(
     host->listener_fd = listener_fd;
     host->epoll_fd = epoll_fd;
     host->listener_readable = true;
-    host->phase = ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING;
+    host->phase = ARBOR_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING;
     return host_ok();
 }
 
 static int64_t host_clock_now(
-    const arbor_example_linux_http_mvc_host *host)
+    const arbor_linux_http_mvc_host *host)
 {
     int64_t now = host->clock == NULL ?
         event_monotonic_ms() : host->clock(host->clock_context);
     if (now < 0) {
         host_diagnostic(
             host,
-            ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOCK,
+            ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOCK,
             now);
     }
     return now;
 }
 
 static void host_note_failure(
-    arbor_example_linux_http_mvc_host *host,
+    arbor_linux_http_mvc_host *host,
     int64_t native_status)
 {
     int64_t failure = native_status;
@@ -495,7 +522,7 @@ static void host_note_failure(
 }
 
 static bool host_counter_increment(
-    arbor_example_linux_http_mvc_host *host,
+    arbor_linux_http_mvc_host *host,
     uint64_t *counter)
 {
     arbor_asm_result_u64 next = u64_add_checked(*counter, UINT64_C(1));
@@ -508,7 +535,7 @@ static bool host_counter_increment(
 }
 
 static arbor_status host_count_active(
-    arbor_example_linux_http_mvc_host *host,
+    arbor_linux_http_mvc_host *host,
     uint64_t *count_out)
 {
     uint64_t count = 0u;
@@ -526,8 +553,8 @@ static arbor_status host_count_active(
     return host_ok();
 }
 
-static arbor_example_linux_http_mvc_host_slot *host_find_free_slot(
-    arbor_example_linux_http_mvc_host *host)
+static arbor_linux_http_mvc_host_slot *host_find_free_slot(
+    arbor_linux_http_mvc_host *host)
 {
     for (uint64_t i = 0u; i < host->slot_count; ++i) {
         if (!host->slots[i].active) {
@@ -537,12 +564,12 @@ static arbor_example_linux_http_mvc_host_slot *host_find_free_slot(
     return NULL;
 }
 
-static arbor_example_linux_http_mvc_host_slot *host_find_connection_slot(
-    arbor_example_linux_http_mvc_host *host,
+static arbor_linux_http_mvc_host_slot *host_find_connection_slot(
+    arbor_linux_http_mvc_host *host,
     uint64_t event_data)
 {
     for (uint64_t i = 0u; i < host->slot_count; ++i) {
-        arbor_example_linux_http_mvc_host_slot *slot = &host->slots[i];
+        arbor_linux_http_mvc_host_slot *slot = &host->slots[i];
         if (slot->active &&
             (uint64_t)(uintptr_t)&slot->storage.connection == event_data) {
             return slot;
@@ -552,8 +579,8 @@ static arbor_example_linux_http_mvc_host_slot *host_find_connection_slot(
 }
 
 static arbor_status host_close_slot(
-    arbor_example_linux_http_mvc_host *host,
-    arbor_example_linux_http_mvc_host_slot *slot)
+    arbor_linux_http_mvc_host *host,
+    arbor_linux_http_mvc_host_slot *slot)
 {
     if (slot == NULL || !slot->active) {
         return host_ok();
@@ -568,9 +595,9 @@ static arbor_status host_close_slot(
 }
 
 static void host_mark_inactive_before_deadline(
-    arbor_example_linux_http_mvc_host *host)
+    arbor_linux_http_mvc_host *host)
 {
-    if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING) {
+    if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_DRAINING) {
         (void)host_counter_increment(
             host,
             &host->shutdown_result.inactive_before_deadline);
@@ -578,8 +605,8 @@ static void host_mark_inactive_before_deadline(
 }
 
 static void host_advance_slot(
-    arbor_example_linux_http_mvc_host *host,
-    arbor_example_linux_http_mvc_host_slot *slot)
+    arbor_linux_http_mvc_host *host,
+    arbor_linux_http_mvc_host_slot *slot)
 {
     if (slot == NULL || !slot->active) {
         return;
@@ -603,19 +630,19 @@ static void host_advance_slot(
     if (status.native != 0) {
         host_diagnostic(
             host,
-            ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CONNECTION,
+            ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CONNECTION,
             status.native);
-        if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING) {
+        if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_DRAINING) {
             host_note_failure(host, status.native);
         }
         arbor_status close_status = host_close_slot(host, slot);
         if (close_status.native != 0) {
             host_diagnostic(
                 host,
-                ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE,
+                ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE,
                 close_status.native);
             if (host->phase ==
-                ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING) {
+                ARBOR_LINUX_HTTP_MVC_HOST_PHASE_DRAINING) {
                 host_note_failure(host, close_status.native);
             }
         }
@@ -630,7 +657,7 @@ static void host_advance_slot(
 }
 
 static bool host_any_more_work(
-    const arbor_example_linux_http_mvc_host *host)
+    const arbor_linux_http_mvc_host *host)
 {
     for (uint64_t i = 0u; i < host->slot_count; ++i) {
         if (host->slots[i].active && host->slots[i].more_work) {
@@ -641,7 +668,7 @@ static bool host_any_more_work(
 }
 
 static arbor_status host_set_listener_readable(
-    arbor_example_linux_http_mvc_host *host,
+    arbor_linux_http_mvc_host *host,
     bool readable)
 {
     uint64_t events = (uint64_t)(EPOLLERR | EPOLLHUP);
@@ -657,7 +684,7 @@ static arbor_status host_set_listener_readable(
     if (native != 0) {
         host_diagnostic(
             host,
-            ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP,
+            ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP,
             native);
         return arbor_status_from_native(native);
     }
@@ -666,13 +693,13 @@ static arbor_status host_set_listener_readable(
 }
 
 static arbor_status host_accept_ready(
-    arbor_example_linux_http_mvc_host *host)
+    arbor_linux_http_mvc_host *host)
 {
-    if (host->phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING) {
+    if (host->phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING) {
         return host_invalid_argument();
     }
     for (;;) {
-        arbor_example_linux_http_mvc_host_slot *slot = host_find_free_slot(host);
+        arbor_linux_http_mvc_host_slot *slot = host_find_free_slot(host);
         if (slot == NULL) {
             if (host->listener_readable) {
                 return host_set_listener_readable(host, false);
@@ -693,7 +720,7 @@ static arbor_status host_accept_ready(
             int64_t diagnostic_status = status.native;
             host_diagnostic(
                 host,
-                ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_ACCEPT,
+                ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_ACCEPT,
                 diagnostic_status);
             return status.native != 0 ? status : arbor_status_from_native(-EIO);
         }
@@ -703,7 +730,7 @@ static arbor_status host_accept_ready(
 }
 
 static void host_close_listener(
-    arbor_example_linux_http_mvc_host *host)
+    arbor_linux_http_mvc_host *host)
 {
     int64_t listener_fd = host->listener_fd;
     host->listener_fd = -1;
@@ -712,14 +739,14 @@ static void host_close_listener(
         int64_t failure = -(int64_t)errno;
         host_diagnostic(
             host,
-            ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE,
+            ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE,
             failure);
         host_note_failure(host, failure);
     }
 }
 
 static void host_close_epoll(
-    arbor_example_linux_http_mvc_host *host)
+    arbor_linux_http_mvc_host *host)
 {
     int64_t epoll_fd = host->epoll_fd;
     host->epoll_fd = -1;
@@ -727,17 +754,17 @@ static void host_close_epoll(
         int64_t failure = -(int64_t)errno;
         host_diagnostic(
             host,
-            ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE,
+            ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE,
             failure);
         host_note_failure(host, failure);
     }
 }
 
 static void host_force_close_active(
-    arbor_example_linux_http_mvc_host *host)
+    arbor_linux_http_mvc_host *host)
 {
     for (uint64_t i = 0u; i < host->slot_count; ++i) {
-        arbor_example_linux_http_mvc_host_slot *slot = &host->slots[i];
+        arbor_linux_http_mvc_host_slot *slot = &host->slots[i];
         if (!slot->active) {
             continue;
         }
@@ -745,7 +772,7 @@ static void host_force_close_active(
         if (status.native != 0) {
             host_diagnostic(
                 host,
-                ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE,
+                ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE,
                 status.native);
             host_note_failure(host, status.native);
         }
@@ -756,7 +783,7 @@ static void host_force_close_active(
 }
 
 static arbor_status host_finish_drain(
-    arbor_example_linux_http_mvc_host *host,
+    arbor_linux_http_mvc_host *host,
     bool deadline_expired,
     bool force_active,
     bool capture_finish)
@@ -776,25 +803,25 @@ static arbor_status host_finish_drain(
             host->shutdown_result.drain_finish_ms = (uint64_t)now;
         }
     }
-    host->phase = ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED;
+    host->phase = ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED;
     return arbor_status_from_native(host->shutdown_result.first_failure);
 }
 
-arbor_status arbor_example_linux_http_mvc_host_begin_drain(
-    arbor_example_linux_http_mvc_host *host)
+arbor_status arbor_linux_http_mvc_host_begin_drain(
+    arbor_linux_http_mvc_host *host)
 {
-    arbor_status status = arbor_example_linux_http_mvc_host_validate(host);
+    arbor_status status = arbor_linux_http_mvc_host_validate(host);
     if (status.native != 0) {
         return status;
     }
-    if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING) {
+    if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_DRAINING) {
         return host_ok();
     }
-    if (host->phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING) {
+    if (host->phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING) {
         return host_invalid_argument();
     }
 
-    host->phase = ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING;
+    host->phase = ARBOR_LINUX_HTTP_MVC_HOST_PHASE_DRAINING;
     host_close_listener(host);
 
     uint64_t active = 0u;
@@ -832,7 +859,7 @@ arbor_status arbor_example_linux_http_mvc_host_begin_drain(
 }
 
 static arbor_status host_accepting_step(
-    arbor_example_linux_http_mvc_host *host)
+    arbor_linux_http_mvc_host *host)
 {
     arbor_status status = host_ok();
     for (uint64_t i = 0u; i < host->slot_count; ++i) {
@@ -857,7 +884,7 @@ static arbor_status host_accepting_step(
     if (event_count < 0) {
         host_diagnostic(
             host,
-            ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP,
+            ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP,
             event_count);
         return arbor_status_from_native(event_count);
     }
@@ -869,7 +896,7 @@ static arbor_status host_accepting_step(
             listener_event = true;
             continue;
         }
-        arbor_example_linux_http_mvc_host_slot *slot =
+        arbor_linux_http_mvc_host_slot *slot =
             host_find_connection_slot(host, event_data);
         if (slot != NULL) {
             host_advance_slot(host, slot);
@@ -882,7 +909,7 @@ static arbor_status host_accepting_step(
 }
 
 static arbor_status host_drain_now_or_enforce(
-    arbor_example_linux_http_mvc_host *host,
+    arbor_linux_http_mvc_host *host,
     uint64_t *remaining_out)
 {
     int64_t now = host_clock_now(host);
@@ -901,12 +928,12 @@ static arbor_status host_drain_now_or_enforce(
 }
 
 static arbor_status host_draining_step(
-    arbor_example_linux_http_mvc_host *host)
+    arbor_linux_http_mvc_host *host)
 {
     uint64_t remaining = 0u;
     arbor_status status = host_drain_now_or_enforce(host, &remaining);
     if (status.native != 0 ||
-        host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
+        host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
         return status;
     }
 
@@ -926,7 +953,7 @@ static arbor_status host_draining_step(
 
     status = host_drain_now_or_enforce(host, &remaining);
     if (status.native != 0 ||
-        host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
+        host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
         return status;
     }
 
@@ -944,14 +971,14 @@ static arbor_status host_draining_step(
     if (event_count < 0) {
         host_diagnostic(
             host,
-            ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP,
+            ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP,
             event_count);
         host_note_failure(host, event_count);
         return host_finish_drain(host, false, true, true);
     }
 
     for (int64_t i = 0; i < event_count; ++i) {
-        arbor_example_linux_http_mvc_host_slot *slot =
+        arbor_linux_http_mvc_host_slot *slot =
             host_find_connection_slot(host, host->events[i].data);
         if (slot != NULL) {
             host_advance_slot(host, slot);
@@ -968,29 +995,29 @@ static arbor_status host_draining_step(
     return host_drain_now_or_enforce(host, &remaining);
 }
 
-arbor_status arbor_example_linux_http_mvc_host_step(
-    arbor_example_linux_http_mvc_host *host)
+arbor_status arbor_linux_http_mvc_host_step(
+    arbor_linux_http_mvc_host *host)
 {
     arbor_status status = host_runtime_validate(host);
     if (status.native != 0) {
         return status;
     }
-    if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING) {
+    if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING) {
         return host_accepting_step(host);
     }
-    if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING) {
+    if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_DRAINING) {
         return host_draining_step(host);
     }
     return host_invalid_argument();
 }
 
 static arbor_status host_close_after_failure(
-    arbor_example_linux_http_mvc_host *host,
+    arbor_linux_http_mvc_host *host,
     int64_t failure)
 {
     host_note_failure(host, failure);
-    if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING) {
-        host->phase = ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING;
+    if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING) {
+        host->phase = ARBOR_LINUX_HTTP_MVC_HOST_PHASE_DRAINING;
         host_close_listener(host);
         uint64_t active = 0u;
         arbor_status count_status = host_count_active(host, &active);
@@ -1002,58 +1029,58 @@ static arbor_status host_close_after_failure(
     return host_finish_drain(host, false, true, false);
 }
 
-arbor_status arbor_example_linux_http_mvc_host_run(
-    arbor_example_linux_http_mvc_host *host,
-    arbor_example_linux_http_mvc_host_stop_fn stop_requested,
+arbor_status arbor_linux_http_mvc_host_run(
+    arbor_linux_http_mvc_host *host,
+    arbor_linux_http_mvc_host_stop_fn stop_requested,
     void *stop_context)
 {
-    arbor_status status = arbor_example_linux_http_mvc_host_validate(host);
+    arbor_status status = arbor_linux_http_mvc_host_validate(host);
     if (status.native != 0 || stop_requested == NULL ||
-        (host->phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING &&
-         host->phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING)) {
+        (host->phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING &&
+         host->phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_DRAINING)) {
         return host_invalid_argument();
     }
     for (;;) {
         if (host->phase ==
-                ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING &&
+                ARBOR_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING &&
             stop_requested(stop_context)) {
-            status = arbor_example_linux_http_mvc_host_begin_drain(host);
+            status = arbor_linux_http_mvc_host_begin_drain(host);
             if (status.native != 0 ||
-                host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
+                host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
                 return status;
             }
         }
-        status = arbor_example_linux_http_mvc_host_step(host);
+        status = arbor_linux_http_mvc_host_step(host);
         if (status.native != 0) {
-            if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
+            if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
                 return status;
             }
             return host_close_after_failure(host, status.native);
         }
-        if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
+        if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
             return arbor_status_from_native(
                 host->shutdown_result.first_failure);
         }
     }
 }
 
-arbor_status arbor_example_linux_http_mvc_host_close(
-    arbor_example_linux_http_mvc_host *host)
+arbor_status arbor_linux_http_mvc_host_close(
+    arbor_linux_http_mvc_host *host)
 {
-    arbor_status status = arbor_example_linux_http_mvc_host_validate(host);
+    arbor_status status = arbor_linux_http_mvc_host_validate(host);
     if (status.native != 0) {
         return status;
     }
-    if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
+    if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
         return host_ok();
     }
-    if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_PREPARED) {
-        host->phase = ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED;
+    if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_PREPARED) {
+        host->phase = ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED;
         return host_ok();
     }
 
-    if (host->phase == ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING) {
-        host->phase = ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_DRAINING;
+    if (host->phase == ARBOR_LINUX_HTTP_MVC_HOST_PHASE_ACCEPTING) {
+        host->phase = ARBOR_LINUX_HTTP_MVC_HOST_PHASE_DRAINING;
         host_close_listener(host);
         uint64_t active = 0u;
         status = host_count_active(host, &active);
@@ -1067,16 +1094,16 @@ arbor_status arbor_example_linux_http_mvc_host_close(
     return host_finish_drain(host, false, true, true);
 }
 
-arbor_status arbor_example_linux_http_mvc_host_shutdown_result_get(
-    const arbor_example_linux_http_mvc_host *host,
-    arbor_example_linux_http_mvc_host_shutdown_result *result_out)
+arbor_status arbor_linux_http_mvc_host_shutdown_result_get(
+    const arbor_linux_http_mvc_host *host,
+    arbor_linux_http_mvc_host_shutdown_result *result_out)
 {
     if (result_out == NULL) {
         return host_invalid_argument();
     }
-    arbor_status status = arbor_example_linux_http_mvc_host_validate(host);
+    arbor_status status = arbor_linux_http_mvc_host_validate(host);
     if (status.native != 0 ||
-        host->phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
+        host->phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED) {
         return host_invalid_argument();
     }
     *result_out = host->shutdown_result;

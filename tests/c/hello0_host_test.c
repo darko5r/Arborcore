@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 #include "hello0.h"
-#include "linux_http_mvc_host.h"
+#include <arborcore/linux_http_mvc_host.h>
 
 #define HELLO0_HOST_TEST_SLOT_COUNT 2u
 #define HELLO0_HOST_TEST_EVENT_CAPACITY 8u
@@ -18,7 +18,7 @@
 
 typedef struct hello0_host_test_diagnostics {
     uint64_t calls;
-    arbor_example_linux_http_mvc_host_diagnostic last;
+    arbor_linux_http_mvc_host_diagnostic last;
     int64_t last_native;
 } hello0_host_test_diagnostics;
 
@@ -30,7 +30,7 @@ static int fail(const char *message)
 
 static void record_diagnostic(
     void *context,
-    arbor_example_linux_http_mvc_host_diagnostic diagnostic,
+    arbor_linux_http_mvc_host_diagnostic diagnostic,
     int64_t native_status)
 {
     hello0_host_test_diagnostics *diagnostics =
@@ -49,7 +49,7 @@ static bool stop_immediately(void *context)
 }
 
 static uint64_t active_slot_count(
-    const arbor_example_linux_http_mvc_host *host)
+    const arbor_linux_http_mvc_host *host)
 {
     uint64_t count = 0u;
     for (uint64_t i = 0u; i < host->slot_count; ++i) {
@@ -181,10 +181,10 @@ int main(void)
                 (uint64_t)(sizeof(template_source) - 1u)},
             HELLO0_RESPONSE_FIELD_CAPACITY,
             &application).native != 0) {
-        return fail("prepare HELLO0 application for private Linux host");
+        return fail("prepare HELLO0 application for public Linux host");
     }
 
-    static arbor_example_linux_http_mvc_host_slot
+    static arbor_linux_http_mvc_host_slot
         slots[HELLO0_HOST_TEST_SLOT_COUNT];
     static uint8_t inputs
         [HELLO0_HOST_TEST_SLOT_COUNT][HELLO0_HOST_TEST_BUFFER_CAPACITY];
@@ -193,36 +193,47 @@ int main(void)
     static uint8_t arenas
         [HELLO0_HOST_TEST_SLOT_COUNT][HELLO0_HOST_TEST_BUFFER_CAPACITY];
     for (uint64_t i = 0u; i < HELLO0_HOST_TEST_SLOT_COUNT; ++i) {
-        if (arbor_example_linux_http_mvc_host_slot_prepare(
+        if (arbor_linux_http_mvc_host_slot_prepare(
                 &slots[i],
                 (arbor_mut_span){inputs[i], sizeof(inputs[i])},
                 (arbor_mut_span){outputs[i], sizeof(outputs[i])},
                 (arbor_mut_span){arenas[i], sizeof(arenas[i])}).native != 0) {
-            return fail("prepare caller-owned private-host connection slot");
+            return fail("prepare caller-owned public-host connection slot");
         }
     }
 
-    arbor_example_linux_http_mvc_host_slot overlapping_slot = {0};
+    arbor_linux_http_mvc_host_slot overlapping_slot = {0};
     uint8_t overlapping_bytes[64] = {0};
     uint8_t separate_arena[64] = {0};
-    if (arbor_example_linux_http_mvc_host_slot_prepare(
+    if (arbor_linux_http_mvc_host_slot_prepare(
             &overlapping_slot,
             (arbor_mut_span){overlapping_bytes, sizeof(overlapping_bytes)},
             (arbor_mut_span){overlapping_bytes, sizeof(overlapping_bytes)},
             (arbor_mut_span){separate_arena, sizeof(separate_arena)}).native !=
         -EINVAL) {
-        return fail("private-host slot rejects overlapping backing regions");
+        return fail("public-host slot rejects overlapping backing regions");
     }
 
     arbor_asm_epoll_event events[HELLO0_HOST_TEST_EVENT_CAPACITY] = {0};
     hello0_host_test_diagnostics diagnostics = {0};
+    arbor_linux_http_mvc_host_options host_options;
+    if (arbor_linux_http_mvc_host_options_make(
+            &host_options,
+            20,
+            UINT64_C(2000),
+            NULL,
+            NULL,
+            record_diagnostic,
+            &diagnostics).native != 0) {
+        return fail("prepare public host options");
+    }
 
-    static arbor_example_linux_http_mvc_host_slot alias_slots[2];
+    static arbor_linux_http_mvc_host_slot alias_slots[2];
     static uint8_t shared_input[128];
     static uint8_t alias_outputs[2][128];
     static uint8_t alias_arenas[2][128];
     for (uint64_t i = 0u; i < 2u; ++i) {
-        if (arbor_example_linux_http_mvc_host_slot_prepare(
+        if (arbor_linux_http_mvc_host_slot_prepare(
                 &alias_slots[i],
                 (arbor_mut_span){shared_input, sizeof(shared_input)},
                 (arbor_mut_span){alias_outputs[i], sizeof(alias_outputs[i])},
@@ -230,62 +241,47 @@ int main(void)
             return fail("prepare individually valid alias-adversarial slots");
         }
     }
-    arbor_example_linux_http_mvc_host alias_host;
+    arbor_linux_http_mvc_host alias_host;
     (void)memset(&alias_host, 0xa5, sizeof(alias_host));
-    arbor_example_linux_http_mvc_host alias_sentinel = alias_host;
-    if (arbor_example_linux_http_mvc_host_prepare(
+    arbor_linux_http_mvc_host alias_sentinel = alias_host;
+    if (arbor_linux_http_mvc_host_prepare(
             &alias_host,
             &application.http_application,
             alias_slots,
             2u,
             events,
             HELLO0_HOST_TEST_EVENT_CAPACITY,
-            20,
-            UINT64_C(2000),
-            NULL,
-            NULL,
-            record_diagnostic,
-            &diagnostics).native != -EINVAL ||
+            &host_options).native != -EINVAL ||
         memcmp(&alias_host, &alias_sentinel, sizeof(alias_host)) != 0) {
-        return fail("private host rejects cross-slot backing aliases atomically");
+        return fail("public host rejects cross-slot backing aliases atomically");
     }
 
-    arbor_example_linux_http_mvc_host host = {0};
-    if (arbor_example_linux_http_mvc_host_prepare(
+    arbor_linux_http_mvc_host host = {0};
+    if (arbor_linux_http_mvc_host_prepare(
             &host,
             &application.http_application,
             slots,
             HELLO0_HOST_TEST_SLOT_COUNT,
             events,
             HELLO0_HOST_TEST_EVENT_CAPACITY,
-            20,
-            UINT64_C(2000),
-            NULL,
-            NULL,
-            record_diagnostic,
-            &diagnostics).native != 0 ||
-        arbor_example_linux_http_mvc_host_validate(&host).native != 0) {
-        return fail("prepare and validate private Linux HTTP/MVC host");
+            &host_options).native != 0 ||
+        arbor_linux_http_mvc_host_validate(&host).native != 0) {
+        return fail("prepare and validate public Linux HTTP/MVC host");
     }
 
-    arbor_example_linux_http_mvc_host sentinel;
+    arbor_linux_http_mvc_host sentinel;
     (void)memset(&sentinel, 0xa5, sizeof(sentinel));
-    arbor_example_linux_http_mvc_host unchanged = sentinel;
-    if (arbor_example_linux_http_mvc_host_prepare(
+    arbor_linux_http_mvc_host unchanged = sentinel;
+    if (arbor_linux_http_mvc_host_prepare(
             &unchanged,
             &application.http_application,
             slots,
             0u,
             events,
             HELLO0_HOST_TEST_EVENT_CAPACITY,
-            20,
-            UINT64_C(2000),
-            NULL,
-            NULL,
-            record_diagnostic,
-            &diagnostics).native != -EINVAL ||
+            &host_options).native != -EINVAL ||
         memcmp(&unchanged, &sentinel, sizeof(unchanged)) != 0) {
-        return fail("invalid private-host preparation is failure-atomic");
+        return fail("invalid public-host preparation is failure-atomic");
     }
 
     struct sockaddr_in address;
@@ -293,22 +289,22 @@ int main(void)
     address.sin_family = AF_INET;
     address.sin_port = htons(0u);
     address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    arbor_example_linux_http_mvc_host before_invalid_open = host;
-    if (arbor_example_linux_http_mvc_host_open(
+    arbor_linux_http_mvc_host before_invalid_open = host;
+    if (arbor_linux_http_mvc_host_open(
             &host,
             &address,
             0u,
             8).native != -EINVAL ||
         memcmp(&host, &before_invalid_open, sizeof(host)) != 0) {
-        return fail("invalid private-host open is failure-atomic");
+        return fail("invalid public-host open is failure-atomic");
     }
-    if (arbor_example_linux_http_mvc_host_open(
+    if (arbor_linux_http_mvc_host_open(
             &host,
             &address,
             (uint64_t)sizeof(address),
             8).native != 0 ||
-        arbor_example_linux_http_mvc_host_validate(&host).native != 0) {
-        return fail("open loopback listener through private host");
+        arbor_linux_http_mvc_host_validate(&host).native != 0) {
+        return fail("open loopback listener through public host");
     }
 
     socklen_t address_length = (socklen_t)sizeof(address);
@@ -318,8 +314,8 @@ int main(void)
             &address_length) != 0 ||
         address_length != (socklen_t)sizeof(address) ||
         ntohs(address.sin_port) == 0u) {
-        (void)arbor_example_linux_http_mvc_host_close(&host);
-        return fail("read private-host ephemeral listener address");
+        (void)arbor_linux_http_mvc_host_close(&host);
+        return fail("read public-host ephemeral listener address");
     }
     const uint16_t port = ntohs(address.sin_port);
 
@@ -338,24 +334,24 @@ int main(void)
         clients[i] = connect_loopback(port);
         if (clients[i] < 0 ||
             write_all(clients[i], requests[i], request_lengths[i]) != 0) {
-            (void)arbor_example_linux_http_mvc_host_close(&host);
+            (void)arbor_linux_http_mvc_host_close(&host);
             return fail("connect and write three loopback requests");
         }
     }
 
-    if (arbor_example_linux_http_mvc_host_step(&host).native != 0 ||
+    if (arbor_linux_http_mvc_host_step(&host).native != 0 ||
         active_slot_count(&host) != HELLO0_HOST_TEST_SLOT_COUNT ||
         host.listener_readable) {
-        (void)arbor_example_linux_http_mvc_host_close(&host);
+        (void)arbor_linux_http_mvc_host_close(&host);
         return fail("slot saturation disables listener readability");
     }
 
     bool saw_reenabled_listener = false;
     bool completed = false;
     for (uint64_t attempt = 0u; attempt < 128u; ++attempt) {
-        if (arbor_example_linux_http_mvc_host_step(&host).native != 0) {
-            (void)arbor_example_linux_http_mvc_host_close(&host);
-            return fail("advance private-host saturation and rearm sequence");
+        if (arbor_linux_http_mvc_host_step(&host).native != 0) {
+            (void)arbor_linux_http_mvc_host_close(&host);
+            return fail("advance public-host saturation and rearm sequence");
         }
         if (host.listener_readable) {
             saw_reenabled_listener = true;
@@ -367,8 +363,8 @@ int main(void)
         }
     }
     if (!completed || !saw_reenabled_listener || diagnostics.calls != 0u) {
-        (void)arbor_example_linux_http_mvc_host_close(&host);
-        return fail("private host rearms and completes queued connection without diagnostics");
+        (void)arbor_linux_http_mvc_host_close(&host);
+        return fail("public host rearms and completes queued connection without diagnostics");
     }
 
     uint8_t responses[3][HELLO0_HOST_TEST_RESPONSE_CAPACITY] = {{0}};
@@ -379,8 +375,8 @@ int main(void)
                 responses[i],
                 sizeof(responses[i]),
                 &response_lengths[i]) != 0) {
-            (void)arbor_example_linux_http_mvc_host_close(&host);
-            return fail("read private-host responses to EOF");
+            (void)arbor_linux_http_mvc_host_close(&host);
+            return fail("read public-host responses to EOF");
         }
         (void)close(clients[i]);
         clients[i] = -1;
@@ -394,23 +390,23 @@ int main(void)
             responses[1], response_lengths[1], found, sizeof(found) - 1u) ||
         !contains_bytes(
             responses[2], response_lengths[2], missing, sizeof(missing) - 1u)) {
-        (void)arbor_example_linux_http_mvc_host_close(&host);
-        return fail("private host preserves HELLO0 page, redirect and fallback responses");
+        (void)arbor_linux_http_mvc_host_close(&host);
+        return fail("public host preserves HELLO0 page, redirect and fallback responses");
     }
 
     bool stop = true;
-    if (arbor_example_linux_http_mvc_host_run(
+    if (arbor_linux_http_mvc_host_run(
             &host,
             stop_immediately,
             &stop).native != 0) {
-        (void)arbor_example_linux_http_mvc_host_close(&host);
-        return fail("private host drains through externally owned stop predicate");
+        (void)arbor_linux_http_mvc_host_close(&host);
+        return fail("public host drains through externally owned stop predicate");
     }
-    arbor_example_linux_http_mvc_host_shutdown_result shutdown_result = {0};
-    if (arbor_example_linux_http_mvc_host_shutdown_result_get(
+    arbor_linux_http_mvc_host_shutdown_result shutdown_result = {0};
+    if (arbor_linux_http_mvc_host_shutdown_result_get(
             &host,
             &shutdown_result).native != 0 ||
-        host.phase != ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_PHASE_CLOSED ||
+        host.phase != ARBOR_LINUX_HTTP_MVC_HOST_PHASE_CLOSED ||
         host.listener_fd != -1 ||
         host.epoll_fd != -1 ||
         shutdown_result.active_at_drain_start != 0u ||
@@ -419,16 +415,16 @@ int main(void)
         shutdown_result.deadline_expired ||
         shutdown_result.first_failure != 0 ||
         shutdown_result.drain_finish_ms < shutdown_result.drain_start_ms ||
-        arbor_example_linux_http_mvc_host_validate(&host).native != 0 ||
-        arbor_example_linux_http_mvc_host_close(&host).native != 0 ||
-        arbor_example_linux_http_mvc_host_open(
+        arbor_linux_http_mvc_host_validate(&host).native != 0 ||
+        arbor_linux_http_mvc_host_close(&host).native != 0 ||
+        arbor_linux_http_mvc_host_open(
             &host,
             &address,
             (uint64_t)sizeof(address),
             8).native != -EINVAL) {
-        return fail("private host cleanup is complete and idempotent");
+        return fail("public host cleanup is complete and idempotent");
     }
 
-    puts("PASS: LIFE0-R0 private Linux host slots, deadline drain, rearm and HELLO0 responses");
+    puts("PASS: LIFE0-R0 public Linux host slots, deadline drain, rearm and HELLO0 responses");
     return 0;
 }

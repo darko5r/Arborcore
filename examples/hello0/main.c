@@ -10,7 +10,7 @@
 #include <sys/socket.h>
 
 #include "hello0.h"
-#include "linux_http_mvc_host.h"
+#include <arborcore/linux_http_mvc_host.h>
 
 #define HELLO0_EVENT_CAPACITY 16u
 #define HELLO0_EVENT_WAIT_MS 250
@@ -97,33 +97,33 @@ static int hello0_load_template(
 
 static void hello0_host_diagnostic(
     void *context,
-    arbor_example_linux_http_mvc_host_diagnostic diagnostic,
+    arbor_linux_http_mvc_host_diagnostic diagnostic,
     int64_t native_status)
 {
     (void)context;
     switch (diagnostic) {
-    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_LISTEN:
+    case ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_LISTEN:
         fprintf(stderr, "HELLO0_LISTEN_ERROR=%" PRId64 "\n", native_status);
         break;
-    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP_CREATE:
+    case ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP_CREATE:
         fprintf(
             stderr,
             "HELLO0_EVENT_LOOP_ERROR=%" PRId64 "\n",
             native_status);
         break;
-    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP:
+    case ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_EVENT_LOOP:
         fprintf(stderr, "HELLO0_EPOLL_ERROR=%" PRId64 "\n", native_status);
         break;
-    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_ACCEPT:
+    case ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_ACCEPT:
         fprintf(stderr, "HELLO0_ACCEPT_ERROR=%" PRId64 "\n", native_status);
         break;
-    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CONNECTION:
+    case ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CONNECTION:
         fprintf(stderr, "HELLO0_CONNECTION_ERROR=%" PRId64 "\n", native_status);
         break;
-    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOCK:
+    case ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOCK:
         fprintf(stderr, "HELLO0_CLOCK_ERROR=%" PRId64 "\n", native_status);
         break;
-    case ARBOR_EXAMPLE_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE:
+    case ARBOR_LINUX_HTTP_MVC_HOST_DIAGNOSTIC_CLOSE:
         fprintf(stderr, "HELLO0_CLOSE_ERROR=%" PRId64 "\n", native_status);
         break;
     default:
@@ -180,7 +180,7 @@ int main(int argc, char **argv)
     address.sin_port = htons(port);
     address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-    static arbor_example_linux_http_mvc_host_slot
+    static arbor_linux_http_mvc_host_slot
         slots[HELLO0_CONNECTION_SLOT_COUNT];
     static uint8_t slot_inputs
         [HELLO0_CONNECTION_SLOT_COUNT][HELLO0_CONNECTION_BUFFER_CAPACITY];
@@ -189,7 +189,7 @@ int main(int argc, char **argv)
     static uint8_t slot_arenas
         [HELLO0_CONNECTION_SLOT_COUNT][HELLO0_CONNECTION_BUFFER_CAPACITY];
     for (size_t i = 0u; i < HELLO0_CONNECTION_SLOT_COUNT; ++i) {
-        status = arbor_example_linux_http_mvc_host_slot_prepare(
+        status = arbor_linux_http_mvc_host_slot_prepare(
             &slots[i],
             (arbor_mut_span){slot_inputs[i], sizeof(slot_inputs[i])},
             (arbor_mut_span){slot_outputs[i], sizeof(slot_outputs[i])},
@@ -201,14 +201,9 @@ int main(int argc, char **argv)
     }
 
     static arbor_asm_epoll_event events[HELLO0_EVENT_CAPACITY];
-    arbor_example_linux_http_mvc_host host = {0};
-    status = arbor_example_linux_http_mvc_host_prepare(
-        &host,
-        &application.http_application,
-        slots,
-        HELLO0_CONNECTION_SLOT_COUNT,
-        events,
-        HELLO0_EVENT_CAPACITY,
+    arbor_linux_http_mvc_host_options host_options;
+    status = arbor_linux_http_mvc_host_options_make(
+        &host_options,
         HELLO0_EVENT_WAIT_MS,
         HELLO0_DRAIN_TIMEOUT_MS,
         NULL,
@@ -216,10 +211,23 @@ int main(int argc, char **argv)
         hello0_host_diagnostic,
         NULL);
     if (status.native != 0) {
+        fprintf(stderr, "HELLO0_HOST_OPTIONS_ERROR=%" PRId64 "\n", status.native);
+        return 1;
+    }
+    arbor_linux_http_mvc_host host = {0};
+    status = arbor_linux_http_mvc_host_prepare(
+        &host,
+        &application.http_application,
+        slots,
+        HELLO0_CONNECTION_SLOT_COUNT,
+        events,
+        HELLO0_EVENT_CAPACITY,
+        &host_options);
+    if (status.native != 0) {
         fprintf(stderr, "HELLO0_HOST_PREPARE_ERROR=%" PRId64 "\n", status.native);
         return 1;
     }
-    status = arbor_example_linux_http_mvc_host_open(
+    status = arbor_linux_http_mvc_host_open(
         &host,
         &address,
         (uint64_t)sizeof(address),
@@ -235,7 +243,7 @@ int main(int argc, char **argv)
             &address_length) != 0 ||
         address_length != (socklen_t)sizeof(address)) {
         fputs("HELLO0_LISTENER_ADDRESS_ERROR\n", stderr);
-        (void)arbor_example_linux_http_mvc_host_close(&host);
+        (void)arbor_linux_http_mvc_host_close(&host);
         return 1;
     }
     port = ntohs(address.sin_port);
@@ -244,14 +252,14 @@ int main(int argc, char **argv)
         "HELLO0_READY=http://127.0.0.1:%" PRIu16 "/hello\n",
         port);
     (void)fflush(stdout);
-    arbor_status run_status = arbor_example_linux_http_mvc_host_run(
+    arbor_status run_status = arbor_linux_http_mvc_host_run(
         &host,
         hello0_should_stop,
         NULL);
-    arbor_status close_status = arbor_example_linux_http_mvc_host_close(&host);
-    arbor_example_linux_http_mvc_host_shutdown_result shutdown_result = {0};
+    arbor_status close_status = arbor_linux_http_mvc_host_close(&host);
+    arbor_linux_http_mvc_host_shutdown_result shutdown_result = {0};
     arbor_status result_status =
-        arbor_example_linux_http_mvc_host_shutdown_result_get(
+        arbor_linux_http_mvc_host_shutdown_result_get(
             &host,
             &shutdown_result);
     printf(

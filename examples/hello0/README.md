@@ -33,7 +33,7 @@ Arborcore safely renders &lt;dynamic data&gt; &amp; UTF-8: Olá 😀
 
 1. main.c reads at most 4096 template bytes, prepares the application and
    supplies caller-owned fixed connection, event and buffer storage.
-2. examples/common/linux_http_mvc_host.c is the private LIFE0-R0 host. It opens
+2. The public Linux HOST1 implementation in `src/c/linux_http_mvc_host.c` opens
    the loopback listener and epoll instance, applies eight-slot accept
    backpressure, advances every ready connection with
    arbor_http_mvc_server_step(), and performs a monotonic deadline drain.
@@ -53,11 +53,11 @@ copies trusted literals and resolves the field slot into the arrays owned by
 hello0_web_application, so main.c clears the original source buffer
 immediately after successful preparation.
 
-LIFE0-R0 remains private to the examples while its reusable lifecycle boundary
-is qualified by both HELLO0 and ECHO0. There is no database, heap-owned
-application or host state, new Arborcore public API, or new Assembly symbol.
+HELLO0 consumes `<arborcore/linux_http_mvc_host.h>` and links the dedicated
+`libarborcore_host1.a` archive shared with ECHO0. There is no database,
+heap-owned application or host state, or new Assembly symbol.
 
-## LIFE0 lifecycle
+## HOST1 lifecycle
 
 The common host has one authoritative, nonzero phase value:
 
@@ -109,7 +109,7 @@ Run all HELLO0 evidence:
 make hello0-gate
 ~~~
 
-Run the shared private-host lifecycle evidence used by both applications:
+Run the shared public-host lifecycle evidence used by both applications:
 
 ~~~sh
 make life0-gate
@@ -126,7 +126,7 @@ make hello0-live-verify
 make hello0-route-scale-benchmark
 ~~~
 
-The LIFE0 gate separately runs deterministic phase and drain tests,
+The LIFE0 gate separately runs deterministic phase and drain tests over HOST1,
 adversarial failure and backpressure tests, ASan/UBSan, live SIGINT and
 SIGTERM drains for both applications, 100 repetitions of each host suite,
 and a threshold-free shutdown diagnostic.

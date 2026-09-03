@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 #include "hello0.h"
-#include "linux_http_mvc_host.h"
+#include <arborcore/linux_http_mvc_host.h>
 
 #define LIFE0_BENCH_ROUNDS 9u
 #define LIFE0_BENCH_SLOTS 2u
@@ -24,12 +24,12 @@ typedef enum life0_bench_case {
 } life0_bench_case;
 
 typedef struct life0_bench_fixture {
-    arbor_example_linux_http_mvc_host_slot slots[LIFE0_BENCH_SLOTS];
+    arbor_linux_http_mvc_host_slot slots[LIFE0_BENCH_SLOTS];
     uint8_t inputs[LIFE0_BENCH_SLOTS][LIFE0_BENCH_BUFFER_CAPACITY];
     uint8_t outputs[LIFE0_BENCH_SLOTS][LIFE0_BENCH_BUFFER_CAPACITY];
     uint8_t arenas[LIFE0_BENCH_SLOTS][LIFE0_BENCH_BUFFER_CAPACITY];
     arbor_asm_epoll_event events[LIFE0_BENCH_EVENTS];
-    arbor_example_linux_http_mvc_host host;
+    arbor_linux_http_mvc_host host;
     int64_t now;
     struct sockaddr_in address;
     uint16_t port;
@@ -59,7 +59,7 @@ static int prepare_fixture(uint64_t timeout_ms)
 {
     (void)memset(&fixture, 0, sizeof(fixture));
     for (uint64_t i = 0u; i < LIFE0_BENCH_SLOTS; ++i) {
-        if (arbor_example_linux_http_mvc_host_slot_prepare(
+        if (arbor_linux_http_mvc_host_slot_prepare(
                 &fixture.slots[i],
                 (arbor_mut_span){fixture.inputs[i], sizeof(fixture.inputs[i])},
                 (arbor_mut_span){fixture.outputs[i], sizeof(fixture.outputs[i])},
@@ -69,13 +69,9 @@ static int prepare_fixture(uint64_t timeout_ms)
         }
     }
     fixture.now = 1000;
-    if (arbor_example_linux_http_mvc_host_prepare(
-            &fixture.host,
-            &application.http_application,
-            fixture.slots,
-            LIFE0_BENCH_SLOTS,
-            fixture.events,
-            LIFE0_BENCH_EVENTS,
+    arbor_linux_http_mvc_host_options host_options;
+    if (arbor_linux_http_mvc_host_options_make(
+            &host_options,
             1,
             timeout_ms,
             controlled_clock,
@@ -84,11 +80,21 @@ static int prepare_fixture(uint64_t timeout_ms)
             NULL).native != 0) {
         return 1;
     }
+    if (arbor_linux_http_mvc_host_prepare(
+            &fixture.host,
+            &application.http_application,
+            fixture.slots,
+            LIFE0_BENCH_SLOTS,
+            fixture.events,
+            LIFE0_BENCH_EVENTS,
+            &host_options).native != 0) {
+        return 1;
+    }
     (void)memset(&fixture.address, 0, sizeof(fixture.address));
     fixture.address.sin_family = AF_INET;
     fixture.address.sin_port = htons(0u);
     fixture.address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    if (arbor_example_linux_http_mvc_host_open(
+    if (arbor_linux_http_mvc_host_open(
             &fixture.host,
             &fixture.address,
             (uint64_t)sizeof(fixture.address),
@@ -131,7 +137,7 @@ static int connect_one(void)
 static int accept_expected(uint64_t expected)
 {
     for (uint64_t attempt = 0u; attempt < 32u; ++attempt) {
-        if (arbor_example_linux_http_mvc_host_step(&fixture.host).native != 0) {
+        if (arbor_linux_http_mvc_host_step(&fixture.host).native != 0) {
             return 1;
         }
         if (active_count() == expected) {
@@ -176,12 +182,12 @@ static int run_round(
     struct timespec start;
     struct timespec finish;
     if (clock_gettime(CLOCK_MONOTONIC, &start) != 0 ||
-        arbor_example_linux_http_mvc_host_begin_drain(&fixture.host).native != 0) {
+        arbor_linux_http_mvc_host_begin_drain(&fixture.host).native != 0) {
         return 1;
     }
     if (selected == LIFE0_BENCH_DEADLINE) {
         fixture.now += 10;
-        if (arbor_example_linux_http_mvc_host_step(&fixture.host).native != 0) {
+        if (arbor_linux_http_mvc_host_step(&fixture.host).native != 0) {
             return 1;
         }
     }
@@ -189,8 +195,8 @@ static int run_round(
         return 1;
     }
 
-    arbor_example_linux_http_mvc_host_shutdown_result result = {0};
-    if (arbor_example_linux_http_mvc_host_shutdown_result_get(
+    arbor_linux_http_mvc_host_shutdown_result result = {0};
+    if (arbor_linux_http_mvc_host_shutdown_result_get(
             &fixture.host,
             &result).native != 0 ||
         result.active_at_drain_start != participants ||
