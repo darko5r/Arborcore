@@ -101,6 +101,30 @@ preserved and a separate `HELLO0_LIFE0` result line is emitted after `CLOSED`.
 Port 0 asks Linux for an unused ephemeral port and is used by the automated
 live check.
 
+## CONFIG0 operation
+
+The historical `PROGRAM TEMPLATE PORT` form remains byte-compatible and ignores
+the six CONFIG0 environment aliases. Named operation accepts zero or one
+`--config=PATH`, the exact aliases `ARBORCORE_TEMPLATE`,
+`ARBORCORE_BIND_IPV4`, `ARBORCORE_PORT`, `ARBORCORE_BACKLOG`,
+`ARBORCORE_EVENT_WAIT_MS`, and `ARBORCORE_DRAIN_TIMEOUT_MS`, and explicit
+`--template=`, `--bind-ipv4=`, `--port=`, `--backlog=`,
+`--event-wait-ms=`, and `--drain-timeout-ms=` assignments.
+
+For example:
+
+~~~sh
+./build/hello0/hello0 \
+  --template=examples/hello0/page.html \
+  --bind-ipv4=127.0.0.1 \
+  --port=8080
+~~~
+
+The fixed precedence is default, file, environment, then command line.
+Configuration and numeric IPv4 validation finish before template acquisition,
+signal installation, HOST1 preparation, listener creation, or epoll creation.
+Failures report structured numeric metadata without echoing raw values.
+
 ## Evidence
 
 Run all HELLO0 evidence:
@@ -124,6 +148,7 @@ make hello0-host-test
 make hello0-sanitize
 make hello0-live-verify
 make hello0-route-scale-benchmark
+make config0-focused-gate
 ~~~
 
 The LIFE0 gate separately runs deterministic phase and drain tests over HOST1,

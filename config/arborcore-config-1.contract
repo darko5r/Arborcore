@@ -1,0 +1,153 @@
+ARBORCORE CONFIG0-R0 SOURCE CONTRACT
+====================================
+
+STATUS
+------
+contract-version: 1
+public-prefix: arbor_config
+public-header: include/arborcore/config.h
+production-source: src/c/config.c
+static-archive: build/libarborcore_config0.a
+archive-members: one exact CONFIG0 object
+language: ISO C17
+platform: generic C17; x86-64 GNU C layouts are reviewed evidence
+stable-pre-1.0-binary-ABI: no
+
+PUBLIC OPERATIONS
+-----------------
+arbor_config_measure:
+  Validate the complete schema and all explicit sources, resolve every winner,
+  and failure-atomically publish exact caller-storage requirements.
+
+arbor_config_prepare:
+  Repeat complete validation, prove capacity and alias conditions, then publish
+  values, provenance, persistent UTF-8 bytes, and the result in schema order.
+
+arbor_config_validate:
+  Validate a prepared result against an independently supplied schema without
+  source parsing, repair, allocation, I/O, or hidden process state.
+
+SOURCE MODEL
+------------
+classes: DEFAULT, FILE, ENVIRONMENT, COMMAND_LINE
+precedence: DEFAULT < FILE < ENVIRONMENT < COMMAND_LINE
+discovery: none
+file-I/O: none
+getenv/environ/argc access: none
+include-chain: none
+duplicate semantic key within one class: error
+unknown exact key: error
+invalid higher override fallback: prohibited
+lower-source error suppression: prohibited
+
+SCHEMA MODEL
+------------
+abi-version: 1
+schema-flags: zero
+descriptor-flags: REQUIRED, HAS_DEFAULT, ALLOW_EMPTY
+requirement: exactly one of REQUIRED and HAS_DEFAULT
+allow-empty: UTF-8 only
+namespaces: semantic, file, environment, command line
+name-length: 1 through 63 bytes
+name matching: exact ASCII bytes
+enum matching: exact case-sensitive ASCII token
+descriptor and enum order: caller supplied and immutable for each call
+reserved fields: zero
+inactive value fields: zero
+
+GRAMMAR
+-------
+file record endings: LF or CRLF
+terminal newline: optional
+blank record: exactly zero bytes
+comment: hash only in column zero
+assignment delimiter: first equals byte
+trimming: none
+environment entry: NAME=VALUE
+command-line entry: --NAME=VALUE
+NUL, lone CR, and embedded line ending: error
+quotes, escapes, interpolation, continuation, sections, arrays, nesting,
+includes, heredocs, multiline values, shell rules, and locale rules: absent
+
+TYPES
+-----
+BOOL: lowercase true or false only
+U64: one or more ASCII decimal digits; checked full consumption
+I64: optional minus and ASCII decimal digits; checked full consumption
+UTF8: shortest-form Unicode scalar encoding, no NUL, no normalization
+ENUM: one exact closed choice
+floating point, units, bases, synonyms, coercions, and partial parsing: absent
+
+MEASUREMENT
+-----------
+For N descriptors:
+  descriptor_count  = N
+  descriptor_bytes  = N * 184
+  value_bytes       = N * 48
+  provenance_bytes  = N * 24
+  scratch_bytes     = N
+  persistent_bytes  = sum of winning UTF-8 byte lengths
+  result_bytes      = 48
+All products, additions, pointer ranges, offsets, and capacities are checked.
+
+OWNERSHIP AND PUBLICATION
+-------------------------
+allocation: zero
+ownership transfer: zero
+mutable global state: zero
+result order: schema order
+UTF-8 publication: copied into caller persistent storage
+source lifetime: each measure or prepare call only
+result lifetime: caller controlled
+read-only input overlap: permitted
+writable overlap: prohibited pairwise and against every nonempty input range
+failure atomic outputs: requirements, result, values, provenance, persistent
+scratch: only storage permitted to change before publication
+extra-capacity writes: zero
+
+PROVENANCE
+----------
+default: descriptor index, byte offset zero
+file: physical zero-based record including ignored records; absolute value byte
+environment: vector index; entry-relative value byte
+command line: vector index; entry-relative value byte
+
+DIAGNOSTICS
+-----------
+fields: code, source, record, byte offset, key index
+failure codes: 23 exact plus NONE sentinel
+raw source or value bytes: never
+success write: none
+failure publication: one complete diagnostic or none
+first error order:
+  schema, defaults, file, environment, command line, final required checks
+printing, logging, exiting, telemetry: none
+
+APPLICATION INTEGRATION
+-----------------------
+applications: HELLO0 and ECHO0
+keys in order:
+  template, bind_ipv4, port, backlog, event_wait_ms, drain_timeout_ms
+legacy form: PROGRAM TEMPLATE PORT
+named file acquisition: zero or one --config=PATH, application-owned
+named environment selection: six exact ARBORCORE aliases
+named command line: explicit CONFIG0 assignments only
+resource order:
+  configuration and numeric IPv4 validation before template, signals, HOST1,
+  listener, and epoll publication
+HOST1 mapping: existing options_make and open typed arguments only
+HOST1 source or behavior change: prohibited
+
+FROZEN EXCLUSIONS
+-----------------
+Assembly or ABI change: no
+shared-library export: no
+HOST1 reopen: no
+HTTP, MVC, VIEW, runtime, or domain semantic change: no
+database: no
+runtime reload or watcher: no
+remote configuration: no
+DNS or wildcard exposure: no
+JSON, YAML, TOML, INI, dotenv, or shell compatibility: no
+IMAGE0 or Nonane implementation: no
+new persistent dependency: no

@@ -5401,6 +5401,31 @@ HOST1_PUBLIC_CONSUMER_OBJ := $(HOST1_BUILD_DIR)/public_consumer_test.o
 HOST1_PUBLIC_CONSUMER_TEST := $(HOST1_BUILD_DIR)/public-consumer-test
 HOST1_PUBLIC_CONSUMER_SANITIZE_TEST := $(HOST1_BUILD_DIR)/public-consumer-sanitize-test
 
+CONFIG0_BUILD_DIR := $(BUILD_DIR)/config0
+CONFIG0_HEADER := include/arborcore/config.h
+CONFIG0_SOURCE := src/c/config.c
+CONFIG0_OBJ := $(CONFIG0_BUILD_DIR)/config.o
+CONFIG0_LIB := $(BUILD_DIR)/libarborcore_config0.a
+CONFIG0_SANITIZE_OBJ := $(CONFIG0_BUILD_DIR)/config_sanitize.o
+CONFIG0_SANITIZE_LIB := $(CONFIG0_BUILD_DIR)/libarborcore_config0_sanitize.a
+CONFIG0_CORE_SOURCE := tests/c/config0_core_test.c
+CONFIG0_ADVERSARIAL_SOURCE := tests/c/config0_adversarial_test.c
+CONFIG0_INTEGRATION_SOURCE := tests/c/config0_integration_test.c
+CONFIG0_PUBLIC_CONSUMER_SOURCE := tests/c/config0_public_consumer_test.c
+CONFIG0_BENCH_SOURCE := bench/config0_resolution_bench.c
+CONFIG0_LIVE_VERIFY := tools/config0_live_verify.sh
+CONFIG0_CORE_OBJ := $(CONFIG0_BUILD_DIR)/core_test.o
+CONFIG0_ADVERSARIAL_OBJ := $(CONFIG0_BUILD_DIR)/adversarial_test.o
+CONFIG0_INTEGRATION_OBJ := $(CONFIG0_BUILD_DIR)/integration_test.o
+CONFIG0_PUBLIC_CONSUMER_OBJ := $(CONFIG0_BUILD_DIR)/public_consumer_test.o
+CONFIG0_BENCH_OBJ := $(CONFIG0_BUILD_DIR)/resolution_bench.o
+CONFIG0_CORE_TEST := $(CONFIG0_BUILD_DIR)/core-test
+CONFIG0_ADVERSARIAL_TEST := $(CONFIG0_BUILD_DIR)/adversarial-test
+CONFIG0_INTEGRATION_TEST := $(CONFIG0_BUILD_DIR)/integration-test
+CONFIG0_PUBLIC_CONSUMER_TEST := $(CONFIG0_BUILD_DIR)/public-consumer-test
+CONFIG0_SANITIZE_TEST := $(CONFIG0_BUILD_DIR)/sanitize-test
+CONFIG0_BENCH := $(CONFIG0_BUILD_DIR)/resolution-bench
+
 HELLO0_DIR := examples/hello0
 HELLO0_BUILD_DIR := $(BUILD_DIR)/hello0
 HELLO0_HEADER := $(HELLO0_DIR)/hello0.h
@@ -5447,6 +5472,10 @@ HELLO0_SANITIZE_ASSEMBLY := \
 .PHONY: hello0-application hello0-core-test hello0-integration-test hello0-host-test
 .PHONY: hello0-sanitize hello0-live-verify hello0-route-scale-benchmark hello0-gate
 .PHONY: host1-public-consumer-test host1-analyzer host1-sanitize host1-gate
+.PHONY: config0-library config0-core-test config0-adversarial-test
+.PHONY: config0-integration-test config0-public-consumer-test config0-analyzer
+.PHONY: config0-sanitize config0-live-verify config0-reproducibility-verify
+.PHONY: config0-resolution-benchmark config0-focused-gate config0-gate
 
 $(HELLO0_BUILD_DIR):
 	mkdir -p $@
@@ -5454,13 +5483,31 @@ $(HELLO0_BUILD_DIR):
 $(HOST1_BUILD_DIR):
 	mkdir -p $@
 
+$(CONFIG0_BUILD_DIR):
+	mkdir -p $@
+
+$(CONFIG0_OBJ): $(CONFIG0_SOURCE) $(CONFIG0_HEADER) | $(CONFIG0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(CONFIG0_LIB): $(CONFIG0_OBJ) | $(BUILD_DIR)
+	$(AR) rcsD $@ $<
+
+config0-library: $(CONFIG0_LIB)
+
+$(CONFIG0_SANITIZE_OBJ): $(CONFIG0_SOURCE) $(CONFIG0_HEADER) | $(CONFIG0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer -c $< -o $@
+
+$(CONFIG0_SANITIZE_LIB): $(CONFIG0_SANITIZE_OBJ) | $(CONFIG0_BUILD_DIR)
+	$(AR) rcsD $@ $<
+
 $(HELLO0_APPLICATION_OBJ): $(HELLO0_APPLICATION_SOURCE) $(HELLO0_HEADER) | $(HELLO0_BUILD_DIR)
 	$(CC) $(HELLO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
 
 $(HELLO0_WEB_OBJ): $(HELLO0_WEB_SOURCE) $(HELLO0_HEADER) | $(HELLO0_BUILD_DIR)
 	$(CC) $(HELLO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
 
-$(HELLO0_MAIN_OBJ): $(HELLO0_MAIN_SOURCE) $(HELLO0_HEADER) $(HELLO0_HOST_HEADER) | $(HELLO0_BUILD_DIR)
+$(HELLO0_MAIN_OBJ): $(HELLO0_MAIN_SOURCE) $(HELLO0_HEADER) $(HELLO0_HOST_HEADER) $(CONFIG0_HEADER) | $(HELLO0_BUILD_DIR)
 	$(CC) $(HELLO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
 
 $(HOST1_OBJ): $(HOST1_SOURCE) $(HOST1_HEADER) | $(HOST1_BUILD_DIR)
@@ -5488,9 +5535,9 @@ $(HELLO0_HOST_TEST_OBJ): $(HELLO0_HOST_TEST_SOURCE) $(HELLO0_HEADER) $(HELLO0_HO
 $(HELLO0_ROUTE_SCALE_OBJ): $(HELLO0_ROUTE_SCALE_SOURCE) | $(HELLO0_BUILD_DIR)
 	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
 
-$(HELLO0_APPLICATION): $(HELLO0_MAIN_OBJ) $(HELLO0_COMMON_OBJS) $(HOST1_LIB) $(HELLO0_LIBRARIES)
+$(HELLO0_APPLICATION): $(HELLO0_MAIN_OBJ) $(HELLO0_COMMON_OBJS) $(CONFIG0_LIB) $(HOST1_LIB) $(HELLO0_LIBRARIES)
 	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
-		$(HELLO0_MAIN_OBJ) $(HELLO0_COMMON_OBJS) $(HOST1_LIB) $(HELLO0_LIBRARIES)
+		$(HELLO0_MAIN_OBJ) $(HELLO0_COMMON_OBJS) $(CONFIG0_LIB) $(HOST1_LIB) $(HELLO0_LIBRARIES)
 
 hello0-application: $(HELLO0_APPLICATION)
 
@@ -5615,7 +5662,7 @@ $(ECHO0_APPLICATION_OBJ): $(ECHO0_APPLICATION_SOURCE) $(ECHO0_HEADER) | $(ECHO0_
 $(ECHO0_WEB_OBJ): $(ECHO0_WEB_SOURCE) $(ECHO0_HEADER) | $(ECHO0_BUILD_DIR)
 	$(CC) $(ECHO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
 
-$(ECHO0_MAIN_OBJ): $(ECHO0_MAIN_SOURCE) $(ECHO0_HEADER) $(HOST1_HEADER) | $(ECHO0_BUILD_DIR)
+$(ECHO0_MAIN_OBJ): $(ECHO0_MAIN_SOURCE) $(ECHO0_HEADER) $(HOST1_HEADER) $(CONFIG0_HEADER) | $(ECHO0_BUILD_DIR)
 	$(CC) $(ECHO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
 
 $(ECHO0_CORE_TEST_OBJ): $(ECHO0_CORE_TEST_SOURCE) $(ECHO0_HEADER) | $(ECHO0_BUILD_DIR)
@@ -5630,9 +5677,9 @@ $(ECHO0_HOST_TEST_OBJ): $(ECHO0_HOST_TEST_SOURCE) $(ECHO0_HEADER) $(HOST1_HEADER
 $(ECHO0_ROUTE_SCALE_OBJ): $(ECHO0_ROUTE_SCALE_SOURCE) | $(ECHO0_BUILD_DIR)
 	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
 
-$(ECHO0_APPLICATION): $(ECHO0_MAIN_OBJ) $(ECHO0_COMMON_OBJS) $(HOST1_LIB) $(ECHO0_LIBRARIES)
+$(ECHO0_APPLICATION): $(ECHO0_MAIN_OBJ) $(ECHO0_COMMON_OBJS) $(CONFIG0_LIB) $(HOST1_LIB) $(ECHO0_LIBRARIES)
 	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
-		$(ECHO0_MAIN_OBJ) $(ECHO0_COMMON_OBJS) $(HOST1_LIB) $(ECHO0_LIBRARIES)
+		$(ECHO0_MAIN_OBJ) $(ECHO0_COMMON_OBJS) $(CONFIG0_LIB) $(HOST1_LIB) $(ECHO0_LIBRARIES)
 
 echo0-application: $(ECHO0_APPLICATION)
 
@@ -5848,3 +5895,99 @@ host1-sanitize: $(HOST1_PUBLIC_CONSUMER_SANITIZE_TEST)
 
 host1-gate: host1-analyzer host1-public-consumer-test host1-sanitize echo0-gate life0-gate
 	@echo "PASS: complete HOST1-R0 public Linux host promotion and cumulative evidence"
+
+# ============================================================
+# CONFIG0-R0 — deterministic typed configuration
+# ============================================================
+
+$(CONFIG0_CORE_OBJ): $(CONFIG0_CORE_SOURCE) $(CONFIG0_HEADER) | $(CONFIG0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(CONFIG0_ADVERSARIAL_OBJ): $(CONFIG0_ADVERSARIAL_SOURCE) $(CONFIG0_HEADER) | $(CONFIG0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(CONFIG0_INTEGRATION_OBJ): $(CONFIG0_INTEGRATION_SOURCE) $(CONFIG0_HEADER) | $(CONFIG0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(CONFIG0_PUBLIC_CONSUMER_OBJ): $(CONFIG0_PUBLIC_CONSUMER_SOURCE) $(CONFIG0_HEADER) | $(CONFIG0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(CONFIG0_BENCH_OBJ): $(CONFIG0_BENCH_SOURCE) $(CONFIG0_HEADER) | $(CONFIG0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(CONFIG0_CORE_TEST): $(CONFIG0_CORE_OBJ) $(CONFIG0_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(CONFIG0_CORE_OBJ) $(CONFIG0_LIB)
+
+config0-core-test: $(CONFIG0_CORE_TEST)
+	@$(CONFIG0_CORE_TEST)
+
+$(CONFIG0_ADVERSARIAL_TEST): $(CONFIG0_ADVERSARIAL_OBJ) $(CONFIG0_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(CONFIG0_ADVERSARIAL_OBJ) $(CONFIG0_LIB)
+
+config0-adversarial-test: $(CONFIG0_ADVERSARIAL_TEST)
+	@$(CONFIG0_ADVERSARIAL_TEST)
+
+$(CONFIG0_INTEGRATION_TEST): $(CONFIG0_INTEGRATION_OBJ) $(CONFIG0_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(CONFIG0_INTEGRATION_OBJ) $(CONFIG0_LIB)
+
+config0-integration-test: $(CONFIG0_INTEGRATION_TEST)
+	@$(CONFIG0_INTEGRATION_TEST)
+
+$(CONFIG0_PUBLIC_CONSUMER_TEST): $(CONFIG0_PUBLIC_CONSUMER_OBJ) $(CONFIG0_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(CONFIG0_PUBLIC_CONSUMER_OBJ) $(CONFIG0_LIB)
+
+config0-public-consumer-test: $(CONFIG0_PUBLIC_CONSUMER_TEST)
+	@$(CONFIG0_PUBLIC_CONSUMER_TEST)
+
+config0-analyzer:
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(CONFIG0_SOURCE)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(CONFIG0_CORE_SOURCE)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(CONFIG0_ADVERSARIAL_SOURCE)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(CONFIG0_INTEGRATION_SOURCE)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(CONFIG0_PUBLIC_CONSUMER_SOURCE)
+	$(CC) $(HELLO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(HELLO0_MAIN_SOURCE)
+	$(CC) $(ECHO0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $(ECHO0_MAIN_SOURCE)
+	@echo "PASS: CONFIG0 source and six direct consumers pass GCC analyzer review"
+
+$(CONFIG0_SANITIZE_TEST): $(CONFIG0_CORE_SOURCE) $(CONFIG0_ADVERSARIAL_SOURCE) $(CONFIG0_INTEGRATION_SOURCE) $(CONFIG0_SANITIZE_LIB) $(CONFIG0_HEADER) | $(CONFIG0_BUILD_DIR)
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(CONFIG0_CORE_SOURCE) $(CONFIG0_SANITIZE_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@-core
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(CONFIG0_ADVERSARIAL_SOURCE) $(CONFIG0_SANITIZE_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@-adversarial
+	$(CC) $(ARBORCORE_C_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(CONFIG0_INTEGRATION_SOURCE) $(CONFIG0_SANITIZE_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@-integration
+	@touch $@
+
+config0-sanitize: $(CONFIG0_SANITIZE_TEST)
+	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(CONFIG0_SANITIZE_TEST)-core
+	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(CONFIG0_SANITIZE_TEST)-adversarial
+	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(CONFIG0_SANITIZE_TEST)-integration
+	@echo "PASS: CONFIG0 ASan/UBSan core, adversarial and integration evidence"
+
+config0-live-verify: $(HELLO0_APPLICATION) $(ECHO0_APPLICATION) $(CONFIG0_LIVE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(CONFIG0_LIVE_VERIFY)
+
+config0-reproducibility-verify: $(CONFIG0_OBJ) | $(CONFIG0_BUILD_DIR)
+	@$(AR) rcsD $(CONFIG0_BUILD_DIR)/config-reproducible-a.a $(CONFIG0_OBJ)
+	@$(AR) rcsD $(CONFIG0_BUILD_DIR)/config-reproducible-b.a $(CONFIG0_OBJ)
+	@cmp $(CONFIG0_BUILD_DIR)/config-reproducible-a.a $(CONFIG0_BUILD_DIR)/config-reproducible-b.a
+	@echo "CONFIG0_ARCHIVE_REPRODUCIBILITY=PASS_BYTE_IDENTICAL_TWO_OF_TWO"
+
+$(CONFIG0_BENCH): $(CONFIG0_BENCH_OBJ) $(CONFIG0_LIB)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(CONFIG0_BENCH_OBJ) $(CONFIG0_LIB)
+
+config0-resolution-benchmark: $(CONFIG0_BENCH)
+	@$(CONFIG0_BENCH)
+
+config0-focused-gate: config0-analyzer config0-core-test config0-adversarial-test config0-integration-test config0-public-consumer-test config0-sanitize config0-live-verify config0-reproducibility-verify config0-resolution-benchmark
+	@echo "PASS: complete CONFIG0-R0 deterministic typed configuration evidence"
+
+config0-gate: config0-focused-gate host1-gate
+	@echo "PASS: complete CONFIG0-R0 and cumulative frozen dependency evidence"
