@@ -5991,3 +5991,227 @@ config0-focused-gate: config0-analyzer config0-core-test config0-adversarial-tes
 
 config0-gate: config0-focused-gate host1-gate
 	@echo "PASS: complete CONFIG0-R0 and cumulative frozen dependency evidence"
+
+# ============================================================
+# APP1-R0 — COUNTER1 bounded-context repository application
+# ============================================================
+COUNTER1_DIR := examples/counter1
+COUNTER1_BUILD_DIR := $(BUILD_DIR)/counter1
+COUNTER1_HEADER := $(COUNTER1_DIR)/counter1.h
+COUNTER1_TEMPLATE := $(COUNTER1_DIR)/page.html
+COUNTER1_CONTRACT := $(COUNTER1_DIR)/counter1-1.contract
+COUNTER1_REPOSITORY_SOURCE := $(COUNTER1_DIR)/repository.c
+COUNTER1_APPLICATION_SOURCE := $(COUNTER1_DIR)/application.c
+COUNTER1_WEB_SOURCE := $(COUNTER1_DIR)/web.c
+COUNTER1_MAIN_SOURCE := $(COUNTER1_DIR)/main.c
+COUNTER1_CORE_TEST_SOURCE := tests/c/counter1_core_test.c
+COUNTER1_ADVERSARIAL_TEST_SOURCE := tests/c/counter1_adversarial_test.c
+COUNTER1_INTEGRATION_TEST_SOURCE := tests/c/counter1_integration_test.c
+COUNTER1_HOST_TEST_SOURCE := tests/c/counter1_host_test.c
+COUNTER1_BENCH_SOURCE := bench/counter1_repeated_get_bench.c
+COUNTER1_LIVE_VERIFY := tools/counter1_live_verify.sh
+
+COUNTER1_REPOSITORY_OBJ := $(COUNTER1_BUILD_DIR)/repository.o
+COUNTER1_APPLICATION_OBJ := $(COUNTER1_BUILD_DIR)/application.o
+COUNTER1_WEB_OBJ := $(COUNTER1_BUILD_DIR)/web.o
+COUNTER1_MAIN_OBJ := $(COUNTER1_BUILD_DIR)/main.o
+COUNTER1_CORE_TEST_OBJ := $(COUNTER1_BUILD_DIR)/core_test.o
+COUNTER1_ADVERSARIAL_TEST_OBJ := $(COUNTER1_BUILD_DIR)/adversarial_test.o
+COUNTER1_INTEGRATION_TEST_OBJ := $(COUNTER1_BUILD_DIR)/integration_test.o
+COUNTER1_HOST_TEST_OBJ := $(COUNTER1_BUILD_DIR)/host_test.o
+COUNTER1_BENCH_OBJ := $(COUNTER1_BUILD_DIR)/repeated_get_bench.o
+
+COUNTER1_EXECUTABLE := $(COUNTER1_BUILD_DIR)/counter1
+COUNTER1_CORE_TEST := $(COUNTER1_BUILD_DIR)/core-test
+COUNTER1_ADVERSARIAL_TEST := $(COUNTER1_BUILD_DIR)/adversarial-test
+COUNTER1_INTEGRATION_TEST := $(COUNTER1_BUILD_DIR)/integration-test
+COUNTER1_HOST_TEST := $(COUNTER1_BUILD_DIR)/host-test
+COUNTER1_SANITIZE_STAMP := $(COUNTER1_BUILD_DIR)/sanitize.stamp
+COUNTER1_BENCH := $(COUNTER1_BUILD_DIR)/repeated-get-bench
+
+COUNTER1_CPPFLAGS := $(ARBORCORE_C_CPPFLAGS) -I$(COUNTER1_DIR)
+COUNTER1_COMMON_SOURCES := \
+	$(COUNTER1_REPOSITORY_SOURCE) $(COUNTER1_APPLICATION_SOURCE) $(COUNTER1_WEB_SOURCE)
+COUNTER1_COMMON_OBJS := \
+	$(COUNTER1_REPOSITORY_OBJ) $(COUNTER1_APPLICATION_OBJ) $(COUNTER1_WEB_OBJ)
+COUNTER1_LIBRARIES := \
+	$(CONFIG0_LIB) $(HOST1_LIB) $(VIEW0_C1_LIB) $(HTTP1_LIB) $(MVC0_LIB) $(HTTP0_LIB) \
+	$(APPLICATION_SERVICE_RUNTIME_LIB) $(DDD_SUPPORT_LIB) \
+	$(APPLICATION_CAPABILITY_KERNEL_LIB) $(APPLICATION_FOUNDATION_LIB) \
+	$(C_RUNTIME_LIB) $(STATIC_LIB)
+ifeq ($(APP1_CONFIG0_GATE_CARRIED),1)
+APP1_CONFIG0_GATE_PREREQUISITE :=
+else
+APP1_CONFIG0_GATE_PREREQUISITE := config0-gate
+endif
+
+COUNTER1_FINAL_PATHS := \
+	Makefile \
+	bench/counter1_repeated_get_bench.c \
+	docs/COUNTER1_APP1.md \
+	examples/counter1/README.md \
+	examples/counter1/application.c \
+	examples/counter1/counter1-1.contract \
+	examples/counter1/counter1.h \
+	examples/counter1/main.c \
+	examples/counter1/page.html \
+	examples/counter1/repository.c \
+	examples/counter1/web.c \
+	tests/c/counter1_adversarial_test.c \
+	tests/c/counter1_core_test.c \
+	tests/c/counter1_host_test.c \
+	tests/c/counter1_integration_test.c \
+	tools/counter1_live_verify.sh
+
+.PHONY: counter1-application counter1-core-test counter1-adversarial-test
+.PHONY: counter1-integration-test counter1-host-test counter1-analyzer counter1-sanitize
+.PHONY: counter1-live-verify counter1-repeated-get-benchmark counter1-contract-verify
+.PHONY: counter1-boundary-scan counter1-reproducibility-verify counter1-focused-gate app1-gate
+
+$(COUNTER1_BUILD_DIR):
+	mkdir -p $@
+
+$(COUNTER1_REPOSITORY_OBJ): $(COUNTER1_REPOSITORY_SOURCE) $(COUNTER1_HEADER) $(DDD_SUPPORT_HEADER) | $(COUNTER1_BUILD_DIR)
+	$(CC) $(COUNTER1_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(COUNTER1_APPLICATION_OBJ): $(COUNTER1_APPLICATION_SOURCE) $(COUNTER1_HEADER) $(APPLICATION_SERVICE_RUNTIME_HEADER) $(DDD_SUPPORT_HEADER) $(APPLICATION_CAPABILITY_KERNEL_HEADER) | $(COUNTER1_BUILD_DIR)
+	$(CC) $(COUNTER1_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(COUNTER1_WEB_OBJ): $(COUNTER1_WEB_SOURCE) $(COUNTER1_HEADER) $(VIEW0_C1_HEADER) $(HTTP1_HEADER) $(MVC0_HEADER) | $(COUNTER1_BUILD_DIR)
+	$(CC) $(COUNTER1_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(COUNTER1_MAIN_OBJ): $(COUNTER1_MAIN_SOURCE) $(COUNTER1_HEADER) $(CONFIG0_HEADER) $(HOST1_HEADER) | $(COUNTER1_BUILD_DIR)
+	$(CC) $(COUNTER1_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(COUNTER1_CORE_TEST_OBJ): $(COUNTER1_CORE_TEST_SOURCE) $(COUNTER1_HEADER) | $(COUNTER1_BUILD_DIR)
+	$(CC) $(COUNTER1_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(COUNTER1_ADVERSARIAL_TEST_OBJ): $(COUNTER1_ADVERSARIAL_TEST_SOURCE) $(COUNTER1_HEADER) | $(COUNTER1_BUILD_DIR)
+	$(CC) $(COUNTER1_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(COUNTER1_INTEGRATION_TEST_OBJ): $(COUNTER1_INTEGRATION_TEST_SOURCE) $(COUNTER1_HEADER) | $(COUNTER1_BUILD_DIR)
+	$(CC) $(COUNTER1_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(COUNTER1_HOST_TEST_OBJ): $(COUNTER1_HOST_TEST_SOURCE) $(COUNTER1_HEADER) $(HOST1_HEADER) | $(COUNTER1_BUILD_DIR)
+	$(CC) $(COUNTER1_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(COUNTER1_BENCH_OBJ): $(COUNTER1_BENCH_SOURCE) $(COUNTER1_HEADER) | $(COUNTER1_BUILD_DIR)
+	$(CC) $(COUNTER1_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(COUNTER1_EXECUTABLE): $(COUNTER1_MAIN_OBJ) $(COUNTER1_COMMON_OBJS) $(COUNTER1_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(COUNTER1_MAIN_OBJ) $(COUNTER1_COMMON_OBJS) $(COUNTER1_LIBRARIES)
+
+counter1-application: $(COUNTER1_EXECUTABLE)
+
+$(COUNTER1_CORE_TEST): $(COUNTER1_CORE_TEST_OBJ) $(COUNTER1_COMMON_OBJS) $(COUNTER1_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(COUNTER1_CORE_TEST_OBJ) $(COUNTER1_COMMON_OBJS) $(COUNTER1_LIBRARIES)
+
+counter1-core-test: $(COUNTER1_CORE_TEST)
+	@$(COUNTER1_CORE_TEST)
+
+$(COUNTER1_ADVERSARIAL_TEST): $(COUNTER1_ADVERSARIAL_TEST_OBJ) $(COUNTER1_COMMON_OBJS) $(COUNTER1_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(COUNTER1_ADVERSARIAL_TEST_OBJ) $(COUNTER1_COMMON_OBJS) $(COUNTER1_LIBRARIES)
+
+counter1-adversarial-test: $(COUNTER1_ADVERSARIAL_TEST)
+	@$(COUNTER1_ADVERSARIAL_TEST)
+
+$(COUNTER1_INTEGRATION_TEST): $(COUNTER1_INTEGRATION_TEST_OBJ) $(COUNTER1_COMMON_OBJS) $(COUNTER1_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(COUNTER1_INTEGRATION_TEST_OBJ) $(COUNTER1_COMMON_OBJS) $(COUNTER1_LIBRARIES)
+
+counter1-integration-test: $(COUNTER1_INTEGRATION_TEST)
+	@$(COUNTER1_INTEGRATION_TEST)
+
+$(COUNTER1_HOST_TEST): $(COUNTER1_HOST_TEST_OBJ) $(COUNTER1_COMMON_OBJS) $(COUNTER1_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(COUNTER1_HOST_TEST_OBJ) $(COUNTER1_COMMON_OBJS) $(COUNTER1_LIBRARIES)
+
+counter1-host-test: $(COUNTER1_HOST_TEST)
+	@$(COUNTER1_HOST_TEST)
+
+counter1-analyzer:
+	@for source in \
+		$(COUNTER1_REPOSITORY_SOURCE) $(COUNTER1_APPLICATION_SOURCE) $(COUNTER1_WEB_SOURCE) \
+		$(COUNTER1_MAIN_SOURCE) $(COUNTER1_CORE_TEST_SOURCE) $(COUNTER1_ADVERSARIAL_TEST_SOURCE) \
+		$(COUNTER1_INTEGRATION_TEST_SOURCE) $(COUNTER1_HOST_TEST_SOURCE) $(COUNTER1_BENCH_SOURCE); do \
+		$(CC) $(COUNTER1_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $$source || exit $$?; \
+	done
+	@echo "PASS: COUNTER1 strict C17 and GCC analyzer"
+
+$(COUNTER1_SANITIZE_STAMP): $(COUNTER1_CORE_TEST_SOURCE) $(COUNTER1_ADVERSARIAL_TEST_SOURCE) $(COUNTER1_INTEGRATION_TEST_SOURCE) $(COUNTER1_HOST_TEST_SOURCE) $(COUNTER1_COMMON_SOURCES) $(COUNTER1_LIBRARIES) | $(COUNTER1_BUILD_DIR)
+	$(CC) $(COUNTER1_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(COUNTER1_CORE_TEST_SOURCE) $(COUNTER1_COMMON_SOURCES) $(COUNTER1_LIBRARIES) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@-core
+	$(CC) $(COUNTER1_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(COUNTER1_ADVERSARIAL_TEST_SOURCE) $(COUNTER1_COMMON_SOURCES) $(COUNTER1_LIBRARIES) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@-adversarial
+	$(CC) $(COUNTER1_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(COUNTER1_INTEGRATION_TEST_SOURCE) $(COUNTER1_COMMON_SOURCES) $(COUNTER1_LIBRARIES) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@-integration
+	$(CC) $(COUNTER1_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(COUNTER1_HOST_TEST_SOURCE) $(COUNTER1_COMMON_SOURCES) $(COUNTER1_LIBRARIES) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@-host
+	@touch $@
+
+counter1-sanitize: $(COUNTER1_SANITIZE_STAMP)
+	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(COUNTER1_SANITIZE_STAMP)-core
+	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(COUNTER1_SANITIZE_STAMP)-adversarial
+	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(COUNTER1_SANITIZE_STAMP)-integration
+	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(COUNTER1_SANITIZE_STAMP)-host
+	@echo "PASS: COUNTER1 ASan/UBSan core, adversarial, integration and host evidence"
+
+counter1-live-verify: $(COUNTER1_EXECUTABLE) $(COUNTER1_TEMPLATE) $(COUNTER1_LIVE_VERIFY)
+	@ARBORCORE_ROOT=$(ROOT_DIR) bash $(COUNTER1_LIVE_VERIFY)
+
+$(COUNTER1_BENCH): $(COUNTER1_BENCH_OBJ) $(COUNTER1_COMMON_OBJS) $(COUNTER1_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(COUNTER1_BENCH_OBJ) $(COUNTER1_COMMON_OBJS) $(COUNTER1_LIBRARIES)
+
+counter1-repeated-get-benchmark: $(COUNTER1_BENCH)
+	@$(COUNTER1_BENCH)
+
+counter1-contract-verify: $(COUNTER1_CONTRACT) $(COUNTER1_TEMPLATE)
+	@test "$$(wc -l < $(COUNTER1_CONTRACT))" -eq 94
+	@test "$$(sha256sum $(COUNTER1_TEMPLATE) | awk '{print $$1}')" = 32f886a4790edf9d19773ccfe6031f8e3d4b6b9d2623ffb2e63da8d1f870061e
+	@grep -Fqx 'COUNTER1_VALIDATION_PARAM_CAPACITY=22' $(COUNTER1_CONTRACT)
+	@grep -Fqx 'COUNTER1_NEXT_AFTER_FREEZE=PROFILE0' $(COUNTER1_CONTRACT)
+	@echo "PASS: COUNTER1 tracked contract and canonical template"
+
+counter1-boundary-scan:
+	@! grep -Eini 'mariadb|mysql|postgres|sqlite|mongodb|redis|nonane|image0|cache0|async0|select[[:space:]]+.*from|insert[[:space:]]+into|update[[:space:]]+.*set|delete[[:space:]]+from' \
+		$(COUNTER1_HEADER) $(COUNTER1_REPOSITORY_SOURCE) $(COUNTER1_APPLICATION_SOURCE) \
+		$(COUNTER1_WEB_SOURCE) $(COUNTER1_MAIN_SOURCE)
+	@echo "PASS: COUNTER1 production source has zero database/cache/image/async implementation"
+
+counter1-reproducibility-verify: $(COUNTER1_FINAL_PATHS) | $(COUNTER1_BUILD_DIR)
+	@tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+		-cf $(COUNTER1_BUILD_DIR)/source-a.tar $(COUNTER1_FINAL_PATHS)
+	@tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+		-cf $(COUNTER1_BUILD_DIR)/source-b.tar $(COUNTER1_FINAL_PATHS)
+	@cmp $(COUNTER1_BUILD_DIR)/source-a.tar $(COUNTER1_BUILD_DIR)/source-b.tar
+	@echo "COUNTER1_SOURCE_ARCHIVE_REPRODUCIBILITY=PASS_BYTE_IDENTICAL_TWO_OF_TWO"
+
+counter1-focused-gate: counter1-analyzer counter1-core-test counter1-adversarial-test counter1-integration-test counter1-host-test counter1-sanitize counter1-contract-verify counter1-boundary-scan counter1-live-verify counter1-reproducibility-verify counter1-repeated-get-benchmark
+	@echo "PASS: complete APP1-R0 COUNTER1 focused construction evidence"
+
+app1-gate: counter1-focused-gate $(APP1_CONFIG0_GATE_PREREQUISITE) c-runtime-check
+	@if [[ "$(APP1_CONFIG0_GATE_CARRIED)" == "1" ]]; then \
+		echo "APP1_CONFIG0_CUMULATIVE_DEPENDENCY=CARRIED_FROM_PRECEDING_FRESH_CONFIG0_GATE"; \
+	else \
+		echo "APP1_CONFIG0_CUMULATIVE_DEPENDENCY=EXECUTED_BY_APP1_GATE"; \
+	fi
+	@work=$$(mktemp -d "$${TMPDIR:-/tmp}/arborcore-app1-view0-d1.XXXXXXXX"); \
+		trap 'rm -R -- "$$work"' EXIT; \
+		head=$$(git rev-parse --verify HEAD^{commit}); \
+		git clone --quiet --no-hardlinks "$(ROOT_DIR)" "$$work/repository"; \
+		test "$$(git -C "$$work/repository" rev-parse --verify HEAD^{commit})" = "$$head"; \
+		$(MAKE) -C "$$work/repository" NASM="$(NASM)" view0-d1-gate; \
+		echo "APP1_VIEW0_D1_CLEAN_DESCENDANT_REPLAY=PASS"
+	@echo "PASS: complete APP1-R0 COUNTER1 and cumulative frozen dependency evidence"
