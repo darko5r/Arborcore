@@ -6215,3 +6215,184 @@ app1-gate: counter1-focused-gate $(APP1_CONFIG0_GATE_PREREQUISITE) c-runtime-che
 		$(MAKE) -C "$$work/repository" NASM="$(NASM)" view0-d1-gate; \
 		echo "APP1_VIEW0_D1_CLEAN_DESCENDANT_REPLAY=PASS"
 	@echo "PASS: complete APP1-R0 COUNTER1 and cumulative frozen dependency evidence"
+
+# ============================================================
+# PROFILE0-R0 — explicit caller-owned profiling substrate
+# ============================================================
+PROFILE0_HEADER := include/arborcore/profile.h
+PROFILE0_SOURCE := src/c/profile.c
+PROFILE0_CONTRACT := profile/arborcore-profile-1.contract
+PROFILE0_BUILD_DIR := $(BUILD_DIR)/profile0
+PROFILE0_OBJ := $(PROFILE0_BUILD_DIR)/profile.o
+PROFILE0_LIB := $(BUILD_DIR)/libarborcore_profile0.a
+
+PROFILE0_CORE_TEST_SOURCE := tests/c/profile0_core_test.c
+PROFILE0_ADVERSARIAL_TEST_SOURCE := tests/c/profile0_adversarial_test.c
+PROFILE0_INTEGRATION_TEST_SOURCE := tests/c/profile0_integration_test.c
+PROFILE0_PUBLIC_CONSUMER_TEST_SOURCE := tests/c/profile0_public_consumer_test.c
+PROFILE0_COUNTER1_BENCH_SOURCE := bench/profile0_counter1_bench.c
+
+PROFILE0_CORE_TEST_OBJ := $(PROFILE0_BUILD_DIR)/core_test.o
+PROFILE0_ADVERSARIAL_TEST_OBJ := $(PROFILE0_BUILD_DIR)/adversarial_test.o
+PROFILE0_INTEGRATION_TEST_OBJ := $(PROFILE0_BUILD_DIR)/integration_test.o
+PROFILE0_PUBLIC_CONSUMER_TEST_OBJ := $(PROFILE0_BUILD_DIR)/public_consumer_test.o
+PROFILE0_COUNTER1_BENCH_OBJ := $(PROFILE0_BUILD_DIR)/counter1_bench.o
+
+PROFILE0_CORE_TEST := $(PROFILE0_BUILD_DIR)/core-test
+PROFILE0_ADVERSARIAL_TEST := $(PROFILE0_BUILD_DIR)/adversarial-test
+PROFILE0_INTEGRATION_TEST := $(PROFILE0_BUILD_DIR)/integration-test
+PROFILE0_PUBLIC_CONSUMER_TEST := $(PROFILE0_BUILD_DIR)/public-consumer-test
+PROFILE0_SANITIZE_STAMP := $(PROFILE0_BUILD_DIR)/sanitize.stamp
+PROFILE0_COUNTER1_BENCH := $(PROFILE0_BUILD_DIR)/counter1-bench
+
+PROFILE0_CPPFLAGS := $(ARBORCORE_C_CPPFLAGS) -I$(COUNTER1_DIR)
+PROFILE0_UNIT_LIBRARIES := $(PROFILE0_LIB) $(C_RUNTIME_LIB) $(STATIC_LIB)
+PROFILE0_COUNTER1_OBJECTS := $(COUNTER1_REPOSITORY_OBJ) $(COUNTER1_APPLICATION_OBJ)
+PROFILE0_COUNTER1_LIBRARIES := \
+	$(PROFILE0_LIB) $(APPLICATION_SERVICE_RUNTIME_LIB) $(DDD_SUPPORT_LIB) \
+	$(APPLICATION_CAPABILITY_KERNEL_LIB) $(APPLICATION_FOUNDATION_LIB) \
+	$(C_RUNTIME_LIB) $(STATIC_LIB)
+
+PROFILE0_FINAL_PATHS := \
+	Makefile \
+	bench/profile0_counter1_bench.c \
+	docs/PROFILING_PROFILE0.md \
+	include/arborcore/profile.h \
+	profile/arborcore-profile-1.contract \
+	src/c/profile.c \
+	tests/c/profile0_adversarial_test.c \
+	tests/c/profile0_core_test.c \
+	tests/c/profile0_integration_test.c \
+	tests/c/profile0_public_consumer_test.c
+
+.PHONY: profile0-library profile0-core-test profile0-adversarial-test
+.PHONY: profile0-integration-test profile0-public-consumer-test profile0-sanitize
+.PHONY: profile0-analyzer profile0-contract-verify profile0-boundary-scan
+.PHONY: profile0-reproducibility-verify profile0-counter1-benchmark
+.PHONY: profile0-focused-gate profile0-gate
+
+$(PROFILE0_BUILD_DIR):
+	mkdir -p $@
+
+$(PROFILE0_OBJ): $(PROFILE0_SOURCE) $(PROFILE0_HEADER) include/arborcore/arborcore.h include/arborcore/assembly_abi.h | $(PROFILE0_BUILD_DIR)
+	$(CC) $(PROFILE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(PROFILE0_LIB): $(PROFILE0_OBJ) | $(BUILD_DIR)
+	$(AR) rcsD $@ $(PROFILE0_OBJ)
+
+profile0-library: $(PROFILE0_LIB)
+
+$(PROFILE0_CORE_TEST_OBJ): $(PROFILE0_CORE_TEST_SOURCE) $(PROFILE0_HEADER) | $(PROFILE0_BUILD_DIR)
+	$(CC) $(PROFILE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(PROFILE0_ADVERSARIAL_TEST_OBJ): $(PROFILE0_ADVERSARIAL_TEST_SOURCE) $(PROFILE0_HEADER) | $(PROFILE0_BUILD_DIR)
+	$(CC) $(PROFILE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(PROFILE0_INTEGRATION_TEST_OBJ): $(PROFILE0_INTEGRATION_TEST_SOURCE) $(PROFILE0_HEADER) $(COUNTER1_HEADER) | $(PROFILE0_BUILD_DIR)
+	$(CC) $(PROFILE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(PROFILE0_PUBLIC_CONSUMER_TEST_OBJ): $(PROFILE0_PUBLIC_CONSUMER_TEST_SOURCE) $(PROFILE0_HEADER) | $(PROFILE0_BUILD_DIR)
+	$(CC) $(PROFILE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(PROFILE0_COUNTER1_BENCH_OBJ): $(PROFILE0_COUNTER1_BENCH_SOURCE) $(PROFILE0_HEADER) $(COUNTER1_HEADER) | $(PROFILE0_BUILD_DIR)
+	$(CC) $(PROFILE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -c $< -o $@
+
+$(PROFILE0_CORE_TEST): $(PROFILE0_CORE_TEST_OBJ) $(PROFILE0_UNIT_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(PROFILE0_CORE_TEST_OBJ) $(PROFILE0_UNIT_LIBRARIES)
+
+profile0-core-test: $(PROFILE0_CORE_TEST)
+	@$(PROFILE0_CORE_TEST)
+
+$(PROFILE0_ADVERSARIAL_TEST): $(PROFILE0_ADVERSARIAL_TEST_OBJ) $(PROFILE0_UNIT_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ $(PROFILE0_ADVERSARIAL_TEST_OBJ) $(PROFILE0_UNIT_LIBRARIES)
+
+profile0-adversarial-test: $(PROFILE0_ADVERSARIAL_TEST)
+	@$(PROFILE0_ADVERSARIAL_TEST)
+
+$(PROFILE0_INTEGRATION_TEST): $(PROFILE0_INTEGRATION_TEST_OBJ) $(PROFILE0_COUNTER1_OBJECTS) $(PROFILE0_COUNTER1_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(PROFILE0_INTEGRATION_TEST_OBJ) $(PROFILE0_COUNTER1_OBJECTS) \
+		$(PROFILE0_COUNTER1_LIBRARIES)
+
+profile0-integration-test: $(PROFILE0_INTEGRATION_TEST)
+	@$(PROFILE0_INTEGRATION_TEST)
+
+$(PROFILE0_PUBLIC_CONSUMER_TEST): $(PROFILE0_PUBLIC_CONSUMER_TEST_OBJ) $(PROFILE0_UNIT_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(PROFILE0_PUBLIC_CONSUMER_TEST_OBJ) $(PROFILE0_UNIT_LIBRARIES)
+
+profile0-public-consumer-test: $(PROFILE0_PUBLIC_CONSUMER_TEST)
+	@$(PROFILE0_PUBLIC_CONSUMER_TEST)
+
+$(PROFILE0_COUNTER1_BENCH): $(PROFILE0_COUNTER1_BENCH_OBJ) $(PROFILE0_COUNTER1_OBJECTS) $(PROFILE0_COUNTER1_LIBRARIES)
+	$(CC) $(ARBORCORE_C_LDFLAGS) -o $@ \
+		$(PROFILE0_COUNTER1_BENCH_OBJ) $(PROFILE0_COUNTER1_OBJECTS) \
+		$(PROFILE0_COUNTER1_LIBRARIES)
+
+profile0-counter1-benchmark: $(PROFILE0_COUNTER1_BENCH)
+	@$(PROFILE0_COUNTER1_BENCH)
+
+profile0-analyzer:
+	@for source in \
+		$(PROFILE0_SOURCE) $(PROFILE0_CORE_TEST_SOURCE) $(PROFILE0_ADVERSARIAL_TEST_SOURCE) \
+		$(PROFILE0_INTEGRATION_TEST_SOURCE) $(PROFILE0_PUBLIC_CONSUMER_TEST_SOURCE) \
+		$(PROFILE0_COUNTER1_BENCH_SOURCE); do \
+		$(CC) $(PROFILE0_CPPFLAGS) $(ARBORCORE_C_CFLAGS) -fanalyzer -fsyntax-only $$source || exit $$?; \
+	done
+	@echo "PASS: PROFILE0 strict C17 and GCC analyzer"
+
+$(PROFILE0_SANITIZE_STAMP): $(PROFILE0_SOURCE) $(PROFILE0_CORE_TEST_SOURCE) $(PROFILE0_ADVERSARIAL_TEST_SOURCE) $(PROFILE0_INTEGRATION_TEST_SOURCE) $(PROFILE0_COUNTER1_OBJECTS) $(C_RUNTIME_LIB) $(STATIC_LIB) | $(PROFILE0_BUILD_DIR)
+	$(CC) $(PROFILE0_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(PROFILE0_CORE_TEST_SOURCE) $(PROFILE0_SOURCE) $(C_RUNTIME_LIB) $(STATIC_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@-core
+	$(CC) $(PROFILE0_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(PROFILE0_ADVERSARIAL_TEST_SOURCE) $(PROFILE0_SOURCE) $(C_RUNTIME_LIB) $(STATIC_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@-adversarial
+	$(CC) $(PROFILE0_CPPFLAGS) $(filter-out -O2,$(ARBORCORE_C_CFLAGS)) -O1 -g \
+		-fsanitize=address,undefined -fno-omit-frame-pointer \
+		$(PROFILE0_INTEGRATION_TEST_SOURCE) $(PROFILE0_SOURCE) $(PROFILE0_COUNTER1_OBJECTS) \
+		$(APPLICATION_SERVICE_RUNTIME_LIB) $(DDD_SUPPORT_LIB) \
+		$(APPLICATION_CAPABILITY_KERNEL_LIB) $(APPLICATION_FOUNDATION_LIB) \
+		$(C_RUNTIME_LIB) $(STATIC_LIB) \
+		$(ARBORCORE_C_LDFLAGS) -fsanitize=address,undefined -o $@-integration
+	@touch $@
+
+profile0-sanitize: $(PROFILE0_SANITIZE_STAMP)
+	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(PROFILE0_SANITIZE_STAMP)-core
+	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(PROFILE0_SANITIZE_STAMP)-adversarial
+	@ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 $(PROFILE0_SANITIZE_STAMP)-integration
+	@echo "PASS: PROFILE0 ASan/UBSan core, adversarial and COUNTER1 integration evidence"
+
+profile0-contract-verify: $(PROFILE0_CONTRACT) $(PROFILE0_LIB)
+	@test "$$(wc -l < $(PROFILE0_CONTRACT))" -eq 152
+	@grep -Fqx 'PROFILE0_API_OPERATIONS=SESSION_PREPARE_SESSION_VALIDATE_SESSION_RESET_REGION_GET_SPAN_BEGIN_SPAN_END' $(PROFILE0_CONTRACT)
+	@grep -Fqx 'PROFILE0_SPAN_FIRST_USE=ALL_ZERO_BYTES_REQUIRED' $(PROFILE0_CONTRACT)
+	@grep -Fqx 'PROFILE0_PUBLIC_FUNCTION_NATIVE_STATUS=ZERO_OR_NEGATIVE_NEVER_POSITIVE' $(PROFILE0_CONTRACT)
+	@grep -Fqx 'PROFILE0_COUNTER1_REGION_ID=0x434f554e54474554' $(PROFILE0_CONTRACT)
+	@grep -Fqx 'PROFILE0_NEXT_AFTER_FREEZE=IMAGE0' $(PROFILE0_CONTRACT)
+	@test "$$($(AR) t $(PROFILE0_LIB) | wc -l)" -eq 1
+	@test "$$($(NM) -g --defined-only $(PROFILE0_LIB) | awk '$$2 ~ /^[TDBR]$$/ && $$3 ~ /^arbor_profile_/ {print $$3}' | sort -u | wc -l)" -eq 6
+	@echo "PASS: PROFILE0 tracked contract and six-symbol one-object static library"
+
+profile0-boundary-scan:
+	@! grep -Eini 'malloc|calloc|realloc|pthread_|_Thread_local|thread_local|clock_gettime|CLOCK_MONOTONIC|rdtsc|rdtscp|rdpmc|perf_event|ebpf|ptrace|fopen|socket|connect|send|recv|opentelemetry|otel' \
+		$(PROFILE0_HEADER) $(PROFILE0_SOURCE)
+	@grep -Fq 'clock_gettime(CLOCK_MONOTONIC' $(PROFILE0_COUNTER1_BENCH_SOURCE)
+	@! grep -Eini 'rdtsc|rdtscp|rdpmc|perf_event|ebpf|ptrace|opentelemetry|otel' $(PROFILE0_COUNTER1_BENCH_SOURCE)
+	@echo "PASS: PROFILE0 core has zero forbidden mechanisms and only benchmark-owned CLOCK_MONOTONIC"
+
+profile0-reproducibility-verify: $(PROFILE0_FINAL_PATHS) | $(PROFILE0_BUILD_DIR)
+	@tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+		-cf $(PROFILE0_BUILD_DIR)/source-a.tar $(PROFILE0_FINAL_PATHS)
+	@tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+		-cf $(PROFILE0_BUILD_DIR)/source-b.tar $(PROFILE0_FINAL_PATHS)
+	@cmp $(PROFILE0_BUILD_DIR)/source-a.tar $(PROFILE0_BUILD_DIR)/source-b.tar
+	@echo "PROFILE0_SOURCE_ARCHIVE_REPRODUCIBILITY=PASS_BYTE_IDENTICAL_TWO_OF_TWO"
+
+profile0-focused-gate: profile0-analyzer profile0-core-test profile0-adversarial-test profile0-integration-test profile0-public-consumer-test profile0-sanitize profile0-contract-verify profile0-boundary-scan profile0-reproducibility-verify profile0-counter1-benchmark
+	@echo "PASS: complete PROFILE0-R0 focused construction evidence"
+
+profile0-gate: profile0-focused-gate app1-gate
+	@echo "PASS: complete PROFILE0-R0 and cumulative frozen dependency evidence"
